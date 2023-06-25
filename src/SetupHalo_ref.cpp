@@ -28,6 +28,8 @@
 #include <omp.h>
 #endif
 
+#define HPCG_DETAILED_DEBUG
+
 #ifdef HPCG_DETAILED_DEBUG
 #include <fstream>
 using std::endl;
@@ -83,8 +85,8 @@ void SetupHalo_ref(SparseMatrix & A) {
       global_int_t curIndex = mtxIndG[i][j];
       int rankIdOfColumnEntry = ComputeRankOfMatrixRow(*(A.geom), curIndex);
 #ifdef HPCG_DETAILED_DEBUG
-      HPCG_fout << "rank, row , col, globalToLocalMap[col] = " << A.geom->rank << " " << currentGlobalRow << " "
-          << curIndex << " " << A.globalToLocalMap[curIndex] << endl;
+      // HPCG_fout << "rank, row , col, globalToLocalMap[col] = " << A.geom->rank << " " << currentGlobalRow << " "
+      //     << curIndex << " " << A.globalToLocalMap[curIndex] << endl;
 #endif
       if (A.geom->rank!=rankIdOfColumnEntry) {// If column index is not a row index, then it comes from another processor
         receiveList[rankIdOfColumnEntry].insert(curIndex);

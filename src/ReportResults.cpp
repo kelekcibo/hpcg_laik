@@ -20,6 +20,7 @@
 
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
+#include "laik_instance.hpp"
 #endif
 
 #include <vector>
@@ -60,9 +61,9 @@ void ReportResults(const SparseMatrix & A, int numberOfMgLevels, int numberOfCgS
   double t4min = 0.0;
   double t4max = 0.0;
   double t4avg = 0.0;
-  MPI_Allreduce(&t4, &t4min, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(&t4, &t4max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&t4, &t4avg, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  laik_allreduce(&t4, &t4min, 1, laik_Double, LAIK_RO_Min);
+  laik_allreduce(&t4, &t4max, 1, laik_Double, LAIK_RO_Max);
+  laik_allreduce(&t4, &t4avg, 1, laik_Double, LAIK_RO_Sum);
   t4avg = t4avg/((double) A.geom->size);
 #endif
 

@@ -19,6 +19,7 @@
  */
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
+#include "laik_instance.hpp"
 #endif
 #ifndef HPCG_NO_OPENMP
 #include <omp.h>
@@ -46,10 +47,11 @@
 
   @return Returns zero on success and a non-zero value otherwise.
 */
-int ComputeResidual(const local_int_t n, const Vector & v1, const Vector & v2, double & residual) {
+int ComputeResidual(const local_int_t n, const Vector &v1, const Vector &v2, double &residual) {
 
   double * v1v = v1.values;
   double * v2v = v2.values;
+
   double local_residual = 0.0;
 
 #ifndef HPCG_NO_OPENMP
@@ -77,12 +79,12 @@ int ComputeResidual(const local_int_t n, const Vector & v1, const Vector & v2, d
 #endif
 
 #ifndef HPCG_NO_MPI
-  // Use MPI's reduce function to collect all partial sums
+  // Use LAIK's reduce function to collect all partial sums
   double global_residual = 0;
-  MPI_Allreduce(&local_residual, &global_residual, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  laik_allreduce((void *)&local_residual, (void *)&global_residual, 1, laik_Double, LAIK_RO_Max);
   residual = global_residual;
 #else
-  residual = local_residual;
+ residual = local_residual;
 #endif
 
   return 0;

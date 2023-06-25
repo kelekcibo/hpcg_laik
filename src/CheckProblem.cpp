@@ -19,7 +19,7 @@
  */
 
 #ifndef HPCG_NO_MPI
-#include <mpi.h>
+#include "laik_instance.hpp"
 #endif
 
 #ifndef HPCG_NO_OPENMP
@@ -32,6 +32,7 @@ using std::endl;
 #include "hpcg.hpp"
 #endif
 #include <cassert>
+#include <iostream>
 
 #include "CheckProblem.hpp"
 
@@ -130,12 +131,12 @@ void CheckProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact) {
 
   global_int_t totalNumberOfNonzeros = 0;
 #ifndef HPCG_NO_MPI
-  // Use MPI's reduce function to sum all nonzeros
+  // Use reduce function to sum all nonzeros
 #ifdef HPCG_NO_LONG_LONG
-  MPI_Allreduce(&localNumberOfNonzeros, &totalNumberOfNonzeros, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  laik_allreduce((void *)&localNumberOfNonzeros, (void *)&totalNumberOfNonzeros, 1, laik_Int64, LAIK_RO_Sum);
 #else
   long long lnnz = localNumberOfNonzeros, gnnz = 0; // convert to 64 bit for MPI call
-  MPI_Allreduce(&lnnz, &gnnz, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+  laik_allreduce((void *)&lnnz, (void *)&gnnz, 1, laik_UInt64, LAIK_RO_Sum); // Int64 == long_long_int ?
   totalNumberOfNonzeros = gnnz; // Copy back
 #endif
 #else

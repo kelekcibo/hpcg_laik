@@ -21,8 +21,14 @@
 // Main routine of a program that calls the HPCG conjugate gradient
 // solver to solve the problem, and then prints results.
 
+// ##################### 
+
+// #define HPCG_DETAILED_DEBUG
+// #define HPCG_DEBUG
+
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
+#include "laik_instance.hpp"
 #endif
 
 #include <fstream>
@@ -72,17 +78,19 @@ using std::endl;
 */
 int main(int argc, char * argv[]) {
 
-#ifndef HPCG_NO_MPI
-  MPI_Init(&argc, &argv);
-#endif
-
   HPCG_Params params;
+
+#ifndef HPCG_NO_MPI
+  hpcg_instance = laik_init(&argc, &argv);
+  world = laik_world(hpcg_instance);
+  MPI_Init(&argc, &argv); // delete after port to LAIK
+#endif
 
   HPCG_Init(&argc, &argv, params);
 
   // Check if QuickPath option is enabled.
   // If the running time is set to zero, we minimize all paths through the program
-  bool quickPath = (params.runningTime==0);
+  bool quickPath = (params.runningTime == 0);
 
   int size = params.comm_size, rank = params.comm_rank; // Number of MPI processes, My process ID
 
@@ -90,12 +98,14 @@ int main(int argc, char * argv[]) {
   if (size < 100 && rank==0) HPCG_fout << "Process "<<rank<<" of "<<size<<" is alive with " << params.numThreads << " threads." <<endl;
 
   if (rank==0) {
-    char c;
-    std::cout << "Press key to continue"<< std::endl;
-    std::cin.get(c);
+  printf("LAIK %d\tStart Application. %d arguments specified\n\n", rank, argc);
+
+  char c;
+  std::cout << "Press key to continue" << std::endl;
+  std::cin.get(c);
   }
 #ifndef HPCG_NO_MPI
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD);   // Is there a way to barrier with LAIK?
 #endif
 #endif
 
@@ -105,9 +115,15 @@ int main(int argc, char * argv[]) {
   nz = (local_int_t)params.nz;
   int ierr = 0;  // Used to check return codes on function calls
 
+  // Broadcast was done correctly
+  assert(nx == ny);
+  assert(ny == nz);
+  assert(nz == 104);
+
   ierr = CheckAspectRatio(0.125, nx, ny, nz, "local problem", rank==0);
   if (ierr)
     return ierr;
+
 
   /////////////////////////
   // Problem setup Phase //
@@ -117,6 +133,7 @@ int main(int argc, char * argv[]) {
   double t1 = mytimer();
 #endif
 
+  printf("LAIK %d\tINIT\n", laik_myid(world));
   // Construct the geometry and linear system
   Geometry * geom = new Geometry;
   GenerateGeometry(size, rank, params.numThreads, params.pz, params.zl, params.zu, nx, ny, nz, params.npx, params.npy, params.npz, geom);
@@ -135,7 +152,13 @@ int main(int argc, char * argv[]) {
 
   Vector b, x, xexact;
   GenerateProblem(A, &b, &x, &xexact);
+
+  // Partitioning can be done here
+  // need 2 partions (similiar to jac2d example)
+  // will replace SetupHalo then
   SetupHalo(A);
+
+
   int numberOfMgLevels = 4; // Number of levels including first
   SparseMatrix * curLevelMatrix = &A;
   for (int level = 1; level< numberOfMgLevels; ++level) {
@@ -162,11 +185,13 @@ int main(int argc, char * argv[]) {
   CGData data;
   InitializeSparseCGData(A, data);
 
-
+  printf("INIT DONE\n");
 
   ////////////////////////////////////
   // Reference SpMV+MG Timing Phase //
   ////////////////////////////////////
+
+  printf("Start  Reference SpMV+MG Timing Phase\n");
 
   // Call Reference SpMV and MG. Compute Optimization time as ratio of times in these routines
 
@@ -196,9 +221,13 @@ int main(int argc, char * argv[]) {
   if (rank==0) HPCG_fout << "Total SpMV+MG timing phase execution time in main (sec) = " << mytimer() - t1 << endl;
 #endif
 
+  printf("DONE Reference SpMV+MG Timing Phase\n");
+
   ///////////////////////////////
   // Reference CG Timing Phase //
   ///////////////////////////////
+
+  printf("Start CG\n");
 
 #ifdef HPCG_DEBUG
   t1 = mytimer();
@@ -238,13 +267,14 @@ int main(int argc, char * argv[]) {
   if (geom->size == 1) WriteProblem(*geom, A, b, x, xexact);
 #endif
 
+  printf("Done CG\n");
 
   //////////////////////////////
   // Validation Testing Phase //
   //////////////////////////////
 
 #ifdef HPCG_DEBUG
-  t1 = mytimer();
+      t1 = mytimer();
 #endif
   TestCGData testcg_data;
   testcg_data.count_pass = testcg_data.count_fail = 0;
@@ -296,7 +326,7 @@ int main(int argc, char * argv[]) {
 #ifndef HPCG_NO_MPI
 // Get the absolute worst time across all MPI ranks (time in CG can be different)
   double local_opt_worst_time = opt_worst_time;
-  MPI_Allreduce(&local_opt_worst_time, &opt_worst_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  laik_allreduce(&local_opt_worst_time, &opt_worst_time, 1, laik_Double, LAIK_RO_Max);
 #endif
 
 
@@ -351,6 +381,9 @@ int main(int argc, char * argv[]) {
 
   // Test Norm Results
   ierr = TestNorms(testnorms_data);
+  if (ierr)
+    HPCG_fout << "Error in call to TestNorms: " << ierr << ".\n"
+              << endl;
 
   ////////////////////
   // Report Results //
@@ -375,7 +408,9 @@ int main(int argc, char * argv[]) {
 
   // Finish up
 #ifndef HPCG_NO_MPI
-  MPI_Finalize();
+  laik_finalize(hpcg_instance);
+  MPI_Finalize(); // delete after port
 #endif
+
   return 0;
 }

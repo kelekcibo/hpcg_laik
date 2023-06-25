@@ -87,6 +87,19 @@ MPinc        =
 MPlib        =
 #
 #
+#
+# ----------------------------------------------------------------------
+# - LAIK - Library includes / libraries / specifics -------------------------------
+# ----------------------------------------------------------------------
+DEFS          = -DUSE_MPI -DUSE_TCP2
+LAIKLIB       = -L/usr/local/lib -llaik
+# LAIK_INCLUDES = -I./laik/include -I./laik/include/laik/
+LAIK_INCLUDES = -I/usr/local/include/laik -I/usr/local/include/
+LAIK_FLAGS    = $(DEFS) $(LAIK_INCLUDES)
+#
+#
+#
+#
 # ----------------------------------------------------------------------
 # - HPCG includes / libraries / specifics -------------------------------
 # ----------------------------------------------------------------------
@@ -119,9 +132,9 @@ HPCG_DEFS     = $(HPCG_OPTS) $(HPCG_INCLUDES)
 #
 CXX          = mpicxx
 #CXXFLAGS     = $(HPCG_DEFS) -fomit-frame-pointer -O3 -funroll-loops -W -Wall
-CXXFLAGS     = $(HPCG_DEFS) -O3 -ffast-math -ftree-vectorize -ftree-vectorizer-verbose=0
+CXXFLAGS     = $(HPCG_DEFS) -O3 -ffast-math -ftree-vectorize -ftree-vectorizer-verbose=0 $(LAIK_FLAGS)
 #
-LINKER       = $(CXX)
+LINKER       = $(CXX) 
 LINKFLAGS    = $(CXXFLAGS)
 #
 ARCHIVER     = ar
