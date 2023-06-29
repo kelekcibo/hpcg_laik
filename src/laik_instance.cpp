@@ -7,9 +7,10 @@
 
 #include <iostream>
 #include <cstring>
+#include <cassert>
 
 // should be initialized at the very beginning of the program. No use without init. 
-Laik_Instance *hpcg_instance;
+Laik_Instance *hpcg_instance; /* Laik instance during HPCG run */
 Laik_Group *world;
 
 
@@ -76,6 +77,7 @@ void laik_helper(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data
         for (uint64_t i = 0; i < count; ++i)
             recvBuf_tmp[i] = base[i];
 
+        assert(count == n); // elements in buffer; should be equal
         std::memcpy(recvBuf, recvBuf_tmp, count * sizeof(int32_t));
     }
     else if (data_type == laik_Double)
@@ -87,7 +89,8 @@ void laik_helper(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data
         for (uint64_t i = 0; i < count; ++i)
             recvBuf_tmp[i] = base[i];
 
-        std::memcpy(recvBuf, recvBuf_tmp, count * sizeof(double)); // count should be equal to n
+        assert(count == n); // elements in buffer; should be equal
+        std::memcpy(recvBuf, recvBuf_tmp, count * sizeof(double));
     }
     else if (data_type == laik_UInt64)
     {
@@ -98,6 +101,7 @@ void laik_helper(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data
         for (uint64_t i = 0; i < count; ++i)
             recvBuf_tmp[i] = base[i];
 
+        assert(count == n); // elements in buffer; should be equal
         std::memcpy(recvBuf, (void *)recvBuf_tmp, count * sizeof(uint64_t));
     }
 

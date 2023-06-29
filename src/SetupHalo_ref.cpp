@@ -73,6 +73,26 @@ void SetupHalo_ref(SparseMatrix & A) {
   //  We need to receive this value of the x vector during the halo exchange.
   // 2) We record our row ID since we know that the other processor will need this value from us, due to symmetry.
 
+  // #### Debug
+  HPCG_fout << "\n\nSETUP_HALO_REF\n\nmtxIndG" << std::endl;
+  for (local_int_t i = 0; i < localNumberOfRows; i++)
+  {
+    HPCG_fout << (int)nonzerosInRow[i] << " Non zeros in row " << i << std::endl;
+
+    for (int j = 0; j < nonzerosInRow[i]; j++)
+    {
+      HPCG_fout << mtxIndG[i][j] << ((j == nonzerosInRow[i] - 1) ? "" : ", ");
+
+      if (j == 8) break;
+    }
+    HPCG_fout << std::endl;
+    if (i == 8)
+      break;
+  }
+
+  HPCG_fout << std::endl;
+  // #### Debug
+
   std::map< int, std::set< global_int_t> > sendList, receiveList;
   typedef std::map< int, std::set< global_int_t> >::iterator map_iter;
   typedef std::set<global_int_t>::iterator set_iter;

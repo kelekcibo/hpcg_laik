@@ -21,16 +21,10 @@
 /////////////////////////////////////////////////////////////////////////
 
 #ifndef HPCG_NO_MPI
-#include <mpi.h>
 #include "laik_instance.hpp"
 
-double mytimer(void) {
-  return MPI_Wtime();
-}
-
-double mytimerLaik(void)
+double mytimer(void)
 {
-  // return MPI_Wtime();
   return laik_wtime();
 }
 

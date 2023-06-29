@@ -41,7 +41,6 @@ CheckAspectRatio(double smallest_ratio, int x, int y, int z, const char *what, b
     }
 
 #ifndef HPCG_NO_MPI
-    // MPI_Abort(MPI_COMM_WORLD, 127);
     laik_finalize(hpcg_instance);
 #endif
 
