@@ -19,7 +19,7 @@
  */
 
 #ifndef HPCG_NO_MPI
-#include <mpi.h>
+#include "laik_instance.hpp"
 #include <map>
 #include <set>
 #endif
@@ -29,7 +29,6 @@
 #endif
 
 #define HPCG_DETAILED_DEBUG
-
 #ifdef HPCG_DETAILED_DEBUG
 #include <fstream>
 using std::endl;
@@ -73,26 +72,6 @@ void SetupHalo_ref(SparseMatrix & A) {
   //  We need to receive this value of the x vector during the halo exchange.
   // 2) We record our row ID since we know that the other processor will need this value from us, due to symmetry.
 
-  // #### Debug
-  HPCG_fout << "\n\nSETUP_HALO_REF\n\nmtxIndG" << std::endl;
-  for (local_int_t i = 0; i < localNumberOfRows; i++)
-  {
-    HPCG_fout << (int)nonzerosInRow[i] << " Non zeros in row " << i << std::endl;
-
-    for (int j = 0; j < nonzerosInRow[i]; j++)
-    {
-      HPCG_fout << mtxIndG[i][j] << ((j == nonzerosInRow[i] - 1) ? "" : ", ");
-
-      if (j == 8) break;
-    }
-    HPCG_fout << std::endl;
-    if (i == 8)
-      break;
-  }
-
-  HPCG_fout << std::endl;
-  // #### Debug
-
   std::map< int, std::set< global_int_t> > sendList, receiveList;
   typedef std::map< int, std::set< global_int_t> >::iterator map_iter;
   typedef std::set<global_int_t>::iterator set_iter;
@@ -124,7 +103,6 @@ void SetupHalo_ref(SparseMatrix & A) {
   for (map_iter curNeighbor = receiveList.begin(); curNeighbor != receiveList.end(); ++curNeighbor) {
     totalToBeReceived += (curNeighbor->second).size();
   }
-
 #ifdef HPCG_DETAILED_DEBUG
   // These are all attributes that should be true, due to symmetry
   HPCG_fout << "totalToBeSent = " << totalToBeSent << " totalToBeReceived = " << totalToBeReceived << endl;
@@ -186,6 +164,18 @@ void SetupHalo_ref(SparseMatrix & A) {
   A.receiveLength = receiveLength;
   A.sendLength = sendLength;
   A.sendBuffer = sendBuffer;
+
+  pt_data data; /* TODO:GenerateCoarse Problem creates multiple matrices, so need different partitionings */
+  data.elementsToSend = elementsToSend;
+  data.size = A.localNumberOfColumns;
+  data.numberOfExternalValues = A.numberOfExternalValues;
+  data.numberOfNeighbours= A.numberOfSendNeighbors;
+  data.neighbors = neighbors;
+  data.receiveLength = receiveLength;
+  data.halo = true;
+
+  init_partitionings(&data);
+
 
 #ifdef HPCG_DETAILED_DEBUG
   HPCG_fout << " For rank " << A.geom->rank << " of " << A.geom->size << ", number of neighbors = " << A.numberOfSendNeighbors << endl;

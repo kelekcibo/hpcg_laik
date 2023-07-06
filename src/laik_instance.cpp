@@ -9,10 +9,80 @@
 #include <cstring>
 #include <cassert>
 
-// should be initialized at the very beginning of the program. No use without init. 
+
+// should be initialized at the very beginning of the program. No use without init.
 Laik_Instance *hpcg_instance; /* Laik instance during HPCG run */
 Laik_Group *world;
 
+/* Space and containers */
+Laik_Space *x_space; /* space of vector x */
+Laik_Data *x_vector; /* Proc i local portion */
+Laik_Data *x_vector_halo; /* Proc i local portion + halo values */
+
+/* Partitioning to switch between */
+Laik_Partitioning *x_pt;  
+Laik_Partitioning *x_halo_pt;
+
+
+void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
+{
+
+    pt_data * data = (pt_data *) laik_partitioner_data(p->partitioner);
+
+    
+    uint32_t local_portion = data->size - data->numberOfExternalValues;
+
+    Laik_Range range;
+
+    for(uint32_t id = 0; id < laik_size(world); id++)
+    {
+        int64_t currentIndexInRange = local_portion;
+        // assign every process its local portion of the x vector with map_id = id
+        laik_range_init_1d(&range, x_space, 0, currentIndexInRange);
+        laik_append_range(r, id, &range, id, 0);
+
+        
+        if(data->halo)
+        {
+            // Now we have init range for neighbours we need to receive from
+            for (int nb = 0; nb < data->numberOfNeighbours; nb++)
+            {
+                laik_range_init_1d(&range, x_space, currentIndexInRange, currentIndexInRange + data->receiveLength[nb]);
+                laik_append_range(r, data->neighbors[nb], &range, id, 0);
+                currentIndexInRange += data->receiveLength[nb];
+            }
+        }
+        else
+        {
+            // Process <id> owns now the whole vector
+            laik_range_init_1d(&range, x_space, currentIndexInRange, currentIndexInRange + data->numberOfExternalValues);
+            laik_append_range(r, id, &range, id, 0);
+        }
+    }
+}
+
+
+/**
+ * @brief Initializing the two partitiongs to switch between them (exchanging data between processes)
+ * 
+ * @param data - necessary information needed for the partitioner algorithm
+ */
+void init_partitionings(pt_data * data)
+{
+    x_space = laik_new_space_1d(hpcg_instance, data->size);
+    x_vector = laik_new_data(x_space, laik_Double);
+    x_vector_halo = laik_new_data(x_space, laik_Double);
+
+    // Initialize partitioners to partition data accordingly
+    data->halo = false;
+    Laik_Partitioner *x_pr = laik_new_partitioner("x_pt", partitioner_x, (void *)data, LAIK_PF_None);
+
+    data->halo = true;
+    Laik_Partitioner *x_halo_pr = laik_new_partitioner("x_pt_halo", partitioner_x, (void *)data, LAIK_PF_None);
+
+    x_halo_pt = laik_new_partitioning(x_halo_pr, world, x_space, NULL);
+    x_pt = laik_new_partitioning(x_pr, world, x_space, NULL); 
+}
 
 /**
  * @brief Helper function implements Allreduce / Broadcast
@@ -138,5 +208,19 @@ void laik_allreduce(const void * sendBuf, void * recvBuf, uint64_t n, Laik_Type 
 void laik_broadcast(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data_type)
 {
     laik_helper(sendBuf, recvBuf, n, data_type, LAIK_RO_None, laik_Master);
+    return;
+}
+
+/**
+ * @brief Synchronize all processes
+ * 
+ */
+void laik_barrier()
+{
+    // arbitrary data
+    int32_t data = 71; 
+
+    // Synchronize all processes by making use of an All-to-All-Reduction
+    laik_helper(&data, &data, 1, laik_Int32, LAIK_RO_None, laik_All);
     return;
 }

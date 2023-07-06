@@ -67,57 +67,6 @@ using std::endl;
 #include "TestSymmetry.hpp"
 #include "TestNorms.hpp"
 
-// #### Debug
-void printSPM(SparseMatrix *spm)
-{
-  // Global data
-  HPCG_fout << "\n##################### Global stats #####################\n\n";
-
-  HPCG_fout << "\nTotal # of rows " << spm->totalNumberOfRows
-            << std::endl
-            << "\nTotal # of nonzeros " << spm->totalNumberOfNonzeros
-            << std::endl;
-
-  HPCG_fout << "\n##################### Local stats #####################\n\n";
-
-  // Local
-  HPCG_fout << "\nLocal # of rows " << spm->localNumberOfRows
-            << std::endl
-            << "\nLocal # of nonzeros " << spm->localNumberOfNonzeros
-            << std::endl;
-
-  HPCG_fout << "\n##################### Mapping of rows #####################\n\n";
-
-  // Global to local mapping:
-  HPCG_fout << "\nLocal-to-global Map\n";
-  HPCG_fout << "Local\tGlobal\n";
-  for(int c = 0; c < spm->localToGlobalMap.size(); c++){
-    HPCG_fout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
-  }
-
-  HPCG_fout << "\nGlobal-to-local Map\n";
-  HPCG_fout << "Global\tlocal\n";
-  for (int c = 0; c < spm->globalToLocalMap.size(); c++)
-  {
-    HPCG_fout << c << "\t\t" << spm->globalToLocalMap[c] << std::endl;
-  }
-
-  // Non zero indexes
-  HPCG_fout << "\n\n##################### Local subblock in matrix #####################\n\n";
-  for (uint64_t row_i = 0; row_i < spm->localNumberOfRows && row_i < 8; row_i++)
-  {
-    HPCG_fout << "Row " << row_i << " (" << (int) spm->nonzerosInRow[row_i] << " non zeros) mtxIndL" << std::endl
-              << std::endl;
-
-    for(uint64_t nz_column_j = 0; nz_column_j < spm->nonzerosInRow[row_i]; nz_column_j++)
-    {
-      HPCG_fout << "Index (" << row_i << "," << spm->mtxIndL[row_i][nz_column_j] << ") = " << spm->matrixValues[row_i][nz_column_j] << std::endl;
-    }
-    HPCG_fout << std::endl;
-  }
-}
-// #### Debug
-
 /*!
   Main driver program: Construct synthetic problem, run V&V tests, compute benchmark parameters, run benchmark, report results.
 
@@ -132,7 +81,6 @@ int main(int argc, char * argv[]) {
   HPCG_Params params;
 
 #ifndef HPCG_NO_MPI
-  MPI_Init(&argc, &argv); // delete after port to LAIK
   hpcg_instance = laik_init(&argc, &argv);
   world = laik_world(hpcg_instance);
 #endif
@@ -156,7 +104,7 @@ int main(int argc, char * argv[]) {
   std::cin.get(c);
   }
 #ifndef HPCG_NO_MPI
-  MPI_Barrier(MPI_COMM_WORLD);   // Is there a way to barrier with LAIK?
+  laik_barrier();
 #endif
 #endif
 
@@ -205,18 +153,12 @@ int main(int argc, char * argv[]) {
   SetupHalo(A);
 
 
+
   int numberOfMgLevels = 4; // Number of levels including first
   SparseMatrix * curLevelMatrix = &A;
   for (int level = 1; level< numberOfMgLevels; ++level) {
-    HPCG_fout << "\nCoarse Problem level " << level << std::endl;
     GenerateCoarseProblem(*curLevelMatrix);
     curLevelMatrix = curLevelMatrix->Ac; // Make the just-constructed coarse grid the next level
-  
-    // #### Debug
-    if(level == 3){
-      printSPM(curLevelMatrix);
-    }
-    // #### Debug
   }
 
   setup_time = mytimer() - setup_time; // Capture total time of setup
