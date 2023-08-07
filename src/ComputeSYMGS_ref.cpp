@@ -20,9 +20,12 @@
 
 #ifndef HPCG_NO_MPI
 #include "ExchangeHalo.hpp"
+#include "laik_instance.hpp"
 #endif
 #include "ComputeSYMGS_ref.hpp"
 #include <cassert>
+#include <iostream>
+#include <cstdlib>
 
 /*!
   Computes one step of symmetric Gauss-Seidel:
@@ -56,7 +59,41 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 
 #ifndef HPCG_NO_MPI
-  ExchangeHalo(A,x);
+  if (A.level == 3)
+  {
+    /* test */
+    exchangeValues(false);
+
+    double *base;
+    uint64_t count;
+    laik_get_map_1d(x_vector, 0, (void **)&base, &count);
+    for (size_t i = 0; i < count; i++)
+    {
+      base[i] = x.values[i];
+    }
+
+  if (A.geom->rank == 0)
+      printf("Jumping into exchangeValues!\n");
+
+    exchangeValues(true);
+
+    ExchangeHalo(A, x);
+
+  if (A.geom->rank == 0)
+      printf("Exchanged Values. Checking if LAIK PARTITIONING IS CORRECT\n\n");
+
+    laik_get_map_1d(x_vector, 0, (void **)&base, &count);
+    assert(x.localLength == count);
+    for (size_t i = 0; i < count; i++)
+    {
+      assert(base[i] == x.values[i]);
+    }
+
+  if (A.geom->rank == 0)
+      printf("CORRECT\n");
+  }
+  else
+    ExchangeHalo(A, x);
 #endif
 
   const local_int_t nrow = A.localNumberOfRows;

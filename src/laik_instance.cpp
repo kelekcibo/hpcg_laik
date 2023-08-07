@@ -28,37 +28,59 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
 {
 
     pt_data * data = (pt_data *) laik_partitioner_data(p->partitioner);
-
-    
-    uint32_t local_portion = data->size - data->numberOfExternalValues;
+    int id1 = laik_myid(world);
 
     Laik_Range range;
 
     for(uint32_t id = 0; id < laik_size(world); id++)
     {
-        int64_t currentIndexInRange = local_portion;
-        // assign every process its local portion of the x vector with map_id = id
-        laik_range_init_1d(&range, x_space, 0, currentIndexInRange);
-        laik_append_range(r, id, &range, id, 0);
+        // assign every process its local portion of the x vector
+        laik_range_init_1d(&range, x_space, data->local_portion * id, data->local_portion * id + data->local_portion);
+        laik_append_range(r, id, &range, 0, 0);
+    }
 
-        
-        if(data->halo)
+    if (data->halo)
+    {
+        local_int_t index_elementsToSend = 0;
+
+        // Process i needs to send local values
+        for (int nb = 0; nb < data->numberOfNeighbours; nb++)
         {
-            // Now we have init range for neighbours we need to receive from
-            for (int nb = 0; nb < data->numberOfNeighbours; nb++)
+            local_int_t numbOfElementsToSend = data->receiveLength[nb]; // due to symmetry, this is equal to sendLength[nb]
+
+            for(local_int_t i = 0; i < numbOfElementsToSend; i++)
             {
-                laik_range_init_1d(&range, x_space, currentIndexInRange, currentIndexInRange + data->receiveLength[nb]);
-                laik_append_range(r, data->neighbors[nb], &range, id, 0);
-                currentIndexInRange += data->receiveLength[nb];
+
+                local_int_t j = data->elementsToSend[index_elementsToSend++]; // neighbour n needs this value from proc i
+                j += data->local_portion * laik_myid(world);                  // offset to local portion of proc i
+
+                printf("I (%d) need to give access to proc %d at local offset %d\n", id1, data->neighbors[nb], j - (data->local_portion * laik_myid(world)));
+
+                laik_range_init_1d(&range, x_space, j, j+1);
+                laik_append_range(r, data->neighbors[nb], &range, 0, 0);
             }
         }
-        else
+
+
+        typedef std::set<global_int_t>::iterator set_iter;
+
+        // process i needs to get external values
+        for (int nb = 0; nb < data->numberOfNeighbours; nb++)
         {
-            // Process <id> owns now the whole vector
-            laik_range_init_1d(&range, x_space, currentIndexInRange, currentIndexInRange + data->numberOfExternalValues);
-            laik_append_range(r, id, &range, id, 0);
+            for (set_iter i = data->receiveList[data->neighbors[nb]].begin(); i != data->receiveList[data->neighbors[nb]].end(); ++i)
+            {
+                // TODO: How to get mapping from global to local of external values?
+                int globalIndex = *i; // receiveList mit local indices speichern
+
+                laik_range_init_1d(&range, x_space, globalIndex, globalIndex + 1);
+                laik_append_range(r, id1, &range, 0, 0);
+
+                printf("I (%d) need to have access to local offset %d of proc %d \n", id1, globalIndex, data->neighbors[nb]);
+            }       
         }
     }
+
+    // printf("Partitioning with halo (%s) intialized!\n", (data->halo == 1 ? "true":"false"));
 }
 
 
@@ -71,17 +93,36 @@ void init_partitionings(pt_data * data)
 {
     x_space = laik_new_space_1d(hpcg_instance, data->size);
     x_vector = laik_new_data(x_space, laik_Double);
-    x_vector_halo = laik_new_data(x_space, laik_Double);
 
     // Initialize partitioners to partition data accordingly
     data->halo = false;
     Laik_Partitioner *x_pr = laik_new_partitioner("x_pt", partitioner_x, (void *)data, LAIK_PF_None);
 
-    data->halo = true;
-    Laik_Partitioner *x_halo_pr = laik_new_partitioner("x_pt_halo", partitioner_x, (void *)data, LAIK_PF_None);
+    pt_data data2;
+    std::memcpy((void *) &data2, (void *)data, sizeof(pt_data));
+
+    data2.halo = true;
+    Laik_Partitioner *x_halo_pr = laik_new_partitioner("x_pt_halo", partitioner_x, (void *) &data2, LAIK_PF_None);
 
     x_halo_pt = laik_new_partitioning(x_halo_pr, world, x_space, NULL);
     x_pt = laik_new_partitioning(x_pr, world, x_space, NULL); 
+}
+
+
+/**
+ * @brief Switch between partitionings to exchange data
+ * 
+ * @param halo allow access to external values, if true
+ */
+void exchangeValues(bool halo){
+
+    if(halo)
+    {
+        laik_switchto_partitioning(x_vector, x_halo_pt, LAIK_DF_Preserve, LAIK_RO_None);
+        return;
+    }
+
+    laik_switchto_partitioning(x_vector, x_pt, LAIK_DF_Preserve, LAIK_RO_None);
 }
 
 /**

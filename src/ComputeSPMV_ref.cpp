@@ -22,6 +22,9 @@
 
 #ifndef HPCG_NO_MPI
 #include "ExchangeHalo.hpp"
+#include "laik_instance.hpp"
+#include <iostream>
+#include <cstdlib>
 #endif
 
 #ifndef HPCG_NO_OPENMP
@@ -50,8 +53,9 @@ int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
   assert(y.localLength>=A.localNumberOfRows);
 
 #ifndef HPCG_NO_MPI
-    ExchangeHalo(A,x);
+  ExchangeHalo(A, x);
 #endif
+
   const double * const xv = x.values;
   double * const yv = y.values;
   const local_int_t nrow = A.localNumberOfRows;
@@ -68,5 +72,10 @@ int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
       sum += cur_vals[j]*xv[cur_inds[j]];
     yv[i] = sum;
   }
+
+#ifndef HPCG_NO_MPI
+  // exchangeValues(false);
+#endif
+
   return 0;
 }
