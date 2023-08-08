@@ -8,7 +8,7 @@ extern "C" {
     #include <laik.h>
 }
 
-#include "Geometry.hpp" /* For local_int_t*/
+#include "Geometry.hpp"
 #include <set>
 #include <map>
 
@@ -20,12 +20,9 @@ extern "C" {
 typedef struct partition_data
 {
     local_int_t size;                       /* size of vector x */
-    local_int_t local_portion;              /* Local portion of each proc in vector x */
-    local_int_t numberOfExternalValues;     /* number of elements which need to be received */
-    local_int_t * elementsToSend;           /* local index to vector x of elements to be sent */
+    Geometry *geom;                         /* Geometry of the problem */
     int numberOfNeighbours;                 /* count neighbors we need to exchange data with*/
-    int * neighbors;                         /* Process ID's of neighbours */
-    local_int_t * receiveLength;            /* number of elements to be received/sent by/to neighbours */
+    int * neighbors;                        /* Process ID's of neighbours */
     std::map<int, std::set<global_int_t>> receiveList; /* Global Indices proc i needs to receive */
     bool halo; /* x will be partioned such that indices to external values are owned by other procs as well */
 } pt_data;

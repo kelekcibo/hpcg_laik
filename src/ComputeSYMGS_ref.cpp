@@ -77,6 +77,9 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
 
     exchangeValues(true);
 
+    if (A.geom->rank == 0)
+      printf("Done with exchangeValues!\n");
+
     ExchangeHalo(A, x);
 
   if (A.geom->rank == 0)

@@ -22,6 +22,8 @@
 #include "laik_instance.hpp"
 #include <map>
 #include <set>
+#include <cstring>
+
 #include <iostream>
 #include <cstdlib>
 int level = 0;
@@ -171,18 +173,24 @@ void SetupHalo_ref(SparseMatrix & A) {
   if(level == 3)
   {
     pt_data * data = (pt_data *) malloc(sizeof(pt_data));
+    printf("### here 1\n");
+
     /* TODO: GenerateCoarse Problem creates multiple matrices, so need different partitionings */
-    data->elementsToSend = elementsToSend;
     data->size = A.totalNumberOfRows;
-    data->local_portion = A.localNumberOfRows;
-    data->numberOfExternalValues = A.numberOfExternalValues;
+    printf("### here a\n");
+    data->geom = A.geom;
+    printf("### here b\n");
     data->numberOfNeighbours = A.numberOfSendNeighbors;
+    printf("### here c\n");
     data->neighbors = neighbors;
-    data->receiveLength = receiveLength;
-    data->halo = true;
+    printf("### here d\n");
+    std::memcpy((void *) &data->receiveList, (void *) &receiveList, sizeof(receiveList));
     data->receiveList = receiveList;
-    A.level = 0;
+    printf("### here e\n");
+    data->halo = true;
+    printf("### here f\n");
     init_partitionings(data);
+    printf("### here g\n");
   }
 
   A.level = level++;

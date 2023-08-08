@@ -4,6 +4,7 @@
  */
 
 #include "laik_instance.hpp"
+#include "Geometry.hpp"
 
 #include <iostream>
 #include <cstring>
@@ -16,8 +17,7 @@ Laik_Group *world;
 
 /* Space and containers */
 Laik_Space *x_space; /* space of vector x */
-Laik_Data *x_vector; /* Proc i local portion */
-Laik_Data *x_vector_halo; /* Proc i local portion + halo values */
+Laik_Data *x_vector; /* container / x vector */
 
 /* Partitioning to switch between */
 Laik_Partitioning *x_pt;  
@@ -28,59 +28,44 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
 {
 
     pt_data * data = (pt_data *) laik_partitioner_data(p->partitioner);
-    int id1 = laik_myid(world);
 
     Laik_Range range;
 
-    for(uint32_t id = 0; id < laik_size(world); id++)
+    if(laik_myid(world) == 0)
+        printf("Global partitioning [");
+
+    for(uint32_t i = 0; i < data->size; i++)
     {
-        // assign every process its local portion of the x vector
-        laik_range_init_1d(&range, x_space, data->local_portion * id, data->local_portion * id + data->local_portion);
-        laik_append_range(r, id, &range, 0, 0);
+        // assign every process its global part
+        laik_range_init_1d(&range, x_space, i, i+1);
+        laik_append_range(r, ComputeRankOfMatrixRow(*data->geom, i), &range, 0, 0);
+
+        if (laik_myid(world) == 0)
+            printf("%d, ", ComputeRankOfMatrixRow(*data->geom, i));
     }
 
+    if (laik_myid(world) == 0)
+        printf("]\n");
+
+    // process i needs access to external values
     if (data->halo)
     {
-        local_int_t index_elementsToSend = 0;
-
-        // Process i needs to send local values
-        for (int nb = 0; nb < data->numberOfNeighbours; nb++)
-        {
-            local_int_t numbOfElementsToSend = data->receiveLength[nb]; // due to symmetry, this is equal to sendLength[nb]
-
-            for(local_int_t i = 0; i < numbOfElementsToSend; i++)
-            {
-
-                local_int_t j = data->elementsToSend[index_elementsToSend++]; // neighbour n needs this value from proc i
-                j += data->local_portion * laik_myid(world);                  // offset to local portion of proc i
-
-                printf("I (%d) need to give access to proc %d at local offset %d\n", id1, data->neighbors[nb], j - (data->local_portion * laik_myid(world)));
-
-                laik_range_init_1d(&range, x_space, j, j+1);
-                laik_append_range(r, data->neighbors[nb], &range, 0, 0);
-            }
-        }
-
-
+        int rank = laik_myid(world);
         typedef std::set<global_int_t>::iterator set_iter;
 
-        // process i needs to get external values
         for (int nb = 0; nb < data->numberOfNeighbours; nb++)
         {
             for (set_iter i = data->receiveList[data->neighbors[nb]].begin(); i != data->receiveList[data->neighbors[nb]].end(); ++i)
             {
-                // TODO: How to get mapping from global to local of external values?
-                int globalIndex = *i; // receiveList mit local indices speichern
+                int globalIndex = *i; 
 
                 laik_range_init_1d(&range, x_space, globalIndex, globalIndex + 1);
-                laik_append_range(r, id1, &range, 0, 0);
+                laik_append_range(r, rank, &range, 0, 0);
 
-                printf("I (%d) need to have access to local offset %d of proc %d \n", id1, globalIndex, data->neighbors[nb]);
+                // printf("I (%d) need to have access to global index %d of x vector (updated by proc %d)\n", rank, globalIndex, data->neighbors[nb]);
             }       
         }
     }
-
-    // printf("Partitioning with halo (%s) intialized!\n", (data->halo == 1 ? "true":"false"));
 }
 
 
@@ -155,7 +140,8 @@ void laik_helper(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data
         for (uint64_t i = 0; i < count; ++i)
             base[i] = sendBuf_tmp[i];
 
-    }else if(data_type == laik_Double)
+    }
+    else if(data_type == laik_Double)
     { 
         double * sendBuf_tmp = (double *)sendBuf;
         double * base;
@@ -262,6 +248,6 @@ void laik_barrier()
     int32_t data = 71; 
 
     // Synchronize all processes by making use of an All-to-All-Reduction
-    laik_helper(&data, &data, 1, laik_Int32, LAIK_RO_None, laik_All);
+    laik_helper((void *)&data, (void *)&data, 1, laik_Int32, LAIK_RO_None, laik_All);
     return;
 }
