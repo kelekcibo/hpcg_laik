@@ -62,18 +62,17 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   if (A.level == 3)
   {
     /* test */
-    exchangeValues(false);
 
     double *base;
     uint64_t count;
     laik_get_map_1d(x_vector, 0, (void **)&base, &count);
     for (size_t i = 0; i < count; i++)
-    {
       base[i] = x.values[i];
-    }
+    
 
+  
   if (A.geom->rank == 0)
-      printf("Jumping into exchangeValues!\n");
+      printf("Jumping into exchangeValues! Matrix layer 3\n");
 
     exchangeValues(true);
 

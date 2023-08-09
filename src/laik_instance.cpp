@@ -23,7 +23,14 @@ Laik_Data *x_vector; /* container / x vector */
 Laik_Partitioning *x_pt;  
 Laik_Partitioning *x_halo_pt;
 
-
+/**
+ * @brief Algorithm to partition the x vector. 
+ *  
+ * x_pt (Partitioning 1): Every process has exclusive access to its indices
+ * 
+ * x_halo_pt (Partitioning 2): Every process has now access to needed external values as well
+ * 
+ */
 void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
 {
 
@@ -62,7 +69,7 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
                 laik_range_init_1d(&range, x_space, globalIndex, globalIndex + 1);
                 laik_append_range(r, rank, &range, 0, 0);
 
-                // printf("I (%d) need to have access to global index %d of x vector (updated by proc %d)\n", rank, globalIndex, data->neighbors[nb]);
+                printf("I (%d) need to have access to global index %d of x vector (updated by proc %d)\n", rank, globalIndex, data->neighbors[nb]);
             }       
         }
     }
@@ -72,25 +79,23 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
 /**
  * @brief Initializing the two partitiongs to switch between them (exchanging data between processes)
  * 
- * @param data - necessary information needed for the partitioner algorithm
+ * @param data,data2 necessary information needed for the partitioner algorithm
  */
-void init_partitionings(pt_data * data)
+void init_partitionings(pt_data *data, pt_data *data2)
 {
     x_space = laik_new_space_1d(hpcg_instance, data->size);
     x_vector = laik_new_data(x_space, laik_Double);
 
     // Initialize partitioners to partition data accordingly
-    data->halo = false;
-    Laik_Partitioner *x_pr = laik_new_partitioner("x_pt", partitioner_x, (void *)data, LAIK_PF_None);
+    Laik_Partitioner *x_halo_pr = laik_new_partitioner("x_pt_halo", partitioner_x, (void *)data, LAIK_PF_None);
+    Laik_Partitioner *x_pr = laik_new_partitioner("x_pt", partitioner_x, (void *)data2, LAIK_PF_None);
 
-    pt_data data2;
-    std::memcpy((void *) &data2, (void *)data, sizeof(pt_data));
-
-    data2.halo = true;
-    Laik_Partitioner *x_halo_pr = laik_new_partitioner("x_pt_halo", partitioner_x, (void *) &data2, LAIK_PF_None);
-
+    // Initialize partitionings 
+    x_pt = laik_new_partitioning(x_pr, world, x_space, NULL);
     x_halo_pt = laik_new_partitioning(x_halo_pr, world, x_space, NULL);
-    x_pt = laik_new_partitioning(x_pr, world, x_space, NULL); 
+
+    // Start with / Switch to partitioning x_pt
+    exchangeValues(false);
 }
 
 
@@ -107,7 +112,7 @@ void exchangeValues(bool halo){
         return;
     }
 
-    laik_switchto_partitioning(x_vector, x_pt, LAIK_DF_Preserve, LAIK_RO_None);
+    laik_switchto_partitioning(x_vector, x_pt, LAIK_DF_None, LAIK_RO_None);
 }
 
 /**

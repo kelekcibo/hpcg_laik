@@ -172,25 +172,25 @@ void SetupHalo_ref(SparseMatrix & A) {
   
   if(level == 3)
   {
-    pt_data * data = (pt_data *) malloc(sizeof(pt_data));
-    printf("### here 1\n");
+    pt_data * dataHalo = (pt_data *)malloc(sizeof(pt_data));
+    pt_data * dataNoHalo = (pt_data *)malloc(sizeof(pt_data));
 
     /* TODO: GenerateCoarse Problem creates multiple matrices, so need different partitionings */
-    data->size = A.totalNumberOfRows;
-    printf("### here a\n");
-    data->geom = A.geom;
-    printf("### here b\n");
-    data->numberOfNeighbours = A.numberOfSendNeighbors;
-    printf("### here c\n");
-    data->neighbors = neighbors;
-    printf("### here d\n");
-    std::memcpy((void *) &data->receiveList, (void *) &receiveList, sizeof(receiveList));
-    data->receiveList = receiveList;
-    printf("### here e\n");
-    data->halo = true;
-    printf("### here f\n");
-    init_partitionings(data);
-    printf("### here g\n");
+    dataHalo->size = A.totalNumberOfRows;
+    dataHalo->geom = A.geom;
+    dataHalo->numberOfNeighbours = A.numberOfSendNeighbors;
+    dataHalo->neighbors = neighbors;
+    std::memcpy((void *) &dataHalo->receiveList, (void *)&receiveList, sizeof(receiveList));
+    dataHalo->halo = true;
+
+    dataNoHalo->halo = false;
+    dataNoHalo->geom = dataHalo->geom;
+    dataNoHalo->size = dataHalo->size;
+    /* These values are not needed for the 2nd partitioning */
+    dataNoHalo->neighbors = NULL;
+    dataNoHalo->numberOfNeighbours = -1;
+
+    init_partitionings(dataHalo, dataNoHalo);
   }
 
   A.level = level++;

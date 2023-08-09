@@ -28,18 +28,14 @@ typedef struct partition_data
 } pt_data;
 
 
-extern Laik_Space * x_space;
 extern Laik_Data * x_vector;
-extern Laik_Data *x_vector_halo;
 extern Laik_Instance * hpcg_instance;
 extern Laik_Group * world;
-extern Laik_Partitioning * x_pt;
-extern Laik_Partitioning * x_halo_pt;
 
 extern void laik_broadcast(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data_type);
 extern void laik_allreduce(const void * sendBuf, void * recvBuf, uint64_t n, Laik_Type * data_type, Laik_ReductionOperation ro_type);
 extern void laik_barrier(void);
-extern void init_partitionings(pt_data *data);
+extern void init_partitionings(pt_data *data, pt_data *data2);
 extern void exchangeValues(bool halo);
 
 
