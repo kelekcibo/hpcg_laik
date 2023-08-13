@@ -61,17 +61,18 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
 #ifndef HPCG_NO_MPI
   if (A.level == 3)
   {
-    /* test */
 
+    /* test */
     double *base;
     uint64_t count;
-    laik_get_map_1d(x_vector, 0, (void **)&base, &count);
+    laik_get_map_1d(x_vector, 1, (void **)&base, &count);
     for (size_t i = 0; i < count; i++)
       base[i] = x.values[i];
-    
 
-  
-  if (A.geom->rank == 0)
+    
+    printf("LAIK %d\tMy local part in the x_pt: size should be 8: (%lu)\n", laik_myid(world), count);
+
+    if (A.geom->rank == 0)
       printf("Jumping into exchangeValues! Matrix layer 3\n");
 
     exchangeValues(true);
@@ -84,18 +85,22 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   if (A.geom->rank == 0)
       printf("Exchanged Values. Checking if LAIK PARTITIONING IS CORRECT\n\n");
 
-    laik_get_map_1d(x_vector, 0, (void **)&base, &count);
-    assert(x.localLength == count);
+    laik_get_map_1d(x_vector, 1, (void **)&base, &count);
+    printf("LAIK %d\tMy local part in the x_pt_halo partition: size should be 12: (%lu)\n", laik_myid(world) ,count);
+    assert(x.localLength >= count);
     for (size_t i = 0; i < count; i++)
     {
       assert(base[i] == x.values[i]);
     }
 
   if (A.geom->rank == 0)
-      printf("CORRECT\n");
+      printf("%s\n", count == 0? "FALSE": "CORRECT");
+
+    exit(1);
   }
   else
     ExchangeHalo(A, x);
+    
 #endif
 
   const local_int_t nrow = A.localNumberOfRows;
@@ -138,6 +143,9 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
     xv[i] = sum/currentDiagonal;
   }
 
+#ifndef HPCG_NO_MPI
+  exchangeValues(false);
+#endif
   return 0;
 }
 

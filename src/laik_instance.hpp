@@ -1,6 +1,13 @@
 /**
- * @brief Helper Functions + global variable instance + world (reason: using laik would result in more ifdef's)
+ * @file laik_instance.hpp
+ * @brief Header file for leveraging LAIK API in the HPCG Application
+ * @version 0.1
+ * @date 2023-08-13
+ * 
+ * @copyright Copyright (c) 2023
+ * 
  */
+
 #ifndef LAIK_INSTANCE_HPP
 #define LAIK_INSTANCE_HPP
 
@@ -8,22 +15,36 @@ extern "C" {
     #include <laik.h>
 }
 
-#include "Geometry.hpp"
+#include <vector>
 #include <set>
 #include <map>
 
+#include "Geometry.hpp"
+
 /**
  * @brief Struct (data) needed for the partitioner algorithms
- * 
- * @param size size of vector x
+ *
+ * @param size                  size of vector x
+ * @param elementsToSend        local index to vector x of elements to be sent (converting to global later)
+ * @param geom                  Geometry of the problem
+ * @param numberOfNeighbours    count neighbors we need to exchange data with
+ * @param neighbors             Process ID's of neighbours
+ * @param receiveLength         number of elements to be received/sent by/to neighbours
+ * @param receiveList           Global Indices proc i needs to receive
+ * @param localToGlobalMap      local-to-global mapping
+ * @param halo                  x will be partioned such that indices to external values are owned by other procs as well
+ *
  */
 typedef struct partition_data
 {
     local_int_t size;                       /* size of vector x */
-    Geometry *geom;                         /* Geometry of the problem */
+    local_int_t * elementsToSend;           /* local index to vector x of elements to be sent (converting to global later) */
+    Geometry * geom;                        /* Geometry of the problem */
     int numberOfNeighbours;                 /* count neighbors we need to exchange data with*/
     int * neighbors;                        /* Process ID's of neighbours */
-    std::map<int, std::set<global_int_t>> receiveList; /* Global Indices proc i needs to receive */
+    local_int_t *receiveLength;             /* number of elements to be received/sent by/to neighbours */
+    std::map<int, std::set<global_int_t>> receiveList;  /* Global Indices proc i needs to receive */
+    std::vector<global_int_t> *localToGlobalMap;        /* local-to-global mapping */
     bool halo; /* x will be partioned such that indices to external values are owned by other procs as well */
 } pt_data;
 
