@@ -19,13 +19,71 @@
 Laik_Instance *hpcg_instance; /* Laik instance during HPCG run */
 Laik_Group *world;
 
-/* Space and containers */
+/* Data needed for partitioning */
 Laik_Space *x_space; /* space of vector x */
 Laik_Data *x_vector; /* container / x vector */
+L2A_map l2a_map;    /* Mapping from global to allocation indices */
 
 /* Partitioning to switch between */
 Laik_Partitioning *x_pt;
 Laik_Partitioning *x_halo_pt;
+
+/**
+ * @brief Map the local index (mtxIndL) to the corresponding global index. Then map this global index to the allocation index
+ * 
+ * See G2A_map;
+ * 
+ * @param localIndex which will be mapped to the corresponding allocation index
+ * 
+ * @return index to the allocation buffer
+ */
+allocation_int_t map_l2a(local_int_t local_index)
+{
+
+    std::string a{""};
+    a += std::to_string(local_index) + "   (LI) ->\t";
+
+    global_int_t global_index;
+
+    // Map local index to global index
+    if (local_index < l2a_map.localNumberOfRows)
+    {
+        global_index = l2a_map.localToGlobalMap[local_index]; /* No need to handle errors, since we map values from mtxIndL only */
+        a += std::to_string(global_index) + "   (GI) ->\t";
+    }
+    else
+    {
+        global_index = l2a_map.localToExternalMap[local_index];
+        a += std::to_string(global_index) + "   (GI) ->\t";
+    }
+
+    // Map global index to allocation index
+    allocation_int_t allocation_index = global_index - l2a_map.offset;
+
+    a += std::to_string(allocation_index) + "   (AI)\n";
+
+    printf("%s", a.data());
+
+    return allocation_index;
+}
+
+/**
+ * @brief Initialize g2a_map struct
+ *
+ * @param map_data data needed to calculate mapping correctly
+ */
+void init_map_data(L2A_map *map_data)
+{
+    /* globalToAllocationMap will be calculated during initialization of the 2 partitioners*/
+    // std::memcpy((void *)&g2a_map->globalToAllocationMap, (void *)&map_data->globalToAllocationMap, sizeof(map_data->globalToAllocationMap));;
+    l2a_map.localNumberOfRows = map_data->localNumberOfRows;
+    l2a_map.localToExternalMap = map_data->localToExternalMap;
+    l2a_map.localToGlobalMap = map_data->localToGlobalMap;
+    l2a_map.offset = map_data->offset;
+    // printf("%lld size == 4 ?\n", l2a_map.localToExternalMap.size());
+
+    return;
+}
 
 /**
  * @brief Algorithm to partition the x vector.
@@ -38,20 +96,27 @@ Laik_Partitioning *x_halo_pt;
 void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
 {
     pt_data *data = (pt_data *)laik_partitioner_data(p->partitioner);
-    
+    int rank = data->geom->rank;
 
     Laik_Range range;
 
     // std::string a{""};
-
     // a += "LAIK " + std::to_string(laik_myid(world)) + "\t[";
 
-    for (uint32_t i = 0; i < data->size; i++)
+    for (long long i = 0; i < data->size; i++)
     {
         // assign every process its global part
-        laik_range_init_1d(&range, x_space, i, i + 1);
-        laik_append_range(r, ComputeRankOfMatrixRow(*data->geom, i), &range, 1, 0);
+        int proc = ComputeRankOfMatrixRow(*data->geom, i);
 
+        laik_range_init_1d(&range, x_space, i, i + 1);
+        laik_append_range(r, proc, &range, 1, 0);
+
+        // Prepare data for mapping from global index to allocation index (lex_layout)
+
+        if (l2a_map.offset == -1 && rank == proc)
+        {
+            l2a_map.offset = i;
+        }
         // a += std::to_string(ComputeRankOfMatrixRow(*data->geom, i)) + ", ";
     }
 
@@ -63,18 +128,21 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
     if (data->halo)
     {
         // process i needs access to external values
-        int rank = data->geom->rank;
         typedef std::set<global_int_t>::iterator set_iter;
 
         for (int nb = 0; nb < data->numberOfNeighbours; nb++)
         {
             for (set_iter i = data->receiveList[data->neighbors[nb]].begin(); i != data->receiveList[data->neighbors[nb]].end(); ++i)
             {
-                int globalIndex = *i;
+                global_int_t globalIndex = *i;
 
                 laik_range_init_1d(&range, x_space, globalIndex, globalIndex + 1);
                 laik_append_range(r, rank, &range, 1, 0);
 
+                if (globalIndex < l2a_map.offset)
+                {
+                    l2a_map.offset = globalIndex;
+                }
                 // printf("I (%d) need to have access to global index %d of x vector (updated by proc %d)\n", rank, globalIndex, data->neighbors[nb]);
             }
         }
@@ -123,6 +191,8 @@ void init_partitionings(pt_data *data, pt_data *data2)
 
     // Start with / Switch to partitioning x_pt
     exchangeValues(false);
+
+    return;
 }
 
 /**
@@ -132,14 +202,13 @@ void init_partitionings(pt_data *data, pt_data *data2)
  */
 void exchangeValues(bool halo)
 {
-
     if (halo)
     {
         laik_switchto_partitioning(x_vector, x_halo_pt, LAIK_DF_Preserve, LAIK_RO_None);
         return;
     }
 
-    laik_switchto_partitioning(x_vector, x_pt, LAIK_DF_Preserve, LAIK_RO_None);
+    laik_switchto_partitioning(x_vector, x_pt, LAIK_DF_None, LAIK_RO_None);
 }
 
 /* LAIK has a hard limit of “Laik_Data” objects. Reuse “Laik_Data” objects with same size and Laik_Type */

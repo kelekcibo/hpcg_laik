@@ -136,6 +136,7 @@ void SetupHalo_ref(SparseMatrix & A) {
     sendLength[neighborCount] = sendList[neighborId].size(); // Get count if sends/receives
     for (set_iter i = receiveList[neighborId].begin(); i != receiveList[neighborId].end(); ++i, ++receiveEntryCount) {
       externalToLocalMap[*i] = localNumberOfRows + receiveEntryCount; // The remote columns are indexed at end of internals
+      A.localToExternalMap[localNumberOfRows + receiveEntryCount] = *i;
     }
     for (set_iter i = sendList[neighborId].begin(); i != sendList[neighborId].end(); ++i, ++sendEntryCount) {
       //if (geom.rank==1) HPCG_fout << "*i, globalToLocalMap[*i], sendEntryCount = " << *i << " " << A.globalToLocalMap[*i] << " " << sendEntryCount << endl;
@@ -169,13 +170,15 @@ void SetupHalo_ref(SparseMatrix & A) {
   A.receiveLength = receiveLength;
   A.sendLength = sendLength;
   A.sendBuffer = sendBuffer;
-  
-  if(level == 3)
+
+  /* TODO: GenerateCoarse Problem creates multiple matrices, so need different partitionings */
+  if (level == 3)
   {
+
+    // ########## Data for partitioning algorithm
     pt_data * dataHalo = (pt_data *)malloc(sizeof(pt_data));
     pt_data * dataNoHalo = (pt_data *)malloc(sizeof(pt_data));
 
-    /* TODO: GenerateCoarse Problem creates multiple matrices, so need different partitionings */
     dataHalo->size = A.totalNumberOfRows;
     dataHalo->geom = A.geom;
     dataHalo->numberOfNeighbours = A.numberOfSendNeighbors;
@@ -196,6 +199,21 @@ void SetupHalo_ref(SparseMatrix & A) {
     dataNoHalo->receiveLength = NULL;
     dataNoHalo->numberOfNeighbours = -1;
 
+    // ########## Data for partitioning algorithm
+
+    // ########## Data to calculate mapping
+
+    L2A_map * map_data = (L2A_map *)malloc(sizeof(L2A_map));
+
+    map_data->localNumberOfRows = A.localNumberOfRows;
+    map_data->offset = -1;
+    std::memcpy((void *)&map_data->localToGlobalMap, (void *)&A.localToGlobalMap, sizeof(A.localToGlobalMap));
+    std::memcpy((void *)&map_data->localToExternalMap, (void *)&A.localToExternalMap, sizeof(A.localToExternalMap)); // TODO: FIX ME
+   
+    // ########## Data to calculate mapping
+
+    // ########## Initialize all variables
+    init_map_data(map_data);
     init_partitionings(dataHalo, dataNoHalo);
   }
 

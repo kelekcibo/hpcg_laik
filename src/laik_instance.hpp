@@ -48,9 +48,32 @@ typedef struct partition_data
     bool halo; /* x will be partioned such that indices to external values are owned by other procs as well */
 } pt_data;
 
+typedef long long allocation_int_t;
+
+/**
+ * @brief Making use of the lex_layout, we need following mapping of indices:
+ * 
+ * Local indices -> Global indices -> Allocation indices
+ * 
+ * As LAIK allocates a buffer under the hood according to the lex layout, we need to specify a mapping for the corresponding
+ * indices within that buffer.
+ * 
+ */
+typedef struct Local2Allocation_map
+{
+    // std::map<global_int_t, allocation_int_t> globalToAllocationMap; /* Mapping from Global to Allocation Indices */
+    long long offset;
+
+    /* Mapping from Local to Global Indices */
+    std::map<local_int_t, global_int_t>  localToExternalMap;        /* External global indices */
+    std::vector<global_int_t> localToGlobalMap;                     /* Owned global indices */
+    local_int_t localNumberOfRows;                                  /* Border between owned and external indices */
+
+} L2A_map;
 
 extern Laik_Data * x_vector;
-extern Laik_Instance * hpcg_instance;
+
+extern Laik_Instance *hpcg_instance;
 extern Laik_Group * world;
 
 extern void laik_broadcast(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data_type);
@@ -58,6 +81,7 @@ extern void laik_allreduce(const void * sendBuf, void * recvBuf, uint64_t n, Lai
 extern void laik_barrier(void);
 extern void init_partitionings(pt_data *data, pt_data *data2);
 extern void exchangeValues(bool halo);
-
+extern void init_map_data(L2A_map * map_data);
+extern allocation_int_t map_l2a(local_int_t local_index);
 
 #endif

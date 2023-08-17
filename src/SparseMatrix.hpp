@@ -23,6 +23,7 @@
 
 #include <vector>
 #include <cassert>
+#include <map>
 #include "Geometry.hpp"
 #include "Vector.hpp"
 #include "MGData.hpp"
@@ -72,7 +73,9 @@ struct SparseMatrix_STRUCT {
   local_int_t * receiveLength; //!< lenghts of messages received from neighboring processes
   local_int_t * sendLength; //!< lenghts of messages sent to neighboring processes
   double * sendBuffer; //!< send buffer for non-blocking sends
+
   int level; // handle the other layers, no partitionings yet stored for them
+  std::map<local_int_t, global_int_t> localToExternalMap; /* Needed for LAIK (see laik_instance.hpp: L2A_map)*/
 #endif
 };
 typedef struct SparseMatrix_STRUCT SparseMatrix;
