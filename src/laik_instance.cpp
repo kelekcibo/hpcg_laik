@@ -62,7 +62,7 @@ allocation_int_t map_l2a(local_int_t local_index)
 
     a += std::to_string(allocation_index) + "   (AI)\n";
 
-    printf("%s", a.data());
+    // printf("%s", a.data());
 
     return allocation_index;
 }
@@ -74,13 +74,10 @@ allocation_int_t map_l2a(local_int_t local_index)
  */
 void init_map_data(L2A_map *map_data)
 {
-    /* globalToAllocationMap will be calculated during initialization of the 2 partitioners*/
-    // std::memcpy((void *)&g2a_map->globalToAllocationMap, (void *)&map_data->globalToAllocationMap, sizeof(map_data->globalToAllocationMap));;
     l2a_map.localNumberOfRows = map_data->localNumberOfRows;
     l2a_map.localToExternalMap = map_data->localToExternalMap;
     l2a_map.localToGlobalMap = map_data->localToGlobalMap;
     l2a_map.offset = map_data->offset;
-    // printf("%lld size == 4 ?\n", l2a_map.localToExternalMap.size());
 
     return;
 }

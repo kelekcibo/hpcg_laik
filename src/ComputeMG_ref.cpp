@@ -56,10 +56,6 @@ int ComputeMG_ref(const SparseMatrix & A, const Vector & r, Vector & x) {
     if (ierr!=0) return ierr;
   }
   else {
-
-  if (A.geom->rank == 0)
-    printf("Jumping into ComputeSYMGS_ref and testing LAIK EXCHANGE\n\n");
-
     ierr = ComputeSYMGS_ref(A, r, x);
     if (ierr!=0) return ierr;
   }

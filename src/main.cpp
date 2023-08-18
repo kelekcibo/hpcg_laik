@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
   SparseMatrix *curLevelMatrix = &A;
   for (int level = 1; level < numberOfMgLevels; ++level)
   {
-    HPCG_fout << "\nCoarse Problem level " << level << std::endl;
+    // HPCG_fout << "\nCoarse Problem level " << level << std::endl;
     GenerateCoarseProblem(*curLevelMatrix);
     curLevelMatrix = curLevelMatrix->Ac; // Make the just-constructed coarse grid the next level
 
@@ -483,7 +483,7 @@ int main(int argc, char *argv[])
   delete[] testnorms_data.values;
 
   HPCG_Finalize();
-
+  printf("Done\n");
   // Finish up
 #ifndef HPCG_NO_MPI
   laik_finalize(hpcg_instance);
