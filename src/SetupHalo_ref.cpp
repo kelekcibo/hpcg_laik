@@ -207,6 +207,8 @@ void SetupHalo_ref(SparseMatrix & A) {
 
     map_data->localNumberOfRows = A.localNumberOfRows;
     map_data->offset = -1;
+    map_data->offset_halo = -1;
+
     std::memcpy((void *)&map_data->localToGlobalMap, (void *)&A.localToGlobalMap, sizeof(A.localToGlobalMap));
     std::memcpy((void *)&map_data->localToExternalMap, (void *)&A.localToExternalMap, sizeof(A.localToExternalMap)); // TODO: FIX ME
    

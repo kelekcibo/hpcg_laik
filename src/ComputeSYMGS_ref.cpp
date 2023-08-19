@@ -67,32 +67,22 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
     uint64_t count;
     laik_get_map_1d(x_vector, 0, (void **)&base, &count);
     for (size_t i = 0; i < A.localNumberOfRows; i++)
-    {
-      if (A.geom->rank == 1)
-      {
-        printf("Iteration %lu\n", i);
-        printf("Copied x.values[%ld] to base[%lld]\n", i, map_l2a(i));
-      }
-
-      base[map_l2a(i)] = x.values[i];
-    }
-
-    printf("\n\nSwitched to x_pt_halo\n\n");
+      base[map_l2a(i, false)] = x.values[i];
 
     exchangeValues(true);
 
     ExchangeHalo(A, x);
 
-    laik_get_map_1d(x_vector, 0, (void **)&base, &count);
+    // laik_get_map_1d(x_vector, 0, (void **)&base, &count);
 
-    if(A.geom->rank == 1)
-      for (size_t i = 0; i < A.localNumberOfColumns; i++)
-      {
-        printf("Iteration %lu\n", i);
-        printf("Local index: %lu base[%lld] == x[%lu] \n", i, map_l2a(i), i);
+    // if(A.geom->rank == 1)
+    //   for (size_t i = 0; i < A.localNumberOfColumns; i++)
+    //   {
+    //     printf("Iteration %lu\n", i);
+    //     printf("Local index: %lu base[%lld] == x[%lu] \n", i, map_l2a(i), i);
 
-        assert(x.values[i] == base[map_l2a(i)]);
-      }
+    //     assert(x.values[i] == base[map_l2a(i)]);
+    //   }
   } else
   {
     ExchangeHalo(A, x);
@@ -103,6 +93,7 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   const local_int_t nrow = A.localNumberOfRows;
   double ** matrixDiagonal = A.matrixDiagonal;  // An array of pointers to the diagonal entries A.matrixValues
   const double * const rv = r.values;
+
   // double * const xv = x.values;
   double * xv = x.values;
 
@@ -125,35 +116,43 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
     for (int j=0; j< currentNumberOfNonzeros; j++) {
       local_int_t curCol = currentColIndices[j];
 
-      // if (A.level == 3 && i == 1)
-      // {
-      //   if (A.geom->rank == 1)
-      //   {
-      //     map_l2a(curCol);
-      //   }
-      // }
 
       if(A.level == 3)
       {
-        sum -= currentValues[j] * xv[map_l2a(curCol)];
+        sum -= currentValues[j] * xv[map_l2a(curCol, true)];
       }
       else
       {
         sum -= currentValues[j] * xv[(curCol)];
       }
     }
-    sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
 
-    xv[i] = sum/currentDiagonal;
-    // if (A.level == 3 && A.geom->rank == 1 && i == 1)
-    // {
-    //   map_l2a(8);
-    //   map_l2a(9);
-    //   map_l2a(10);
-    //   map_l2a(11);
 
-    //   exit(1);
-    // }
+
+
+    if (A.level == 3)
+    {
+      sum += xv[map_l2a(i, true)] * currentDiagonal; // Remove diagonal contribution from previous loop
+    }
+    else
+    {
+      sum += xv[i] * currentDiagonal; // Remove diagonal contribution from previous loop
+    }
+
+
+
+
+
+    if (A.level == 3)
+    {
+      xv[map_l2a(i, true)] = sum / currentDiagonal;
+    }
+    else
+    {
+      xv[i] = sum / currentDiagonal;
+    }
+  
+  
   }
 
   // Now the back sweep.
@@ -170,7 +169,7 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
 
       if(A.level == 3)
       {
-        sum -= currentValues[j] * xv[map_l2a(curCol)];
+        sum -= currentValues[j] * xv[map_l2a(curCol, true)];
       }
       else
       {
@@ -180,32 +179,31 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
 
     if (A.level == 3)
     {
-      sum += xv[map_l2a(i)] * currentDiagonal; // Remove diagonal contribution from previous loop
-      xv[map_l2a(i)] = sum / currentDiagonal;
+      sum += xv[map_l2a(i, true)] * currentDiagonal; // Remove diagonal contribution from previous loop
+      xv[map_l2a(i, true)] = sum / currentDiagonal;
     }
     else
     {
       sum += xv[i] * currentDiagonal; // Remove diagonal contribution from previous loop
       xv[i] = sum / currentDiagonal;
     }
-
   }
 
 #ifndef HPCG_NO_MPI
   
   if(A.level == 3)
   {
-    exchangeValues(false);
-
-    double *base;
-    uint64_t count;
     laik_get_map_1d(x_vector, 0, (void **)&base, &count);
+
     for (size_t i = 0; i < A.localNumberOfRows; i++)
-      x.values[i] = base[map_l2a(i)];
+      x.values[i] = base[map_l2a(i, true)];
+
+
+    exchangeValues(false);
   }
 
-
 #endif
+
   return 0;
 }
 

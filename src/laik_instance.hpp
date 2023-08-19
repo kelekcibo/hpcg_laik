@@ -62,7 +62,8 @@ typedef long long allocation_int_t;
 typedef struct Local2Allocation_map
 {
     // std::map<global_int_t, allocation_int_t> globalToAllocationMap; /* Mapping from Global to Allocation Indices */
-    long long offset;
+    long long offset_halo; /* Offset into allocation buffer with external values */
+    long long offset;      /* Offset into allocation buffer without external values */
 
     /* Mapping from Local to Global Indices */
     std::map<local_int_t, global_int_t>  localToExternalMap;        /* External global indices */
@@ -82,6 +83,6 @@ extern void laik_barrier(void);
 extern void init_partitionings(pt_data *data, pt_data *data2);
 extern void exchangeValues(bool halo);
 extern void init_map_data(L2A_map * map_data);
-extern allocation_int_t map_l2a(local_int_t local_index);
+extern allocation_int_t map_l2a(local_int_t local_index, bool halo);
 
 #endif

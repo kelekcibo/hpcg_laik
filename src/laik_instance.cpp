@@ -22,7 +22,7 @@ Laik_Group *world;
 /* Data needed for partitioning */
 Laik_Space *x_space; /* space of vector x */
 Laik_Data *x_vector; /* container / x vector */
-L2A_map l2a_map;    /* Mapping from global to allocation indices */
+L2A_map l2a_map;    /* Mapping from "local" to "allocation" indices */
 
 /* Partitioning to switch between */
 Laik_Partitioning *x_pt;
@@ -31,13 +31,13 @@ Laik_Partitioning *x_halo_pt;
 /**
  * @brief Map the local index (mtxIndL) to the corresponding global index. Then map this global index to the allocation index
  * 
- * See G2A_map;
+ * See L2A_map;
  * 
  * @param localIndex which will be mapped to the corresponding allocation index
  * 
  * @return index to the allocation buffer
  */
-allocation_int_t map_l2a(local_int_t local_index)
+allocation_int_t map_l2a(local_int_t local_index, bool halo)
 {
 
     std::string a{""};
@@ -58,11 +58,21 @@ allocation_int_t map_l2a(local_int_t local_index)
     }
 
     // Map global index to allocation index
-    allocation_int_t allocation_index = global_index - l2a_map.offset;
+    // We have different allocation buffers depending on the current active partitioning
+    allocation_int_t allocation_index;
+    if (halo)
+    {
+        allocation_index = global_index - l2a_map.offset_halo;
+    }
+    else
+    {
+        allocation_index = global_index - l2a_map.offset;
+    }
 
     a += std::to_string(allocation_index) + "   (AI)\n";
 
-    // printf("%s", a.data());
+    // if (laik_myid(world) == 0)
+        // printf("%s", a.data());
 
     return allocation_index;
 }
@@ -78,6 +88,7 @@ void init_map_data(L2A_map *map_data)
     l2a_map.localToExternalMap = map_data->localToExternalMap;
     l2a_map.localToGlobalMap = map_data->localToGlobalMap;
     l2a_map.offset = map_data->offset;
+    l2a_map.offset_halo = map_data->offset_halo;
 
     return;
 }
@@ -124,6 +135,7 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
     // Specifying ranges which need to be exchanged
     if (data->halo)
     {
+        l2a_map.offset_halo = l2a_map.offset;
         // process i needs access to external values
         typedef std::set<global_int_t>::iterator set_iter;
 
@@ -136,9 +148,9 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
                 laik_range_init_1d(&range, x_space, globalIndex, globalIndex + 1);
                 laik_append_range(r, rank, &range, 1, 0);
 
-                if (globalIndex < l2a_map.offset)
+                if (globalIndex < l2a_map.offset_halo)
                 {
-                    l2a_map.offset = globalIndex;
+                    l2a_map.offset_halo = globalIndex;
                 }
                 // printf("I (%d) need to have access to global index %d of x vector (updated by proc %d)\n", rank, globalIndex, data->neighbors[nb]);
             }
