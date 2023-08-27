@@ -154,6 +154,7 @@ int main(int argc, char *argv[])
 
   int size = params.comm_size, rank = params.comm_rank; // Number of MPI processes, My process ID
 
+  bool doIO = rank == 0;
 #ifdef HPCG_DETAILED_DEBUG
   if (size < 100 && rank == 0)
     HPCG_fout << "Process " << rank << " of " << size << " is alive with " << params.numThreads << " threads." << endl;
@@ -189,8 +190,11 @@ int main(int argc, char *argv[])
   double t1 = mytimer();
 #endif
 
-  if (rank == 0)
+  if (doIO)
     printf("LAIK %d\tINIT\n", laik_myid(world));
+
+  if (doIO)
+    printf("Start Setup Phase\n");
 
   // Construct the geometry and linear system
   Geometry *geom = new Geometry;
@@ -243,11 +247,14 @@ int main(int argc, char *argv[])
 
   CGData data;
   InitializeSparseCGData(A, data);
+  if (doIO)
+    printf("End Setup Phase\n");
 
   ////////////////////////////////////
   // Reference SpMV+MG Timing Phase //
   ////////////////////////////////////
-
+  if (doIO)
+    printf("Start Reference SpMV+MG Timing Phase\n");
 
   // Call Reference SpMV and MG. Compute Optimization time as ratio of times in these routines
 
@@ -283,14 +290,17 @@ int main(int argc, char *argv[])
     HPCG_fout << "Total SpMV+MG timing phase execution time in main (sec) = " << mytimer() - t1 << endl;
 #endif
 
-
+  if (doIO)
+    printf("End Reference SpMV+MG Timing Phase\n");
   ///////////////////////////////
   // Reference CG Timing Phase //
   ///////////////////////////////
 
+  if (doIO)
+    printf("Start Reference CG Timing Phase\n");
 
 #ifdef HPCG_DEBUG
-  t1 = mytimer();
+      t1 = mytimer();
 #endif
   int global_failure = 0; // assume all is well: no failures
 
@@ -332,10 +342,14 @@ int main(int argc, char *argv[])
     WriteProblem(*geom, A, b, x, xexact);
 #endif
 
+  if (doIO)
+    printf("End Reference CG Timing Phase\n");
 
   //////////////////////////////
   // Validation Testing Phase //
   //////////////////////////////
+  if (doIO)
+    printf("Start Validation Testing Phase\n");
 
 #ifdef HPCG_DEBUG
   t1 = mytimer();
@@ -355,10 +369,15 @@ int main(int argc, char *argv[])
 #ifdef HPCG_DEBUG
   t1 = mytimer();
 #endif
+  if (doIO)
+    printf("End Validation Testing Phase\n");
 
   //////////////////////////////
   // Optimized CG Setup Phase //
   //////////////////////////////
+
+  if (doIO)
+    printf("Start Optimized CG Setup Phase \n");
 
   niters = 0;
   normr = 0.0;
@@ -408,9 +427,15 @@ int main(int argc, char *argv[])
       HPCG_fout << "Failed to reduce the residual " << tolerance_failures << " times." << endl;
   }
 
+  if (doIO)
+    printf("End Optimized CG Setup Phase \n");
+
   ///////////////////////////////
   // Optimized CG Timing Phase //
   ///////////////////////////////
+
+  if (doIO)
+    printf("Start Optimized CG Timing Phase \n");
 
   // Here we finally run the benchmark phase
   // The variable total_runtime is the target benchmark execution time in seconds
@@ -464,6 +489,8 @@ int main(int argc, char *argv[])
   if (ierr)
     HPCG_fout << "Error in call to TestNorms: " << ierr << ".\n"
               << endl;
+  if (doIO)
+    printf("End  Optimized CG Timing Phase \n");
 
   ////////////////////
   // Report Results //
@@ -483,7 +510,8 @@ int main(int argc, char *argv[])
   delete[] testnorms_data.values;
 
   HPCG_Finalize();
-  printf("Done\n");
+  if (doIO)
+    printf("Done\n");
   // Finish up
 #ifndef HPCG_NO_MPI
   laik_finalize(hpcg_instance);
