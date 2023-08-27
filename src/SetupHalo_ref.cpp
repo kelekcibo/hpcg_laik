@@ -171,8 +171,8 @@ void SetupHalo_ref(SparseMatrix & A) {
   A.sendLength = sendLength;
   A.sendBuffer = sendBuffer;
 
-  /* TODO: GenerateCoarse Problem creates multiple matrices, so need different partitionings */
-  if (level == 3)
+  /* TODO: GenerateCoarse Problem creates multiple matrices, so need different partitionings in MG_ref*/
+  if (level == 0)
   {
 
     // ########## Data for partitioning algorithm
@@ -210,7 +210,7 @@ void SetupHalo_ref(SparseMatrix & A) {
     map_data->offset_halo = -1;
 
     std::memcpy((void *)&map_data->localToGlobalMap, (void *)&A.localToGlobalMap, sizeof(A.localToGlobalMap));
-    std::memcpy((void *)&map_data->localToExternalMap, (void *)&A.localToExternalMap, sizeof(A.localToExternalMap)); // TODO: FIX ME
+    std::memcpy((void *)&map_data->localToExternalMap, (void *)&A.localToExternalMap, sizeof(A.localToExternalMap));
    
     // ########## Data to calculate mapping
 

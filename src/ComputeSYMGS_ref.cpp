@@ -60,33 +60,24 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 
 #ifndef HPCG_NO_MPI
-  if (A.level == 3)
+
+  /* In ComputeMG_ref.cpp, the operation is done on coarse grid matrices, so we would need partitionings, etc. for them as well
+    For now, make use of MPI, instead of LAIK
+  */
+  bool use_laik = A.level == 3;
+  double *base;
+  uint64_t count;
+
+  if (use_laik)
   {
-    /* test */
-    double *base;
-    uint64_t count;
     laik_get_map_1d(x_vector, 0, (void **)&base, &count);
     for (size_t i = 0; i < A.localNumberOfRows; i++)
       base[map_l2a(i, false)] = x.values[i];
 
     exchangeValues(true);
-
+  } 
+  else
     ExchangeHalo(A, x);
-
-    // laik_get_map_1d(x_vector, 0, (void **)&base, &count);
-
-    // if(A.geom->rank == 1)
-    //   for (size_t i = 0; i < A.localNumberOfColumns; i++)
-    //   {
-    //     printf("Iteration %lu\n", i);
-    //     printf("Local index: %lu base[%lld] == x[%lu] \n", i, map_l2a(i), i);
-
-    //     assert(x.values[i] == base[map_l2a(i)]);
-    //   }
-  } else
-  {
-    ExchangeHalo(A, x);
-  }
 
 #endif
 
@@ -97,10 +88,7 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   // double * const xv = x.values;
   double * xv = x.values;
 
-  double * base;
-  uint64_t count;
-
-  if(A.level == 3)
+  if (use_laik)
   {
     laik_get_map_1d(x_vector, 0, (void **)&base, &count);
     xv = base;
@@ -116,43 +104,21 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
     for (int j=0; j< currentNumberOfNonzeros; j++) {
       local_int_t curCol = currentColIndices[j];
 
-
-      if(A.level == 3)
-      {
+      if (use_laik)
         sum -= currentValues[j] * xv[map_l2a(curCol, true)];
-      }
       else
-      {
         sum -= currentValues[j] * xv[(curCol)];
-      }
     }
 
-
-
-
-    if (A.level == 3)
-    {
+    if (use_laik)
       sum += xv[map_l2a(i, true)] * currentDiagonal; // Remove diagonal contribution from previous loop
-    }
     else
-    {
       sum += xv[i] * currentDiagonal; // Remove diagonal contribution from previous loop
-    }
 
-
-
-
-
-    if (A.level == 3)
-    {
+    if (use_laik)
       xv[map_l2a(i, true)] = sum / currentDiagonal;
-    }
     else
-    {
       xv[i] = sum / currentDiagonal;
-    }
-  
-  
   }
 
   // Now the back sweep.
@@ -167,17 +133,13 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
     for (int j = 0; j< currentNumberOfNonzeros; j++) {
       local_int_t curCol = currentColIndices[j];
 
-      if(A.level == 3)
-      {
+      if (use_laik)
         sum -= currentValues[j] * xv[map_l2a(curCol, true)];
-      }
       else
-      {
         sum -= currentValues[j] * xv[curCol];
-      }
     }
 
-    if (A.level == 3)
+    if (use_laik)
     {
       sum += xv[map_l2a(i, true)] * currentDiagonal; // Remove diagonal contribution from previous loop
       xv[map_l2a(i, true)] = sum / currentDiagonal;
@@ -190,16 +152,15 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   }
 
 #ifndef HPCG_NO_MPI
-  
-  if(A.level == 3)
+
+  if (use_laik)
   {
+    exchangeValues(false);
+
     laik_get_map_1d(x_vector, 0, (void **)&base, &count);
 
     for (size_t i = 0; i < A.localNumberOfRows; i++)
-      x.values[i] = base[map_l2a(i, true)];
-
-
-    exchangeValues(false);
+      x.values[i] = base[map_l2a(i, false)];
   }
 
 #endif

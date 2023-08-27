@@ -53,7 +53,25 @@ int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
   assert(y.localLength>=A.localNumberOfRows);
 
 #ifndef HPCG_NO_MPI
-  ExchangeHalo(A, x);
+
+  /* In ComputeMG_ref.cpp, the operation is done on coarse grid matrices, so we would need partitionings, etc. for them as well
+      For now, make use of MPI, instead of LAIK
+  */
+  bool use_laik = A.level == 3;
+  
+  double *base;
+  uint64_t count;
+
+  if (use_laik)
+  {
+    laik_get_map_1d(x_vector, 0, (void **)&base, &count);
+    for (size_t i = 0; i < A.localNumberOfRows; i++)
+      base[map_l2a(i, false)] = x.values[i];
+
+    exchangeValues(true);
+  }
+  else
+    ExchangeHalo(A, x);
 #endif
 
   const double * const xv = x.values;
@@ -69,12 +87,28 @@ int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
     const int cur_nnz = A.nonzerosInRow[i];
 
     for (int j=0; j< cur_nnz; j++)
-      sum += cur_vals[j]*xv[cur_inds[j]];
+    {
+      if (use_laik)
+        sum += cur_vals[j] * xv[map_l2a(cur_inds[j], true)];
+      else
+        sum += cur_vals[j] * xv[cur_inds[j]];
+    }
+
     yv[i] = sum;
   }
 
 #ifndef HPCG_NO_MPI
-  // exchangeValues(false);
+
+  if (use_laik)
+  {
+    exchangeValues(false);
+
+    laik_get_map_1d(x_vector, 0, (void **)&base, &count);
+
+    for (size_t i = 0; i < A.localNumberOfRows; i++)
+      x.values[i] = base[map_l2a(i, false)];
+  }
+
 #endif
 
   return 0;
