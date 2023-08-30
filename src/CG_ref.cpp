@@ -73,7 +73,9 @@ int CG_ref(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
 
   Vector & r = data.r; // Residual vector
   Vector & z = data.z; // Preconditioned residual vector
+  Laik_Blob * z_blob = data.z_blob;
   Vector & p = data.p; // Direction vector (in MPI mode ncol>=nrow)
+  Laik_Blob *p_blob = data.p_blob;
   Vector & Ap = data.Ap;
 
   if (!doPreconditioning && A.geom->rank==0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
@@ -85,9 +87,9 @@ int CG_ref(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
 #endif
   // p is of length ncols, copy x to p for sparse MV operation
   CopyVector(x, p);
-  TICK(); ComputeSPMV_ref(A, p, Ap);  TOCK(t3); // Ap = A*p
-  TICK(); ComputeWAXPBY_ref(nrow, 1.0, b, -1.0, Ap, r); TOCK(t2); // r = b - Ax (x stored in p)
-  TICK(); ComputeDotProduct_ref(nrow, r, r, normr, t4);  TOCK(t1);
+  TICK(); ComputeSPMV_ref(A, p, Ap, p_blob);  TOCK(t3); // Ap = A*p
+  TICK(); ComputeWAXPBY_ref(nrow, 1.0, b, -1.0, Ap, r, NULL, NULL, NULL); TOCK(t2); // r = b - Ax (x stored in p)
+  TICK(); ComputeDotProduct_ref(nrow, r, r, normr, t4, NULL, NULL);  TOCK(t1);
   normr = sqrt(normr);
 #ifdef HPCG_DEBUG
   if (A.geom->rank==0) HPCG_fout << "Initial Residual = "<< normr << std::endl;
@@ -101,27 +103,27 @@ int CG_ref(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   for (int k=1; k<=max_iter && normr/normr0 > tolerance; k++ ) {
     TICK();
     if (doPreconditioning)
-      ComputeMG_ref(A, r, z); // Apply preconditioner
+      ComputeMG_ref(A, r, z, z_blob); // Apply preconditioner
     else
-      ComputeWAXPBY_ref(nrow, 1.0, r, 0.0, r, z); // copy r to z (no preconditioning)
+      ComputeWAXPBY_ref(nrow, 1.0, r, 0.0, r, z, NULL, NULL, z_blob); // copy r to z (no preconditioning)
     TOCK(t5); // Preconditioner apply time
 
     if (k == 1) {
       CopyVector(z, p); TOCK(t2); // Copy Mr to p
-      TICK(); ComputeDotProduct_ref(nrow, r, z, rtz, t4); TOCK(t1); // rtz = r'*z
+      TICK(); ComputeDotProduct_ref(nrow, r, z, rtz, t4, NULL, z_blob); TOCK(t1); // rtz = r'*z
     } else {
       oldrtz = rtz;
-      TICK(); ComputeDotProduct_ref(nrow, r, z, rtz, t4); TOCK(t1); // rtz = r'*z
+      TICK(); ComputeDotProduct_ref(nrow, r, z, rtz, t4, NULL, z_blob); TOCK(t1); // rtz = r'*z
       beta = rtz/oldrtz;
-      TICK(); ComputeWAXPBY_ref(nrow, 1.0, z, beta, p, p);  TOCK(t2); // p = beta*p + z
+      TICK(); ComputeWAXPBY_ref(nrow, 1.0, z, beta, p, p, z_blob, p_blob, p_blob);  TOCK(t2); // p = beta*p + z
     }
 
-    TICK(); ComputeSPMV_ref(A, p, Ap); TOCK(t3); // Ap = A*p
-    TICK(); ComputeDotProduct_ref(nrow, p, Ap, pAp, t4); TOCK(t1); // alpha = p'*Ap
+    TICK(); ComputeSPMV_ref(A, p, Ap, p_blob); TOCK(t3); // Ap = A*p
+    TICK(); ComputeDotProduct_ref(nrow, p, Ap, pAp, t4, p_blob, NULL); TOCK(t1); // alpha = p'*Ap
     alpha = rtz/pAp;
-    TICK(); ComputeWAXPBY_ref(nrow, 1.0, x, alpha, p, x);// x = x + alpha*p
-            ComputeWAXPBY_ref(nrow, 1.0, r, -alpha, Ap, r);  TOCK(t2);// r = r - alpha*Ap
-    TICK(); ComputeDotProduct_ref(nrow, r, r, normr, t4); TOCK(t1);
+    TICK(); ComputeWAXPBY_ref(nrow, 1.0, x, alpha, p, x, NULL, p_blob, NULL);// x = x + alpha*p
+            ComputeWAXPBY_ref(nrow, 1.0, r, -alpha, Ap, r, NULL, NULL, NULL);  TOCK(t2);// r = r - alpha*Ap
+    TICK(); ComputeDotProduct_ref(nrow, r, r, normr, t4, NULL, NULL); TOCK(t1);
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
     if (A.geom->rank==0 && (k%print_freq == 0 || k == max_iter))

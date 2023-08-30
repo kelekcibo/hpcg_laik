@@ -222,13 +222,13 @@ int main(int argc, char *argv[])
   {
     // HPCG_fout << "\nCoarse Problem level " << level << std::endl;
     GenerateCoarseProblem(*curLevelMatrix);
+
     curLevelMatrix = curLevelMatrix->Ac; // Make the just-constructed coarse grid the next level
 
     // #### Debug
     // printSPM(curLevelMatrix, level);
     // #### Debug
   }
-
   setup_time = mytimer() - setup_time; // Capture total time of setup
   times[9] = setup_time;               // Save it for reporting
 
@@ -261,6 +261,12 @@ int main(int argc, char *argv[])
   local_int_t nrow = A.localNumberOfRows;
   local_int_t ncol = A.localNumberOfColumns;
 
+  // ############### Laik_Blob for x_overlap VECTOR ###############
+
+  Laik_Blob * x_overlap_blob = init_blob(A.totalNumberOfRows, nrow, A.A_map_data, A.A_local, A.A_ext);
+
+  // ############### Laik_Blob for x_overlap VECTOR ###############
+
   Vector x_overlap, b_computed;
   InitializeVector(x_overlap, ncol);  // Overlapped copy of x vector
   InitializeVector(b_computed, nrow); // Computed RHS vector
@@ -269,20 +275,25 @@ int main(int argc, char *argv[])
   // First load vector with random values
   FillRandomVector(x_overlap);
 
+  fillRandomLaikVector(x_overlap_blob);
+
+
   int numberOfCalls = 10;
   if (quickPath)
     numberOfCalls = 1; // QuickPath means we do on one call of each block of repetitive code
   double t_begin = mytimer();
   for (int i = 0; i < numberOfCalls; ++i)
   {
-    ierr = ComputeSPMV_ref(A, x_overlap, b_computed); // b_computed = A*x_overlap
+    ierr = ComputeSPMV_ref(A, x_overlap, b_computed, x_overlap_blob); // b_computed = A*x_overlap
     if (ierr)
       HPCG_fout << "Error in call to SpMV: " << ierr << ".\n"
                 << endl;
-    ierr = ComputeMG_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
+
+    ierr = ComputeMG_ref(A, b_computed, x_overlap, x_overlap_blob); // b_computed = Minv*y_overlap
     if (ierr)
       HPCG_fout << "Error in call to MG: " << ierr << ".\n"
                 << endl;
+
   }
   times[8] = (mytimer() - t_begin) / ((double)numberOfCalls); // Total time divided by number of calls.
 #ifdef HPCG_DEBUG

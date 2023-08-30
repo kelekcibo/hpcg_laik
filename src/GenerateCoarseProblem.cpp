@@ -27,6 +27,7 @@
 #include "GenerateGeometry.hpp"
 #include "GenerateProblem.hpp"
 #include "SetupHalo.hpp"
+#include <iostream>
 
 /*!
   Routine to construct a prolongation/restriction operator for a given fine grid matrix
@@ -103,8 +104,19 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
   InitializeVector(*xc, Ac->localNumberOfColumns);
   InitializeVector(*Axf, Af.localNumberOfColumns);
   Af.Ac = Ac;
+  
   MGData * mgData = new MGData;
-  InitializeMGData(f2cOperator, rc, xc, Axf, *mgData);
+
+  Laik_Blob * Axf_blob;
+  Laik_Blob * xc_blob;
+
+  // if(Af.level != 3)
+  // {
+  //   Axf_blob = init_blob(Af.totalNumberOfRows, Af.localNumberOfRows, Af.A_map_data, Af.A_local, Af.A_ext);
+  //   xc_blob = init_blob(Ac->totalNumberOfRows, Ac->localNumberOfRows, Ac->A_map_data, Ac->A_local, Ac->A_ext);
+  // }
+  
+  InitializeMGData(f2cOperator, rc, xc, Axf, Axf_blob, xc_blob, *mgData);
   Af.mgData = mgData;
 
   return;

@@ -47,34 +47,33 @@
 
   @see ComputeSPMV
 */
-int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
+int ComputeSPMV_ref(const SparseMatrix &A, Vector &x, Vector &y, Laik_Blob *x_blob)
+{
 
   assert(x.localLength>=A.localNumberOfColumns); // Test vector lengths
   assert(y.localLength>=A.localNumberOfRows);
+  assert(x_blob->localLength >= A.localNumberOfRows);
 
 #ifndef HPCG_NO_MPI
 
-  /* In ComputeMG_ref.cpp, the operation is done on coarse grid matrices, so we would need partitionings, etc. for them as well
-      For now, make use of MPI, instead of LAIK
-  */
-  bool use_laik = A.level == 3;
+  bool use_laik = x_blob != 0;
   
   double *base;
   uint64_t count;
-
   if (use_laik)
-  {
-    laik_get_map_1d(x_vector, 0, (void **)&base, &count);
-    for (size_t i = 0; i < A.localNumberOfRows; i++)
-      base[map_l2a(i, false)] = x.values[i];
-
-    exchangeValues(true);
-  }
+    laik_switchto_partitioning(x_blob->values, x_blob->x_ext, LAIK_DF_Preserve, LAIK_RO_None);
   else
     ExchangeHalo(A, x);
 #endif
 
-  const double * const xv = x.values;
+  // const double * const xv = x.values;
+  double * xv = x.values;
+  if (use_laik)
+  {
+    laik_get_map_1d(x_blob->values, 0, (void **)&base, &count);
+    xv = base;
+  }
+
   double * const yv = y.values;
   const local_int_t nrow = A.localNumberOfRows;
 #ifndef HPCG_NO_OPENMP
@@ -89,7 +88,7 @@ int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
     for (int j=0; j< cur_nnz; j++)
     {
       if (use_laik)
-        sum += cur_vals[j] * xv[map_l2a(cur_inds[j], true)];
+        sum += cur_vals[j] * base[map_l2a(x_blob->mapping, cur_inds[j], true)];
       else
         sum += cur_vals[j] * xv[cur_inds[j]];
     }
@@ -98,17 +97,8 @@ int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
   }
 
 #ifndef HPCG_NO_MPI
-
   if (use_laik)
-  {
-    exchangeValues(false);
-
-    laik_get_map_1d(x_vector, 0, (void **)&base, &count);
-
-    for (size_t i = 0; i < A.localNumberOfRows; i++)
-      x.values[i] = base[map_l2a(i, false)];
-  }
-
+    laik_switchto_partitioning(x_blob->values, x_blob->x_local, LAIK_DF_None, LAIK_RO_None);
 #endif
 
   return 0;

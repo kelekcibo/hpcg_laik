@@ -23,12 +23,16 @@
 
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
+#include "laik_instance.hpp"
 
 struct CGData_STRUCT {
   Vector r; //!< pointer to residual vector
   Vector z; //!< pointer to preconditioned residual vector
   Vector p; //!< pointer to direction vector
   Vector Ap; //!< pointer to Krylov vector
+
+  Laik_Blob * p_blob; // To use Laik
+  Laik_Blob * z_blob;  // To use Laik
 };
 typedef struct CGData_STRUCT CGData;
 
@@ -45,6 +49,9 @@ inline void InitializeSparseCGData(SparseMatrix & A, CGData & data) {
   InitializeVector(data.z, ncol);
   InitializeVector(data.p, ncol);
   InitializeVector(data.Ap, nrow);
+  data.p_blob = init_blob(A.totalNumberOfRows, nrow, A.A_map_data, A.A_local, A.A_ext);
+  data.z_blob = init_blob(A.totalNumberOfRows, nrow, A.A_map_data, A.A_local, A.A_ext);
+
   return;
 }
 

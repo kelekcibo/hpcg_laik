@@ -19,6 +19,7 @@
  */
 
 #include "ComputeWAXPBY_ref.hpp"
+#include "laik_instance.hpp"
 #ifndef HPCG_NO_OPENMP
 #include <omp.h>
 #endif
@@ -40,10 +41,21 @@
   @see ComputeWAXPBY
 */
 int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Vector & x,
-    const double beta, const Vector & y, Vector & w) {
+    const double beta, const Vector & y, Vector & w, Laik_Blob * x_blob, Laik_Blob * y_blob, Laik_Blob * w_blob) {
 
   assert(x.localLength>=n); // Test vector lengths
   assert(y.localLength>=n);
+
+  bool x_blob_active = false;
+  bool y_blob_active = false;
+  bool w_blob_active = false;
+
+  if(x_blob != 0)
+    x_blob_active = true;
+  if (y_blob != 0)
+    y_blob_active = true;
+  if (w_blob != 0)
+    w_blob_active = true;
 
   const double * const xv = x.values;
   const double * const yv = y.values;

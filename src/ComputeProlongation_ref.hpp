@@ -16,5 +16,5 @@
 #define COMPUTEPROLONGATION_REF_HPP
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
-int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf);
+int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf, Laik_Blob * xf_blob);
 #endif // COMPUTEPROLONGATION_REF_HPP

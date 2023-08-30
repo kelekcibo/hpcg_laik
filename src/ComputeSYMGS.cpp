@@ -47,9 +47,9 @@
 
   @see ComputeSYMGS_ref
 */
-int ComputeSYMGS( const SparseMatrix & A, const Vector & r, Vector & x) {
+int ComputeSYMGS( const SparseMatrix & A, const Vector & r, Vector & x, Laik_Blob * x_blob) {
 
   // This line and the next two lines should be removed and your version of ComputeSYMGS should be used.
-  return ComputeSYMGS_ref(A, r, x);
+  return ComputeSYMGS_ref(A, r, x, x_blob);
 
 }

@@ -76,6 +76,12 @@ struct SparseMatrix_STRUCT {
 
   int level; // handle the other layers, no partitionings yet stored for them
   std::map<local_int_t, global_int_t> localToExternalMap; /* Needed for LAIK (see laik_instance.hpp: L2A_map)*/
+
+  // ############### Data needed to create partitionings and Laik_Data container
+  L2A_map * A_map_data;
+  pt_data *A_ext;
+  pt_data *A_local;
+
 #endif
 };
 typedef struct SparseMatrix_STRUCT SparseMatrix;
@@ -115,6 +121,11 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
   A.receiveLength = 0;
   A.sendLength = 0;
   A.sendBuffer = 0;
+
+  A.A_ext = 0;
+  A.A_local = 0;
+  A.A_map_data = 0;
+  A.level = 0;
 #endif
   A.mgData = 0; // Fine-to-coarse grid transfer initially not defined.
   A.Ac =0;

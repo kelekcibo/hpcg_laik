@@ -37,9 +37,9 @@
 
   @see ComputeSPMV_ref
 */
-int ComputeSPMV( const SparseMatrix & A, Vector & x, Vector & y) {
+int ComputeSPMV( const SparseMatrix & A, Vector & x, Vector & y, Laik_Blob * x_blob) {
 
   // This line and the next two lines should be removed and your version of ComputeSPMV should be used.
   A.isSpmvOptimized = false;
-  return ComputeSPMV_ref(A, x, y);
+  return ComputeSPMV_ref(A, x, y, x_blob);
 }

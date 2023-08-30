@@ -14,30 +14,41 @@
 
 #include "laik_instance.hpp"
 #include "Geometry.hpp"
+#include "Vector.hpp"
 
 // should be initialized at the very beginning of the program. No use without init.
 Laik_Instance *hpcg_instance; /* Laik instance during HPCG run */
 Laik_Group *world;
 
-/* Data needed for partitioning */
-Laik_Space *x_space; /* space of vector x */
-Laik_Data *x_vector; /* container / x vector */
-L2A_map l2a_map;    /* Mapping from "local" to "allocation" indices */
-
-/* Partitioning to switch between */
-Laik_Partitioning *x_pt;
-Laik_Partitioning *x_halo_pt;
+// ############### Layer 0 Matrix Data needed to create partitionings and Laik_Data container
+L2A_map *A0_map_data;
+pt_data *A0_ext;
+pt_data *A0_local;
+// ############### Layer 1 Matrix Data needed to create partitionings and Laik_Data container
+L2A_map *A1_map_data;
+pt_data *A1_ext;
+pt_data *A1_local;
+// ############### Layer 2 Matrix Data needed to create partitionings and Laik_Data container
+L2A_map *A2_map_data;
+pt_data *A2_ext;
+pt_data *A2_local;
+// ############### Layer 3 Matrix Data needed to create partitionings and Laik_Data container
+L2A_map *A3_map_data;
+pt_data *A3_ext;
+pt_data *A3_local;
 
 /**
  * @brief Map the local index (mtxIndL) to the corresponding global index. Then map this global index to the allocation index
- * 
- * See L2A_map;
- * 
- * @param localIndex which will be mapped to the corresponding allocation index
+ *
+ * @param[in] mapping used to calculate the allocation index
+ * @param[in] localIndex which will be mapped to the corresponding allocation index
+ * @param[in] halo determines the allocation buffer to be used
  * 
  * @return index to the allocation buffer
+ * 
+ * @see L2A_map in laik_instance.hpp
  */
-allocation_int_t map_l2a(local_int_t local_index, bool halo)
+allocation_int_t map_l2a(L2A_map * mapping, local_int_t local_index, bool halo)
 {
 
     std::string a{""};
@@ -46,14 +57,14 @@ allocation_int_t map_l2a(local_int_t local_index, bool halo)
     global_int_t global_index;
 
     // Map local index to global index
-    if (local_index < l2a_map.localNumberOfRows)
+    if (local_index < mapping->localNumberOfRows)
     {
-        global_index = l2a_map.localToGlobalMap[local_index]; /* No need to handle errors, since we map values from mtxIndL only */
+        global_index = mapping->localToGlobalMap[local_index]; /* No need to handle errors, since we map values from mtxIndL only */
         a += std::to_string(global_index) + "   (GI) ->\t";
     }
     else
     {
-        global_index = l2a_map.localToExternalMap[local_index];
+        global_index = mapping->localToExternalMap[local_index];
         a += std::to_string(global_index) + "   (GI) ->\t";
     }
 
@@ -61,13 +72,9 @@ allocation_int_t map_l2a(local_int_t local_index, bool halo)
     // We have different allocation buffers depending on the current active partitioning
     allocation_int_t allocation_index;
     if (halo)
-    {
-        allocation_index = global_index - l2a_map.offset_halo;
-    }
+        allocation_index = global_index - mapping->offset_ext;
     else
-    {
-        allocation_index = global_index - l2a_map.offset;
-    }
+        allocation_index = global_index - mapping->offset;
 
     a += std::to_string(allocation_index) + "   (AI)\n";
 
@@ -78,38 +85,25 @@ allocation_int_t map_l2a(local_int_t local_index, bool halo)
 }
 
 /**
- * @brief Initialize g2a_map struct
+ * @brief Algorithm to partition an vector.
  *
- * @param map_data data needed to calculate mapping correctly
- */
-void init_map_data(L2A_map *map_data)
-{
-    l2a_map.localNumberOfRows = map_data->localNumberOfRows;
-    l2a_map.localToExternalMap = map_data->localToExternalMap;
-    l2a_map.localToGlobalMap = map_data->localToGlobalMap;
-    l2a_map.offset = map_data->offset;
-    l2a_map.offset_halo = map_data->offset_halo;
-
-    return;
-}
-
-/**
- * @brief Algorithm to partition the x vector.
+ * local (Partitioning 1): Every process has exclusive access to its indices
  *
- * x_pt (Partitioning 1): Every process has exclusive access to its indices
- *
- * x_halo_pt (Partitioning 2): Every process has now access to needed external values as well
+ * external (Partitioning 2): Every process has now access to needed external values as well
  *
  */
 void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
 {
     pt_data *data = (pt_data *)laik_partitioner_data(p->partitioner);
-    int rank = data->geom->rank;
+    Laik_Space * x_space = p->space;
 
+    assert(data->size == laik_space_size(x_space));
+
+    int rank = data->geom->rank;
     Laik_Range range;
 
-    // std::string a{""};
-    // a += "LAIK " + std::to_string(laik_myid(world)) + "\t[";
+    std::string a{""};
+    a += "LAIK " + std::to_string(laik_myid(world)) + "\t[";
 
     for (long long i = 0; i < data->size; i++)
     {
@@ -121,21 +115,22 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
 
         // Prepare data for mapping from global index to allocation index (lex_layout)
 
-        if (l2a_map.offset == -1 && rank == proc)
+        if (data->offset == -1 && rank == proc)
         {
-            l2a_map.offset = i;
+            data->offset = i;
         }
-        // a += std::to_string(ComputeRankOfMatrixRow(*data->geom, i)) + ", ";
+        a += std::to_string(ComputeRankOfMatrixRow(*data->geom, i)) + ", ";
     }
 
-    // a += "]\n";
+    a += "]\n";
 
     // printf("%s", a.data());
-    
+
     // Specifying ranges which need to be exchanged
     if (data->halo)
     {
-        l2a_map.offset_halo = l2a_map.offset;
+        data->offset_ext = data->offset;
+
         // process i needs access to external values
         typedef std::set<global_int_t>::iterator set_iter;
 
@@ -148,11 +143,12 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
                 laik_range_init_1d(&range, x_space, globalIndex, globalIndex + 1);
                 laik_append_range(r, rank, &range, 1, 0);
 
-                if (globalIndex < l2a_map.offset_halo)
+                if (globalIndex < data->offset_ext)
                 {
-                    l2a_map.offset_halo = globalIndex;
+                    data->offset_ext = globalIndex;
                 }
-                // printf("I (%d) need to have access to global index %d of x vector (updated by proc %d)\n", rank, globalIndex, data->neighbors[nb]);
+
+                printf("I (%d) need to have access to global index %lld of x vector (updated by proc %d)\n", rank, globalIndex, data->neighbors[nb]);
             }
         }
 
@@ -180,44 +176,147 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
     }
 }
 
+
 /**
- * @brief Initialize the two partitiongs to switch between them (exchange data between processes)
+ * @brief Fill the input vector with pseudo-random values.
  *
- * @param data,data2 necessary information needed for the partitioner algorithm
+ * @param[inout] x_blob contains input vector
+ *
+ * @see FillRandomVector in Vector.hpp
  */
-void init_partitionings(pt_data *data, pt_data *data2)
+void fillRandomLaikVector(Laik_Blob *x_blob)
 {
-    x_space = laik_new_space_1d(hpcg_instance, data->size);
-    x_vector = laik_new_data(x_space, laik_Double);
+    double *base;
+    uint64_t count;
 
-    // Initialize partitioners to partition data accordingly
-    Laik_Partitioner *x_halo_pr = laik_new_partitioner("x_pt_halo", partitioner_x, (void *)data, LAIK_PF_None);
-    Laik_Partitioner *x_pr = laik_new_partitioner("x_pt", partitioner_x, (void *)data2, LAIK_PF_None);
+    laik_get_map_1d(x_blob->values, 0, (void **)&base, &count);
 
-    // Initialize partitionings
-    x_halo_pt = laik_new_partitioning(x_halo_pr, world, x_space, NULL);
-    x_pt = laik_new_partitioning(x_pr, world, x_space, NULL);
+    for (uint64_t i = 0; i < x_blob->localLength; i++)
+    {
+        base[map_l2a(x_blob->mapping, i, false)] = rand() / (double)(RAND_MAX) + 1.0;
+    }
+    return;
+}
 
-    // Start with / Switch to partitioning x_pt
-    exchangeValues(false);
+/**
+ * @brief Fill the input vector with zero values.
+ *
+ * @param[inout] x_blob contains input vector
+ *
+ * @see ZeroVector in Vector.hpp
+ */
+void ZeroLaikVector(Laik_Blob * x_blob)
+{
+    double *base;
+    uint64_t count;
+    
+    laik_get_map_1d(x_blob->values, 0, (void **)&base, &count);
+
+    for (uint64_t i = 0; i < x_blob->localLength; i++)
+    {
+        base[map_l2a(x_blob->mapping, i, false)] = 0;
+    }
+    return;
+}
+
+/**
+ * @brief Copy input vector to output Laik-vector.
+ *
+ * @param[in] v input vector
+ * @param[in] x_blob contains output vector
+ *
+ * @see CopyVector in Vector.hpp
+ */
+void CopyVectorToLaikVector(Vector & v, Laik_Blob * x_blob)
+{
+    double *base;
+    uint64_t count;
+    laik_get_map_1d(x_blob->values, 0, (void **)&base, &count);
+
+    const double *vv = v.values;
+
+    for (uint64_t i = 0; i < x_blob->localLength; i++)
+    {
+        base[map_l2a(x_blob->mapping, i, false)] =  vv[i];
+    }
 
     return;
 }
 
 /**
- * @brief Switch between partitionings to exchange data
+ * @brief Copy input Laik-vector to output vector.
  *
- * @param halo allow access to external values, if true
+ * @param[in] x_blob contains input vector
+ * @param[in] v output vector
  */
-void exchangeValues(bool halo)
+void CopyLaikVectorToVector(Laik_Blob *x_blob, Vector &v)
 {
-    if (halo)
+    double *base;
+    uint64_t count;
+    laik_get_map_1d(x_blob->values, 0, (void **)&base, &count);
+
+    double *vv = v.values;
+
+    for (uint64_t i = 0; i < x_blob->localLength; i++)
     {
-        laik_switchto_partitioning(x_vector, x_halo_pt, LAIK_DF_Preserve, LAIK_RO_None);
-        return;
+        vv[i] = base[map_l2a(x_blob->mapping, i, false)];
     }
 
-    laik_switchto_partitioning(x_vector, x_pt, LAIK_DF_None, LAIK_RO_None);
+    return;
+}
+
+/**
+ * @brief Populate an Laik_Blob and start with the partitioning such that every process has only access to local values.
+ *
+ * @param global_size of vector
+ * @param local_size of vector for this process
+ * @param map_data to calculate mapping from local to allocation indices (see L2A_map)
+ * @param data_local needed for the partitioner algorithm (Access to local values)
+ * @param data_ext needed for the partitioner algorithm (Access to local and external values)
+ * @return populated blob
+ */
+Laik_Blob * init_blob(int64_t global_size, uint64_t local_size, L2A_map *map_data, pt_data *data_local, pt_data *data_ext)
+{
+    assert(global_size >= 0);
+    assert(map_data != NULL);
+    assert(data_local != NULL);
+    assert(data_ext != NULL);
+    assert(map_data->localNumberOfRows == local_size);
+
+    Laik_Blob * blob = (Laik_Blob *) malloc(sizeof(Laik_Blob));
+
+    Laik_Space * x_space = laik_new_space_1d(hpcg_instance, global_size);
+    Laik_Data  * x_data = laik_new_data(x_space, laik_Double);
+
+    // Initialize partitioners to partition data accordingly
+
+    /* TODO. Do I need a seperate data buffer for every vector? */
+    // pt_data * pt_data_ext_ = (pt_data *)malloc(sizeof(*data_ext));
+    // pt_data * pt_data_local_ = (pt_data *)malloc(sizeof(*data_local));
+    // std::memcpy((void *) pt_data_ext_, (void *) data_ext, sizeof(*data_ext));
+    // std::memcpy((void *)pt_data_local_, (void *)data_local, sizeof(*data_local));
+
+    /* Is it possible to reuse the same map_data object for each vector? Should be the case for vectors with same exchange data */
+
+    Laik_Partitioner *x_extPR = laik_new_partitioner("x_extPR", partitioner_x, (void *)data_ext, LAIK_PF_None);
+    Laik_Partitioner *x_localPR = laik_new_partitioner("x_localPR", partitioner_x, (void *)data_local, LAIK_PF_None);
+
+    Laik_Partitioning * x_ext = laik_new_partitioning(x_extPR, world, x_space, NULL);
+    Laik_Partitioning *x_local = laik_new_partitioning(x_localPR, world, x_space, NULL);
+
+
+    blob->values = x_data;
+    blob->x_ext = x_ext;
+    blob->x_local = x_local;
+    blob->mapping = map_data;
+    blob->mapping->offset = data_local->offset;
+    blob->mapping->offset_ext = data_ext->offset_ext;
+    blob->localLength = local_size;
+
+    // Start with x_local partitioning
+    laik_switchto_partitioning(blob->values, blob->x_local, LAIK_DF_None, LAIK_RO_None);
+
+    return blob;
 }
 
 /* LAIK has a hard limit of “Laik_Data” objects. Reuse “Laik_Data” objects with same size and Laik_Type */
@@ -226,7 +325,12 @@ std::map<std::pair<int, Laik_Type *>, Laik_Data *> data_objects;
 /**
  * @brief Helper function implements Allreduce / Broadcast
  *
- * @param partitioner needed to specify Allreduce or Broadcast
+ * @param sendBuf buffer to be sent
+ * @param recvBuf received bytes will be stored in this buffer
+ * @param n size of send-/recvbuffer
+ * @param data_type of bytes in sendBuf
+ * @param ro_type reduction operation after Allreduce / Broadcast
+ * @param partitioner partitioner algorithm (to implement Broadcast and Allreduce)
  */
 void laik_helper(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data_type, Laik_ReductionOperation ro_type, Laik_Partitioner *partitioner)
 {

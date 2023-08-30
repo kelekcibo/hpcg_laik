@@ -20,6 +20,7 @@
 
 #include "ComputeDotProduct.hpp"
 #include "ComputeDotProduct_ref.hpp"
+#include "laik_instance.hpp"
 
 /*!
   Routine to compute the dot product of two vectors.
@@ -39,9 +40,9 @@
   @see ComputeDotProduct_ref
 */
 int ComputeDotProduct(const local_int_t n, const Vector & x, const Vector & y,
-    double & result, double & time_allreduce, bool & isOptimized) {
+    double & result, double & time_allreduce, bool & isOptimized, Laik_Blob * x_blob, Laik_Blob * y_blob) {
 
   // This line and the next two lines should be removed and your version of ComputeDotProduct should be used.
   isOptimized = false;
-  return ComputeDotProduct_ref(n, x, y, result, time_allreduce);
+  return ComputeDotProduct_ref(n, x, y, result, time_allreduce, x_blob, y_blob);
 }

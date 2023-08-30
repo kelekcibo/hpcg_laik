@@ -25,6 +25,8 @@
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
+#include "laik_instance.hpp"
+
 struct MGData_STRUCT {
   int numberOfPresmootherSteps; // Call ComputeSYMGS this many times prior to coarsening
   int numberOfPostsmootherSteps; // Call ComputeSYMGS this many times after coarsening
@@ -32,6 +34,9 @@ struct MGData_STRUCT {
   Vector * rc; // coarse grid residual vector
   Vector * xc; // coarse grid solution vector
   Vector * Axf; // fine grid residual vector
+  Laik_Blob * Axf_blob; // To use Laik
+  Laik_Blob *xc_blob;  // To use Laik
+
   /*!
    This is for storing optimized data structres created in OptimizeProblem and
    used inside optimized ComputeSPMV().
@@ -47,13 +52,15 @@ typedef struct MGData_STRUCT MGData;
  @param[in] f2cOperator -
  @param[out] data the data structure for CG vectors that will be allocated to get it ready for use in CG iterations
  */
-inline void InitializeMGData(local_int_t * f2cOperator, Vector * rc, Vector * xc, Vector * Axf, MGData & data) {
+inline void InitializeMGData(local_int_t * f2cOperator, Vector * rc, Vector * xc, Vector * Axf, Laik_Blob * Axf_blob,  Laik_Blob *xc_blob, MGData & data) {
   data.numberOfPresmootherSteps = 1;
   data.numberOfPostsmootherSteps = 1;
   data.f2cOperator = f2cOperator; // Space for injection operator
   data.rc = rc;
   data.xc = xc;
   data.Axf = Axf;
+  data.Axf_blob = Axf_blob;
+  data.xc_blob = Axf_blob;
   return;
 }
 
@@ -71,6 +78,7 @@ inline void DeleteMGData(MGData & data) {
   delete data.Axf;
   delete data.rc;
   delete data.xc;
+  delete data.Axf_blob;
   return;
 }
 

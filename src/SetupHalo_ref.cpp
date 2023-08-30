@@ -171,54 +171,50 @@ void SetupHalo_ref(SparseMatrix & A) {
   A.sendLength = sendLength;
   A.sendBuffer = sendBuffer;
 
-  /* TODO: GenerateCoarse Problem creates multiple matrices, so need different partitionings in MG_ref*/
-  if (level == 0)
-  {
 
-    // ########## Data for partitioning algorithm
-    pt_data * dataHalo = (pt_data *)malloc(sizeof(pt_data));
-    pt_data * dataNoHalo = (pt_data *)malloc(sizeof(pt_data));
+  // ########## Data for partitioning algorithm
+  pt_data * pt_data_ext = (pt_data *)malloc(sizeof(pt_data));
+  pt_data * pt_data_local = (pt_data *)malloc(sizeof(pt_data));
 
-    dataHalo->size = A.totalNumberOfRows;
-    dataHalo->geom = A.geom;
-    dataHalo->numberOfNeighbours = A.numberOfSendNeighbors;
-    dataHalo->neighbors = neighbors;
-    std::memcpy((void *) &dataHalo->receiveList, (void *)&receiveList, sizeof(receiveList));
-    dataHalo->localToGlobalMap = &A.localToGlobalMap;
-    dataHalo->elementsToSend = A.elementsToSend;
-    dataHalo->receiveLength = A.receiveLength;
-    dataHalo->halo = true;
+  pt_data_ext->size = A.totalNumberOfRows;
+  pt_data_ext->geom = A.geom;
+  pt_data_ext->numberOfNeighbours = A.numberOfSendNeighbors;
+  pt_data_ext->neighbors = A.neighbors;
+  std::memcpy((void *)&pt_data_ext->receiveList, (void *)&receiveList, sizeof(receiveList));
+  pt_data_ext->localToGlobalMap = &A.localToGlobalMap;
+  pt_data_ext->elementsToSend = A.elementsToSend;
+  pt_data_ext->receiveLength = A.receiveLength;
+  pt_data_ext->halo = true;
 
-    dataNoHalo->halo = false;
-    dataNoHalo->geom = dataHalo->geom;
-    dataNoHalo->size = dataHalo->size;
-    /* These values are not needed for the 2nd partitioning */
-    dataNoHalo->neighbors = NULL;
-    dataNoHalo->localToGlobalMap = NULL;
-    dataNoHalo->elementsToSend = NULL;
-    dataNoHalo->receiveLength = NULL;
-    dataNoHalo->numberOfNeighbours = -1;
+  pt_data_local->halo = false;
+  pt_data_local->geom = pt_data_ext->geom;
+  pt_data_local->size = pt_data_ext->size;
+  /* These values are not needed for the 2nd partitioning */
+  pt_data_local->neighbors = NULL;
+  pt_data_local->localToGlobalMap = NULL;
+  pt_data_local->elementsToSend = NULL;
+  pt_data_local->receiveLength = NULL;
+  pt_data_local->numberOfNeighbours = -1;
 
-    // ########## Data for partitioning algorithm
+  // ########## Data for partitioning algorithm
 
-    // ########## Data to calculate mapping
+  // ########## Data to calculate mapping
 
-    L2A_map * map_data = (L2A_map *)malloc(sizeof(L2A_map));
+  L2A_map * map_data = (L2A_map *)malloc(sizeof(L2A_map));
 
-    map_data->localNumberOfRows = A.localNumberOfRows;
-    map_data->offset = -1;
-    map_data->offset_halo = -1;
+  map_data->localNumberOfRows = A.localNumberOfRows;
+  map_data->offset = -1;
+  map_data->offset_ext = -1;
 
-    std::memcpy((void *)&map_data->localToGlobalMap, (void *)&A.localToGlobalMap, sizeof(A.localToGlobalMap));
-    std::memcpy((void *)&map_data->localToExternalMap, (void *)&A.localToExternalMap, sizeof(A.localToExternalMap));
+  std::memcpy((void *)&map_data->localToGlobalMap, (void *)&A.localToGlobalMap, sizeof(A.localToGlobalMap));
+  std::memcpy((void *)&map_data->localToExternalMap, (void *)&A.localToExternalMap, sizeof(A.localToExternalMap));
+  
+  // ########## Data to calculate mapping
+
+  A.A_map_data = map_data;
+  A.A_local = pt_data_local;
+  A.A_ext = pt_data_ext;
    
-    // ########## Data to calculate mapping
-
-    // ########## Initialize all variables
-    init_map_data(map_data);
-    init_partitionings(dataHalo, dataNoHalo);
-  }
-
   A.level = level++;
 
 #ifdef HPCG_DETAILED_DEBUG

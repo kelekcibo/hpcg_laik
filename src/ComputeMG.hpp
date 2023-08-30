@@ -16,7 +16,8 @@
 #define COMPUTEMG_HPP
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
+#include "laik_instance.hpp"
 
-int ComputeMG(const SparseMatrix  & A, const Vector & r, Vector & x);
+int ComputeMG(const SparseMatrix  & A, const Vector & r, Vector & x, Laik_Blob * x_blob);
 
 #endif // COMPUTEMG_HPP

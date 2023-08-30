@@ -35,9 +35,20 @@
 
   @return Returns zero on success and a non-zero value otherwise.
 */
-int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf) {
+int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf, Laik_Blob * xf_blob) {
 
+  bool use_laik = xf_blob != 0;
   double * xfv = xf.values;
+
+  if(use_laik)
+  {
+    double *base;
+    uint64_t count;
+    laik_get_map_1d(xf_blob->values, 0, (void **)&base, &count);
+
+    xfv = base;
+  }
+
   double * xcv = Af.mgData->xc->values;
   local_int_t * f2c = Af.mgData->f2cOperator;
   local_int_t nc = Af.mgData->rc->localLength;
@@ -46,7 +57,13 @@ int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf) {
 #pragma omp parallel for
 #endif
 // TODO: Somehow note that this loop can be safely vectorized since f2c has no repeated indices
-  for (local_int_t i=0; i<nc; ++i) xfv[f2c[i]] += xcv[i]; // This loop is safe to vectorize
-
+  for (local_int_t i=0; i<nc; ++i)
+  {
+    if(use_laik)
+      xfv[map_l2a(xf_blob->mapping, f2c[i], false)] += xcv[i]; // This loop is safe to vectorize
+    else
+      xfv[f2c[i]] += xcv[i]; // This loop is safe to vectorize
+  
+  }
   return 0;
 }

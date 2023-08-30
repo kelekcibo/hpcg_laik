@@ -44,13 +44,22 @@
   @see ComputeDotProduct
 */
 int ComputeDotProduct_ref(const local_int_t n, const Vector & x, const Vector & y,
-    double & result, double & time_allreduce) {
+    double & result, double & time_allreduce, Laik_Blob * x_blob, Laik_Blob * y_blob) {
   assert(x.localLength>=n); // Test vector lengths
   assert(y.localLength>=n);
 
   double local_result = 0.0;
   double * xv = x.values;
   double * yv = y.values;
+
+  bool x_blob_active = false;
+  bool y_blob_active = false;
+
+  if (x_blob != 0)
+    x_blob_active = true;
+  if (y_blob != 0)
+    y_blob_active = true;
+
   if (yv==xv) {
 #ifndef HPCG_NO_OPENMP
     #pragma omp parallel for reduction (+:local_result)

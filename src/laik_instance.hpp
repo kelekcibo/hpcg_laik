@@ -18,6 +18,7 @@ extern "C" {
 #include <vector>
 #include <set>
 #include <map>
+#include "Vector.hpp"
 
 #include "Geometry.hpp"
 
@@ -33,6 +34,8 @@ extern "C" {
  * @param receiveList           Global Indices proc i needs to receive
  * @param localToGlobalMap      local-to-global mapping
  * @param halo                  x will be partioned such that indices to external values are owned by other procs as well
+ * @param offset                offset to allocation buffer of partitioning with local values
+ * @param offset_ext            offset to allocation buffer of partitioning with local+external values
  *
  */
 typedef struct partition_data
@@ -46,6 +49,8 @@ typedef struct partition_data
     std::map<int, std::set<global_int_t>> receiveList;  /* Global Indices proc i needs to receive */
     std::vector<global_int_t> *localToGlobalMap;        /* local-to-global mapping */
     bool halo; /* x will be partioned such that indices to external values are owned by other procs as well */
+    int offset; /* offset to allocation buffer of partitioning with local values */
+    int offset_ext; /* offset to allocation buffer of partitioning with local+external values */
 } pt_data;
 
 typedef long long allocation_int_t;
@@ -62,7 +67,7 @@ typedef long long allocation_int_t;
 typedef struct Local2Allocation_map
 {
     // std::map<global_int_t, allocation_int_t> globalToAllocationMap; /* Mapping from Global to Allocation Indices */
-    long long offset_halo; /* Offset into allocation buffer with external values */
+    long long offset_ext; /* Offset into allocation buffer with external values */
     long long offset;      /* Offset into allocation buffer without external values */
 
     /* Mapping from Local to Global Indices */
@@ -72,7 +77,15 @@ typedef struct Local2Allocation_map
 
 } L2A_map;
 
-extern Laik_Data * x_vector;
+typedef struct Laik_Blob
+{
+    Laik_Data * values;
+    uint64_t localLength;
+  
+    Laik_Partitioning *x_ext;
+    Laik_Partitioning *x_local;
+    L2A_map *mapping;
+} Laik_Blob;
 
 extern Laik_Instance *hpcg_instance;
 extern Laik_Group * world;
@@ -80,9 +93,13 @@ extern Laik_Group * world;
 extern void laik_broadcast(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data_type);
 extern void laik_allreduce(const void * sendBuf, void * recvBuf, uint64_t n, Laik_Type * data_type, Laik_ReductionOperation ro_type);
 extern void laik_barrier(void);
-extern void init_partitionings(pt_data *data, pt_data *data2);
-extern void exchangeValues(bool halo);
-extern void init_map_data(L2A_map * map_data);
-extern allocation_int_t map_l2a(local_int_t local_index, bool halo);
+
+extern void fillRandomLaikVector(Laik_Blob *x_blob);
+extern void ZeroLaikVector(Laik_Blob * x_blob);
+extern void CopyVectorToLaikVector(Vector & v, Laik_Blob * x_blob);
+extern void CopyLaikVectorToVector(Laik_Blob *x_blob, Vector &v);
+
+extern Laik_Blob * init_blob(int64_t global_size, uint64_t local_size, L2A_map *map_data, pt_data *data_local, pt_data *data2_ext);
+extern allocation_int_t map_l2a(L2A_map * mapping, local_int_t local_index, bool halo);
 
 #endif

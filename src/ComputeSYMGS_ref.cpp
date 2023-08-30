@@ -55,27 +55,19 @@
 
   @see ComputeSYMGS
 */
-int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
+int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x, Laik_Blob * x_blob) {
 
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 
 #ifndef HPCG_NO_MPI
 
-  /* In ComputeMG_ref.cpp, the operation is done on coarse grid matrices, so we would need partitionings, etc. for them as well
-    For now, make use of MPI, instead of LAIK
-  */
-  bool use_laik = A.level == 3;
+  bool use_laik = x_blob != 0;
+
   double *base;
   uint64_t count;
 
   if (use_laik)
-  {
-    laik_get_map_1d(x_vector, 0, (void **)&base, &count);
-    for (size_t i = 0; i < A.localNumberOfRows; i++)
-      base[map_l2a(i, false)] = x.values[i];
-
-    exchangeValues(true);
-  } 
+    laik_switchto_partitioning(x_blob->values, x_blob->x_ext, LAIK_DF_Preserve, LAIK_RO_None);
   else
     ExchangeHalo(A, x);
 
@@ -90,7 +82,7 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
 
   if (use_laik)
   {
-    laik_get_map_1d(x_vector, 0, (void **)&base, &count);
+    laik_get_map_1d(x_blob->values, 0, (void **)&base, &count);
     xv = base;
   }
 
@@ -105,18 +97,18 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
       local_int_t curCol = currentColIndices[j];
 
       if (use_laik)
-        sum -= currentValues[j] * xv[map_l2a(curCol, true)];
+        sum -= currentValues[j] * xv[map_l2a(x_blob->mapping, curCol, true)];
       else
         sum -= currentValues[j] * xv[(curCol)];
     }
 
     if (use_laik)
-      sum += xv[map_l2a(i, true)] * currentDiagonal; // Remove diagonal contribution from previous loop
+      sum += xv[map_l2a(x_blob->mapping, i, true)] * currentDiagonal; // Remove diagonal contribution from previous loop
     else
       sum += xv[i] * currentDiagonal; // Remove diagonal contribution from previous loop
 
     if (use_laik)
-      xv[map_l2a(i, true)] = sum / currentDiagonal;
+      xv[map_l2a(x_blob->mapping, i, true)] = sum / currentDiagonal;
     else
       xv[i] = sum / currentDiagonal;
   }
@@ -134,15 +126,15 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
       local_int_t curCol = currentColIndices[j];
 
       if (use_laik)
-        sum -= currentValues[j] * xv[map_l2a(curCol, true)];
+        sum -= currentValues[j] * xv[map_l2a(x_blob->mapping, curCol, true)];
       else
         sum -= currentValues[j] * xv[curCol];
     }
 
     if (use_laik)
     {
-      sum += xv[map_l2a(i, true)] * currentDiagonal; // Remove diagonal contribution from previous loop
-      xv[map_l2a(i, true)] = sum / currentDiagonal;
+      sum += xv[map_l2a(x_blob->mapping, i, true)] * currentDiagonal; // Remove diagonal contribution from previous loop
+      xv[map_l2a(x_blob->mapping, i, true)] = sum / currentDiagonal;
     }
     else
     {
@@ -152,17 +144,8 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   }
 
 #ifndef HPCG_NO_MPI
-
   if (use_laik)
-  {
-    exchangeValues(false);
-
-    laik_get_map_1d(x_vector, 0, (void **)&base, &count);
-
-    for (size_t i = 0; i < A.localNumberOfRows; i++)
-      x.values[i] = base[map_l2a(i, false)];
-  }
-
+    laik_switchto_partitioning(x_blob->values, x_blob->x_local, LAIK_DF_None, LAIK_RO_None);
 #endif
 
   return 0;

@@ -17,6 +17,10 @@
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
 
-int ComputeSPMV_ref( const SparseMatrix & A, Vector  & x, Vector & y);
+// #ifndef HPCG_NO_MPI
+#include "laik_instance.hpp"
+// #endif
+
+int ComputeSPMV_ref( const SparseMatrix & A, Vector  & x, Vector & y, Laik_Blob * x_blob);
 
 #endif  // COMPUTESPMV_REF_HPP
