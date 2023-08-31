@@ -125,6 +125,7 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
   A.A_ext = 0;
   A.A_local = 0;
   A.A_map_data = 0;
+  
   A.level = 0;
 #endif
   A.mgData = 0; // Fine-to-coarse grid transfer initially not defined.

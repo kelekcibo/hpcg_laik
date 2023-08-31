@@ -68,7 +68,8 @@ int ComputeMG_ref(const SparseMatrix & A, const Vector & r, Vector & x, Laik_Blo
       ierr = ComputeSPMV_ref(A, x, *A.mgData->Axf, x_blob); if (ierr!=0) return ierr;
     else
       ierr = ComputeSPMV_ref(A, x, *A.mgData->Axf, NULL); if (ierr!=0) return ierr;
-    exit(1);
+
+    exit(1); // DELETE.
 
     // Perform restriction operation using simple injection
     ierr = ComputeRestriction_ref(A, r);  if (ierr!=0) return ierr;

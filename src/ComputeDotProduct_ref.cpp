@@ -55,21 +55,51 @@ int ComputeDotProduct_ref(const local_int_t n, const Vector & x, const Vector & 
   bool x_blob_active = false;
   bool y_blob_active = false;
 
+  double *base_x;
+  uint64_t count_x;
+  double *base_y;
+  uint64_t count_y;
+
   if (x_blob != 0)
+  {
     x_blob_active = true;
+    laik_get_map_1d(x_blob->values, 0, (void **)&base_x, &count_x);
+    xv = base_x;
+  }
   if (y_blob != 0)
+  {
     y_blob_active = true;
+    laik_get_map_1d(y_blob->values, 0, (void **)&base_y, &count_y);
+    yv = base_y;
+  }
 
   if (yv==xv) {
 #ifndef HPCG_NO_OPENMP
     #pragma omp parallel for reduction (+:local_result)
 #endif
-    for (local_int_t i=0; i<n; i++) local_result += xv[i]*xv[i];
+    for (local_int_t i=0; i<n; i++) 
+    {
+      // As yv == xv, both blobs will be active in case
+      if(x_blob_active && y_blob_active)
+        local_result += xv[map_l2a(x_blob->mapping, i, false)] * xv[map_l2a(x_blob->mapping, i, false)];
+      else
+        local_result += xv[i] * xv[i];
+    }
   } else {
 #ifndef HPCG_NO_OPENMP
     #pragma omp parallel for reduction (+:local_result)
 #endif
-    for (local_int_t i=0; i<n; i++) local_result += xv[i]*yv[i];
+    for (local_int_t i=0; i<n; i++)
+    {
+      if (x_blob_active && y_blob_active)
+        local_result += xv[map_l2a(x_blob->mapping, i, false)] * yv[map_l2a(y_blob->mapping, i, false)];
+      else if(x_blob_active && !y_blob_active)
+        local_result += xv[map_l2a(x_blob->mapping, i, false)] * yv[i];
+      else if(!x_blob_active && y_blob_active)
+        local_result += xv[i] * yv[map_l2a(y_blob->mapping, i, false)];
+      else
+        local_result += xv[i] * yv[i];
+    }
   }
 
 #ifndef HPCG_NO_MPI
