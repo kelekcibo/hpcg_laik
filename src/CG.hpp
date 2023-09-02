@@ -18,11 +18,15 @@
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 #include "CGData.hpp"
-
+#ifdef USE_LAIK
+int CG(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Blob *x,
+       const int max_iter, const double tolerance, int &niters, double &normr, double &normr0,
+       double *times, bool doPreconditioning);
+#else
 int CG(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
     const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
     double * times, bool doPreconditioning);
-
+#endif
 // this function will compute the Conjugate Gradient iterations.
 // geom - Domain and processor topology information
 // A - Matrix

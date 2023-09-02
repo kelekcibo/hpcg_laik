@@ -16,7 +16,11 @@
 #define COMPUTEDOTPRODUCT_HPP
 #include "Vector.hpp"
 #include "laik_instance.hpp"
-int ComputeDotProduct(const local_int_t n, const Vector & x, const Vector & y,
-    double & result, double & time_allreduce, bool & isOptimized, Laik_Blob * x_blob, Laik_Blob * y_blob);
-
+#ifdef USE_LAIK
+int ComputeDotProduct(const local_int_t n, const Laik_Blob *x, const Laik_Blob *y,
+                      double &result, double &time_allreduce, bool &isOptimized, L2A_map *mapping);
+#else
+int ComputeDotProduct(const local_int_t n, const Vector &x, const Vector &y,
+                      double &result, double &time_allreduce, bool &isOptimized);
+#endif
 #endif // COMPUTEDOTPRODUCT_HPP

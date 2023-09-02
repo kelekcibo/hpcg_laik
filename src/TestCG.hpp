@@ -25,7 +25,7 @@
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 #include "CGData.hpp"
-
+#include "laik_instance.hpp"
 
 struct TestCGData_STRUCT {
   int count_pass; //!< number of succesful tests
@@ -38,7 +38,10 @@ struct TestCGData_STRUCT {
 };
 typedef struct TestCGData_STRUCT TestCGData;
 
+#ifdef USE_LAIK
+extern int TestCG(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestCGData &testcg_data);
+#else
 extern int TestCG(SparseMatrix & A, CGData & data, Vector & b, Vector & x, TestCGData & testcg_data);
-
+#endif
 #endif  // TESTCG_HPP
 

@@ -24,6 +24,7 @@
 #include <vector>
 #include <cassert>
 #include <map>
+#include "laik_instance.hpp"
 #include "Geometry.hpp"
 #include "Vector.hpp"
 #include "MGData.hpp"
@@ -74,14 +75,16 @@ struct SparseMatrix_STRUCT {
   local_int_t * sendLength; //!< lenghts of messages sent to neighboring processes
   double * sendBuffer; //!< send buffer for non-blocking sends
 
+// #ifdef USE_LAIK
   int level; // handle the other layers, no partitionings yet stored for them
   std::map<local_int_t, global_int_t> localToExternalMap; /* Needed for LAIK (see laik_instance.hpp: L2A_map)*/
 
   // ############### Data needed to create partitionings and Laik_Data container
-  L2A_map * A_map_data;
-  pt_data *A_ext;
-  pt_data *A_local;
-
+  L2A_map * mapping;
+  Laik_Space * space;
+  Laik_Partitioning * ext;
+  Laik_Partitioning * local;
+// #endif // USE_LAIK
 #endif
 };
 typedef struct SparseMatrix_STRUCT SparseMatrix;
@@ -121,11 +124,12 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
   A.receiveLength = 0;
   A.sendLength = 0;
   A.sendBuffer = 0;
-
-  A.A_ext = 0;
-  A.A_local = 0;
-  A.A_map_data = 0;
   
+  // ## Laik specific
+  A.mapping = 0;
+  A.space = 0;
+  A.ext = 0;
+  A.local = 0;
   A.level = 0;
 #endif
   A.mgData = 0; // Fine-to-coarse grid transfer initially not defined.

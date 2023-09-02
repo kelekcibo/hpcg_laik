@@ -32,6 +32,9 @@ struct TestSymmetryData_STRUCT {
 };
 typedef struct TestSymmetryData_STRUCT TestSymmetryData;
 
-extern int TestSymmetry(SparseMatrix & A, Vector & b, Vector & xexact, TestSymmetryData & testsymmetry_data);
-
+#ifdef USE_LAIK
+  extern int TestSymmetry(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymmetryData &testsymmetry_data);
+#else
+  extern int TestSymmetry(SparseMatrix & A, Vector & b, Vector & xexact, TestSymmetryData & testsymmetry_data);
+#endif
 #endif  // TESTSYMMETRY_HPP

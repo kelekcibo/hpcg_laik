@@ -28,6 +28,7 @@
 #include "GenerateProblem.hpp"
 #include "SetupHalo.hpp"
 #include <iostream>
+#include "laik_instance.hpp"
 
 /*!
   Routine to construct a prolongation/restriction operator for a given fine grid matrix
@@ -97,26 +98,23 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
   InitializeSparseMatrix(*Ac, geomc);
   GenerateProblem(*Ac, 0, 0, 0);
   SetupHalo(*Ac);
+
+#ifdef USE_LAIK
+  Laik_Blob *rc = init_blob(*Ac, false);
+  Laik_Blob *xc = init_blob(*Ac, true);
+  Laik_Blob *Axf = init_blob(Af, true);
+#else
   Vector *rc = new Vector;
   Vector *xc = new Vector;
   Vector * Axf = new Vector;
   InitializeVector(*rc, Ac->localNumberOfRows);
   InitializeVector(*xc, Ac->localNumberOfColumns);
   InitializeVector(*Axf, Af.localNumberOfColumns);
+#endif
+
   Af.Ac = Ac;
-  
-  MGData * mgData = new MGData;
-
-  Laik_Blob * Axf_blob;
-  Laik_Blob * xc_blob;
-
-  // if(Af.level != 3)
-  // {
-  //   Axf_blob = init_blob(Af.totalNumberOfRows, Af.localNumberOfRows, Af.A_map_data, Af.A_local, Af.A_ext);
-  //   xc_blob = init_blob(Ac->totalNumberOfRows, Ac->localNumberOfRows, Ac->A_map_data, Ac->A_local, Ac->A_ext);
-  // }
-  
-  InitializeMGData(f2cOperator, rc, xc, Axf, Axf_blob, xc_blob, *mgData);
+  MGData * mgData = new MGData;  
+  InitializeMGData(f2cOperator, rc, xc, Axf, *mgData);
   Af.mgData = mgData;
 
   return;

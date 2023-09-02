@@ -19,14 +19,15 @@
  */
 
 #ifndef HPCG_NO_MPI
-#include "laik_instance.hpp"
 #include <map>
 #include <set>
 #include <cstring>
-
 #include <iostream>
 #include <cstdlib>
+
+#include "laik_instance.hpp"
 int level = 0;
+
 #endif
 
 #ifndef HPCG_NO_OPENMP
@@ -171,7 +172,7 @@ void SetupHalo_ref(SparseMatrix & A) {
   A.sendLength = sendLength;
   A.sendBuffer = sendBuffer;
 
-
+#ifdef USE_LAIK
   // ########## Data for partitioning algorithm
   pt_data * pt_data_ext = (pt_data *)malloc(sizeof(pt_data));
   pt_data * pt_data_local = (pt_data *)malloc(sizeof(pt_data));
@@ -200,7 +201,7 @@ void SetupHalo_ref(SparseMatrix & A) {
 
   // ########## Data to calculate mapping
 
-  L2A_map * map_data = (L2A_map *)malloc(sizeof(L2A_map));
+  L2A_map * map_data = (L2A_map *) malloc(sizeof(L2A_map));
 
   map_data->localNumberOfRows = A.localNumberOfRows;
   map_data->offset = -1;
@@ -210,12 +211,15 @@ void SetupHalo_ref(SparseMatrix & A) {
   std::memcpy((void *)&map_data->localToExternalMap, (void *)&A.localToExternalMap, sizeof(A.localToExternalMap));
   
   // ########## Data to calculate mapping
+  A.mapping = map_data;
 
-  A.A_map_data = map_data;
-  A.A_local = pt_data_local;
-  A.A_ext = pt_data_ext;
-   
+  init_partitionings(A, pt_data_ext, pt_data_local); 
+  
+  printf("Offset to ALLOC BUffer; %d / %d\n", A.mapping->offset, A.mapping->offset_ext);
+  exit(1);
+  
   A.level = level++;
+#endif // ifdef USE_LAIK
 
 #ifdef HPCG_DETAILED_DEBUG
   HPCG_fout << " For rank " << A.geom->rank << " of " << A.geom->size << ", number of neighbors = " << A.numberOfSendNeighbors << endl;

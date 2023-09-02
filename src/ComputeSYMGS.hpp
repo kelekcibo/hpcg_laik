@@ -17,6 +17,9 @@
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
-int ComputeSYMGS( const SparseMatrix  & A, const Vector & r, Vector & x, Laik_Blob * x_blob);
-
+#ifdef USE_LAIK
+int ComputeSYMGS(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *x);
+#else
+int ComputeSYMGS(const SparseMatrix &A, const Vector &r, Vector &x);
+#endif
 #endif // COMPUTESYMGS_HPP

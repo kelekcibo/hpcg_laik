@@ -21,6 +21,10 @@
 #include "laik_instance.hpp"
 // #endif
 
-int ComputeMG_ref(const SparseMatrix  & A, const Vector & r, Vector & x, Laik_Blob * x_blob);
+#ifdef USE_LAIK
+int ComputeMG_ref(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *x);
+#else
+int ComputeMG_ref(const SparseMatrix &A, const Vector &r, Vector &x);
+#endif
 
 #endif // COMPUTEMG_REF_HPP

@@ -60,19 +60,21 @@ inline void ZeroVector(Vector & v) {
   for (int i=0; i<localLength; ++i) vv[i] = 0.0;
   return;
 }
+
 /*!
   Multiply (scale) a specific vector entry by a given value.
 
   @param[inout] v Vector to be modified
   @param[in] index Local index of entry to scale
   @param[in] value Value to scale by
- */
+*/
 inline void ScaleVectorValue(Vector & v, local_int_t index, double value) {
   assert(index>=0 && index < v.localLength);
   double * vv = v.values;
   vv[index] *= value;
   return;
 }
+
 /*!
   Fill the input vector with pseudo-random values.
 

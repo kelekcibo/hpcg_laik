@@ -16,5 +16,9 @@
 #define COMPUTERESTRICTION_REF_HPP
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
+#ifdef USE_LAIK
+int ComputeRestriction_ref(const SparseMatrix &A, const Laik_Blob *rf);
+#else
 int ComputeRestriction_ref(const SparseMatrix & A, const Vector & rf);
+#endif
 #endif // COMPUTERESTRICTION_REF_HPP

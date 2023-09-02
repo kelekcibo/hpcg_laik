@@ -214,16 +214,27 @@ void GenerateProblem_ref(SparseMatrix &A, Vector *b, Vector *x, Vector *xexact)
     global_int_t totalNumberOfNonzeros = 0;
 #ifndef HPCG_NO_MPI
     // Use reduce function to sum all nonzeros
-#ifdef HPCG_NO_LONG_LONG
-    laik_allreduce((void *)&localNumberOfNonzeros, (void *)&totalNumberOfNonzeros, 1,laik_UInt32, LAIK_RO_Sum)
-#else
-    long long lnnz = localNumberOfNonzeros, gnnz = 0; // convert to 64 bit for MPI call
-    laik_allreduce((void *)&lnnz, (void *)&gnnz, 1, laik_UInt64, LAIK_RO_Sum);
-    totalNumberOfNonzeros = gnnz; // Copy back
-#endif
+    #ifdef USE_LAIK
+        #ifdef HPCG_NO_LONG_LONG
+            laik_allreduce((void *)&localNumberOfNonzeros, (void *)&totalNumberOfNonzeros, 1,laik_UInt32, LAIK_RO_Sum)
+        #else
+            long long lnnz = localNumberOfNonzeros, gnnz = 0; // convert to 64 bit for MPI call
+            laik_allreduce((void *)&lnnz, (void *)&gnnz, 1, laik_UInt64, LAIK_RO_Sum);
+            totalNumberOfNonzeros = gnnz; // Copy back
+        #endif // ifdef HPCG_NO_LONG_LONG
+    #else
+        // Use MPI's reduce function to sum all nonzeros
+        #ifdef HPCG_NO_LONG_LONG
+            MPI_Allreduce(&localNumberOfNonzeros, &totalNumberOfNonzeros, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        #else
+            long long lnnz = localNumberOfNonzeros, gnnz = 0; // convert to 64 bit for MPI call
+            MPI_Allreduce(&lnnz, &gnnz, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+            totalNumberOfNonzeros = gnnz; // Copy back
+        #endif
+    #endif // ifdefUSE_LAIK
 #else
     totalNumberOfNonzeros = localNumberOfNonzeros;
-#endif
+#endif // ifdef HPCG_NO_MPI
     // If this assert fails, it most likely means that the global_int_t is set to int and should be set to long long
     // This assert is usually the first to fail as problem size increases beyond the 32-bit integer range.
     assert(totalNumberOfNonzeros > 0); // Throw an exception of the number of nonzeros is less than zero (can happen if int overflow)

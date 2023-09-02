@@ -16,7 +16,13 @@
 #define COMPUTEDOTPRODUCT_REF_HPP
 #include "Vector.hpp"
 #include "laik_instance.hpp"
+
+#ifdef USE_LAIK
+int ComputeDotProduct_ref(const local_int_t n, const Laik_Blob *x, const Laik_Blob *y,
+                          double &result, double &time_allreduce, L2A_map * mapping);
+#else
 int ComputeDotProduct_ref(const local_int_t n, const Vector & x, const Vector & y,
-    double & result, double & time_allreduce, Laik_Blob * x_blob, Laik_Blob * y_blob);
+    double & result, double & time_allreduce);
+#endif
 
 #endif // COMPUTEDOTPRODUCT_REF_HPP

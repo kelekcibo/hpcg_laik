@@ -18,6 +18,10 @@
 #include "SparseMatrix.hpp"
 #include "laik_instance.hpp"
 
-int ComputeSPMV( const SparseMatrix & A, Vector & x, Vector & y, Laik_Blob * x_blob);
+#ifdef USE_LAIK
+int ComputeSPMV(const SparseMatrix &A, Laik_Blob *x_blob, Laik_Blob *y_blob);
+#else
+int ComputeSPMV(const SparseMatrix &A, Vector &x, Vector &y);
+#endif
 
 #endif  // COMPUTESPMV_HPP

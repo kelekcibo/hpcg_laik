@@ -29,7 +29,6 @@
 #include "GenerateProblem.hpp"
 #include "GenerateProblem_ref.hpp"
 
-
 /*!
   Routine to generate a sparse matrix, right hand side, initial guess, and exact solution.
 
@@ -40,7 +39,6 @@
 
   @see GenerateGeometry
 */
-
 void GenerateProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact) {
 
   // The call to this reference version of GenerateProblem can be replaced with custom code.
