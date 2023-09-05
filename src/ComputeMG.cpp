@@ -17,6 +17,14 @@
 
  HPCG routine
  */
+struct SparseMatrix_STRUCT;
+typedef struct SparseMatrix_STRUCT SparseMatrix;
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+// #ifndef HPCG_NO_MPI
+#include "laik_instance.hpp"
+// #endif
 
 #include "ComputeMG.hpp"
 #include "ComputeMG_ref.hpp"

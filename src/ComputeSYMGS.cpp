@@ -20,6 +20,10 @@
 
 #include "ComputeSYMGS.hpp"
 #include "ComputeSYMGS_ref.hpp"
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 
 #ifdef USE_LAIK
 /*!

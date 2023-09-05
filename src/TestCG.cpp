@@ -30,11 +30,14 @@
 #include <iostream>
 using std::endl;
 #include <vector>
-#include "hpcg.hpp"
 
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
+#include "hpcg.hpp"
 #include "TestCG.hpp"
 #include "CG.hpp"
-#include "laik_instance.hpp"
 #include "Vector.hpp"
 
 #ifdef USE_LAIK

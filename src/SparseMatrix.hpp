@@ -27,6 +27,9 @@
 
 struct L2A_map;
 
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
 #include "laik_instance.hpp"
 #include "Geometry.hpp"
 #include "Vector.hpp"

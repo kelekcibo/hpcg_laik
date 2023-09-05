@@ -22,6 +22,10 @@
 #include <omp.h>
 #endif
 
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #include "ComputeProlongation_ref.hpp"
 
 #ifdef USE_LAIK

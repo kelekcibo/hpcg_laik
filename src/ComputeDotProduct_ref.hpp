@@ -14,6 +14,9 @@
 
 #ifndef COMPUTEDOTPRODUCT_REF_HPP
 #define COMPUTEDOTPRODUCT_REF_HPP
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
 #include "Vector.hpp"
 #include "laik_instance.hpp"
 

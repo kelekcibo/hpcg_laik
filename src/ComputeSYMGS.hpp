@@ -14,6 +14,11 @@
 
 #ifndef COMPUTESYMGS_HPP
 #define COMPUTESYMGS_HPP
+
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 

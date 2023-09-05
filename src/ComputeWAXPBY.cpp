@@ -20,6 +20,9 @@
 
 #include "ComputeWAXPBY.hpp"
 #include "ComputeWAXPBY_ref.hpp"
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
 #include "laik_instance.hpp"
 
 #ifdef USE_LAIK

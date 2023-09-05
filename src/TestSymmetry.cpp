@@ -30,8 +30,11 @@ using std::endl;
 #include <vector>
 #include <cmath>
 
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #include "hpcg.hpp"
-
 #include "ComputeSPMV.hpp"
 #include "ComputeMG.hpp"
 #include "ComputeDotProduct.hpp"

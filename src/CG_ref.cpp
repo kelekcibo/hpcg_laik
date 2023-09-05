@@ -19,11 +19,14 @@
  */
 
 #include <fstream>
-
 #include <cmath>
 
-#include "hpcg.hpp"
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 
+#include "hpcg.hpp"
 #include "CG_ref.hpp"
 #include "mytimer.hpp"
 #include "ComputeSPMV_ref.hpp"

@@ -14,6 +14,10 @@
 
 #ifndef CHECKPROBLEM_HPP
 #define CHECKPROBLEM_HPP
+
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 

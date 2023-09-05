@@ -20,6 +20,9 @@
 
 #ifndef HPCG_NO_MPI
 #include "ExchangeHalo.hpp"
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
 #include "laik_instance.hpp"
 #include <cmath>
 #endif

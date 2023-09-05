@@ -15,9 +15,15 @@
 #ifndef CG_HPP
 #define CG_HPP
 
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
+
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 #include "CGData.hpp"
+
 #ifdef USE_LAIK
 int CG(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Blob *x,
        const int max_iter, const double tolerance, int &niters, double &normr, double &normr0,

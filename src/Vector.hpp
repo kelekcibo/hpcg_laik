@@ -22,6 +22,11 @@
 #define VECTOR_HPP
 #include <cassert>
 #include <cstdlib>
+
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #include "Geometry.hpp"
 
 struct Vector_STRUCT {

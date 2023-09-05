@@ -14,6 +14,10 @@
 
 #ifndef COMPUTERESIDUAL_HPP
 #define COMPUTERESIDUAL_HPP
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #include "Vector.hpp"
 #ifdef USE_LAIK
 int ComputeResidual(const local_int_t n, const Laik_Blob *v1, const Laik_Blob *v2, double &residual, L2A_map *mapping);

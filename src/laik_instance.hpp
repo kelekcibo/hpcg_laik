@@ -92,6 +92,7 @@ struct Laik_Blob
     bool exchange; /* This blob will exchange values if true */
 };
 
+
 extern Laik_Instance *hpcg_instance;
 extern Laik_Group * world;
 

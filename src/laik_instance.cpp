@@ -12,6 +12,9 @@
 #include <cstring>
 #include <cassert>
 
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
 #include "laik_instance.hpp"
 #include "Geometry.hpp"
 #include "Vector.hpp"

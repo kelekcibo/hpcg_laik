@@ -14,6 +14,11 @@
 
 #ifndef COMPUTEPROLONGATION_REF_HPP
 #define COMPUTEPROLONGATION_REF_HPP
+
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
 #ifdef USE_LAIK

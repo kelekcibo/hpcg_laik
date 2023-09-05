@@ -14,8 +14,12 @@
 
 #ifndef COMPUTEWAXPBY_HPP
 #define COMPUTEWAXPBY_HPP
-#include "Vector.hpp"
+
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
 #include "laik_instance.hpp"
+#include "Vector.hpp"
 #ifdef USE_LAIK
 int ComputeWAXPBY(const local_int_t n, const double alpha, const Laik_Blob *x,
                   const double beta, const Laik_Blob *y, Laik_Blob *w, bool &isOptimized, L2A_map *mapping);

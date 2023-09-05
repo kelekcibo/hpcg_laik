@@ -19,6 +19,9 @@
  */
 
 #include "ComputeWAXPBY_ref.hpp"
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
 #include "laik_instance.hpp"
 #ifndef HPCG_NO_OPENMP
 #include <omp.h>

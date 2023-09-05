@@ -14,8 +14,12 @@
 
 #ifndef COMPUTEWAXPBY_REF_HPP
 #define COMPUTEWAXPBY_REF_HPP
-#include "Vector.hpp"
+
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
 #include "laik_instance.hpp"
+#include "Vector.hpp"
 
 #ifdef USE_LAIK
 int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Laik_Blob *x,

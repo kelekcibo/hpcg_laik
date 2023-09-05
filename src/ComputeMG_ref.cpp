@@ -18,6 +18,13 @@
  HPCG routine
  */
 
+struct SparseMatrix_STRUCT;
+typedef struct SparseMatrix_STRUCT SparseMatrix;
+
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #include "ComputeMG_ref.hpp"
 #include "ComputeSYMGS_ref.hpp"
 #include "ComputeSPMV_ref.hpp"

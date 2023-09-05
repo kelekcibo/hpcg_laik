@@ -20,11 +20,13 @@
 #include <algorithm>
 
 #ifndef HPCG_NO_MPI
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
 #include "laik_instance.hpp"
 #endif
 
 #include "hpcg.hpp"
-
 #include "CheckAspectRatio.hpp"
 
 int

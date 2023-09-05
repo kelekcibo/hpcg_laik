@@ -21,6 +21,10 @@
 #ifndef CGDATA_HPP
 #define CGDATA_HPP
 
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 #include "laik_instance.hpp"

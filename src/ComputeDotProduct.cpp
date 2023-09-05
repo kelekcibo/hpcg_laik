@@ -18,9 +18,12 @@
  HPCG routine
  */
 
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #include "ComputeDotProduct.hpp"
 #include "ComputeDotProduct_ref.hpp"
-#include "laik_instance.hpp"
 
 #ifdef USE_LAIK
 /*!

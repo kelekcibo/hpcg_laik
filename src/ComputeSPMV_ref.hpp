@@ -14,12 +14,14 @@
 
 #ifndef COMPUTESPMV_REF_HPP
 #define COMPUTESPMV_REF_HPP
+
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
 
-// #ifndef HPCG_NO_MPI
-#include "laik_instance.hpp"
-// #endif
 
 #ifdef USE_LAIK
 int ComputeSPMV_ref(const SparseMatrix &A, Laik_Blob *x, Laik_Blob *y);

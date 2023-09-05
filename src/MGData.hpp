@@ -25,8 +25,11 @@
 
 struct Laik_Blob;
 
-#include "Vector.hpp"
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
 #include "laik_instance.hpp"
+#include "Vector.hpp"
 
 
 struct MGData_STRUCT {

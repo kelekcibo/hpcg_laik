@@ -20,6 +20,10 @@
 
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #endif
 
 #ifndef HPCG_NO_OPENMP

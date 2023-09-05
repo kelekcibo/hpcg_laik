@@ -14,6 +14,10 @@
 
 #ifndef GENERATEPROBLEM_HPP
 #define GENERATEPROBLEM_HPP
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 void GenerateProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact);

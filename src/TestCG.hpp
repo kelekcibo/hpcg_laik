@@ -21,11 +21,14 @@
 #ifndef TESTCG_HPP
 #define TESTCG_HPP
 
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #include "hpcg.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 #include "CGData.hpp"
-#include "laik_instance.hpp"
 
 struct TestCGData_STRUCT {
   int count_pass; //!< number of succesful tests

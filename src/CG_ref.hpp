@@ -15,6 +15,11 @@
 #ifndef CG_REF_HPP
 #define CG_REF_HPP
 
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
+
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 #include "CGData.hpp"

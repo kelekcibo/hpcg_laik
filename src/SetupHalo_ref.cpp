@@ -24,7 +24,9 @@
 #include <cstring>
 #include <iostream>
 #include <cstdlib>
-
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
 #include "laik_instance.hpp"
 int level = 0;
 
@@ -215,7 +217,7 @@ void SetupHalo_ref(SparseMatrix & A) {
 
   init_partitionings(A, pt_data_ext, pt_data_local); 
   
-  printf("Offset to ALLOC BUffer; %d / %d\n", A.mapping->offset, A.mapping->offset_ext);
+  printf("Offset to ALLOC BUffer; %lld / %lld\n", A.mapping->offset, A.mapping->offset_ext);
   exit(1);
   
   A.level = level++;

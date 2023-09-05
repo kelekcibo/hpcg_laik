@@ -22,13 +22,17 @@
 #include <omp.h>
 #endif
 
+#include <iostream>
 #include <cassert>
+
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #include "GenerateCoarseProblem.hpp"
 #include "GenerateGeometry.hpp"
 #include "GenerateProblem.hpp"
 #include "SetupHalo.hpp"
-#include <iostream>
-#include "laik_instance.hpp"
 
 /*!
   Routine to construct a prolongation/restriction operator for a given fine grid matrix
