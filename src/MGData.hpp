@@ -22,8 +22,12 @@
 #define MGDATA_HPP
 
 #include <cassert>
+
+struct Laik_Blob;
+
 #include "Vector.hpp"
 #include "laik_instance.hpp"
+
 
 struct MGData_STRUCT {
   int numberOfPresmootherSteps; // Call ComputeSYMGS this many times prior to coarsening

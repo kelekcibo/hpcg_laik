@@ -24,6 +24,9 @@
 #include <vector>
 #include <cassert>
 #include <map>
+
+struct L2A_map;
+
 #include "laik_instance.hpp"
 #include "Geometry.hpp"
 #include "Vector.hpp"

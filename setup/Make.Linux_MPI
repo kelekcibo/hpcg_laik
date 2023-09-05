@@ -91,7 +91,7 @@ MPlib        =
 # ----------------------------------------------------------------------
 # - LAIK - Library includes / libraries / specifics -------------------------------
 # ----------------------------------------------------------------------
-DEFS          = -DUSE_MPI -DUSE_TCP2
+DEFS          = -DUSE_MPI -DUSE_TCP2 -DUSE_LAIK
 LAIKLIB       = -L/usr/local/lib -llaik
 # LAIK_INCLUDES = -I./laik/include -I./laik/include/laik/
 LAIK_INCLUDES = -I/usr/local/include/laik -I/usr/local/include/

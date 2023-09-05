@@ -7,8 +7,6 @@
  * @copyright Copyright (c) 2023
  * 
  */
-#pragma once
-
 #ifndef LAIK_INSTANCE_HPP
 #define LAIK_INSTANCE_HPP
 
@@ -17,11 +15,16 @@ extern "C" {
     #include <laik.h>
 }
 
+#ifndef USE_LAIK
 #define USE_LAIK
+#endif
 
 #include <vector>
 #include <set>
 #include <map>
+
+struct SparseMatrix_STRUCT;
+typedef struct SparseMatrix_STRUCT SparseMatrix;
 
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
@@ -68,7 +71,7 @@ typedef long long allocation_int_t;
  * indices within that buffer.
  * 
  */
-typedef struct Local2Allocation_map
+struct L2A_map
 {
     // std::map<global_int_t, allocation_int_t> globalToAllocationMap; /* Mapping from Global to Allocation Indices */
     long long offset_ext; /* Offset into allocation buffer with external values */
@@ -79,15 +82,15 @@ typedef struct Local2Allocation_map
     std::vector<global_int_t> localToGlobalMap;                     /* Owned global indices */
     local_int_t localNumberOfRows;                                  /* Border between owned and external indices */
 
-} L2A_map;
+};
 
-typedef struct Laik_Blob_STRUCT
+struct Laik_Blob
 {
     Laik_Data * values;
     uint64_t localLength;
 
     bool exchange; /* This blob will exchange values if true */
-} Laik_Blob;
+};
 
 extern Laik_Instance *hpcg_instance;
 extern Laik_Group * world;
