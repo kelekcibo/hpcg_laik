@@ -19,10 +19,6 @@
  */
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-#include "laik_instance.hpp"
 #include "laik_instance.hpp"
 #endif
 #ifndef HPCG_NO_OPENMP
@@ -42,8 +38,6 @@
 #include <iostream>
 #endif
 
-
-#ifdef USE_LAIK
 /*!
   Routine to compute the inf-norm difference between two vectors where:
 
@@ -53,7 +47,7 @@
 
   @return Returns zero on success and a non-zero value otherwise.
 */
-int ComputeResidual(const local_int_t n, const Laik_Blob * v1, const Laik_Blob *v2, double &residual, L2A_map * mapping)
+int ComputeResidual_laik(const local_int_t n, const Laik_Blob * v1, const Laik_Blob *v2, double &residual, L2A_map * mapping)
 {
 
   double *v1v;
@@ -106,7 +100,7 @@ int ComputeResidual(const local_int_t n, const Laik_Blob * v1, const Laik_Blob *
 
   return 0;
 }
-#else
+
 /*!
   Routine to compute the inf-norm difference between two vectors where:
 
@@ -163,5 +157,3 @@ int ComputeResidual(const local_int_t n, const Vector &v1, const Vector &v2, dou
 
   return 0;
 }
-
-#endif

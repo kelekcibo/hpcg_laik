@@ -21,9 +21,6 @@
 struct SparseMatrix_STRUCT;
 typedef struct SparseMatrix_STRUCT SparseMatrix;
 
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
 #include "laik_instance.hpp"
 #include "ComputeMG_ref.hpp"
 #include "ComputeSYMGS_ref.hpp"
@@ -33,7 +30,6 @@ typedef struct SparseMatrix_STRUCT SparseMatrix;
 #include <cassert>
 #include <iostream>
 
-#ifdef USE_LAIK
 /*!
 
   @param[in] A the known system matrix
@@ -44,9 +40,11 @@ typedef struct SparseMatrix_STRUCT SparseMatrix;
 
   @see ComputeMG
 */
-int ComputeMG_ref(const SparseMatrix &A, Laik_Blob * r, Laik_Blob * x)
+int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x)
 {
   assert(x->localLength == A.localNumberOfRows); // Make sure x contain space for halo values
+  assert(x->localLength == A.mapping->localNumberOfRows);
+  assert(x->localLength == r->localLength);
 
   ZeroLaikVector(x, A.mapping); // initialize x to zero
 
@@ -55,41 +53,41 @@ int ComputeMG_ref(const SparseMatrix &A, Laik_Blob * r, Laik_Blob * x)
   { // Go to next coarse level if defined
     int numberOfPresmootherSteps = A.mgData->numberOfPresmootherSteps;
     for (int i = 0; i < numberOfPresmootherSteps; ++i)
-      ierr += ComputeSYMGS_ref(A, r, x);
+      ierr += ComputeSYMGS_laik_ref(A, r, x);
+
     if (ierr != 0)
       return ierr;
-    ierr = ComputeSPMV_ref(A, x, A.mgData->Axf);
+    ierr = ComputeSPMV_laik_ref(A, x, A.mgData->Axf_blob);
+
     if (ierr != 0)
       return ierr;
     // Perform restriction operation using simple injection
-    ierr = ComputeRestriction_ref(A, r);
+    ierr = ComputeRestriction_laik_ref(A, r);
     if (ierr != 0)
       return ierr;
-    ierr = ComputeMG_ref(*A.Ac, A.mgData->rc, A.mgData->xc);
+    ierr = ComputeMG_laik_ref(*A.Ac, A.mgData->rc_blob, A.mgData->xc_blob);
+
     if (ierr != 0)
       return ierr;
-    ierr = ComputeProlongation_ref(A, x);
+    ierr = ComputeProlongation_laik_ref(A, x);
     if (ierr != 0)
       return ierr;
     int numberOfPostsmootherSteps = A.mgData->numberOfPostsmootherSteps;
     for (int i = 0; i < numberOfPostsmootherSteps; ++i)
-      ierr += ComputeSYMGS_ref(A, r, x);
+      ierr += ComputeSYMGS_laik_ref(A, r, x);
     if (ierr != 0)
       return ierr;
   }
   else
   {
 
-    if (A.geom->rank == 0)
-      printf("Jumping into ComputeSYMGS_ref and testing LAIK EXCHANGE\n\n");
-
-    ierr = ComputeSYMGS_ref(A, r, x);
+    ierr = ComputeSYMGS_laik_ref(A, r, x);
     if (ierr != 0)
       return ierr;
   }
   return 0;
 }
-#else
+
 /*!
 
   @param[in] A the known system matrix
@@ -135,14 +133,9 @@ int ComputeMG_ref(const SparseMatrix &A, const Vector &r, Vector &x)
   }
   else
   {
-
-    if (A.geom->rank == 0)
-      printf("Jumping into ComputeSYMGS_ref and testing LAIK EXCHANGE\n\n");
-
     ierr = ComputeSYMGS_ref(A, r, x);
     if (ierr != 0)
       return ierr;
   }
   return 0;
 }
-#endif

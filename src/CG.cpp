@@ -21,14 +21,7 @@
 #include <fstream>
 #include <cmath>
 
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-
 #include "hpcg.hpp"
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
 #include "laik_instance.hpp"
 #include "CG.hpp"
 #include "mytimer.hpp"
@@ -36,13 +29,11 @@
 #include "ComputeMG.hpp"
 #include "ComputeDotProduct.hpp"
 #include "ComputeWAXPBY.hpp"
-#include "laik_instance.hpp"
 
 // Use TICK and TOCK to time a code section in MATLAB-like fashion
 #define TICK() t0 = mytimer()       //!< record current time in 't0'
 #define TOCK(t) t += mytimer() - t0 //!< store time difference in 't' using time in 't0'
 
-#ifdef USE_LAIK
 /*!
   Routine to compute an approximate solution to Ax = b
 
@@ -63,7 +54,7 @@
 
   @see CG_ref()
 */
-int CG(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Blob *x,
+int CG_laik(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Blob *x,
        const int max_iter, const double tolerance, int &niters, double &normr, double &normr0,
        double *times, bool doPreconditioning)
 {
@@ -77,10 +68,10 @@ int CG(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Blob *x,
   //   double t6 = 0.0;
   // #endif
   local_int_t nrow = A.localNumberOfRows;
-  Laik_Blob * r = data.r; // Residual vector
-  Laik_Blob * z = data.z;  // Preconditioned residual vector
-  Laik_Blob * p = data.p;   // Direction vector (in MPI mode ncol>=nrow)
-  Laik_Blob * Ap = data.Ap;
+  Laik_Blob * r = data.r_blob; // Residual vector
+  Laik_Blob * z = data.z_blob;  // Preconditioned residual vector
+  Laik_Blob * p = data.p_blob;   // Direction vector (in MPI mode ncol>=nrow)
+  Laik_Blob * Ap = data.Ap_blob;
 
   if (!doPreconditioning && A.geom->rank == 0)
     HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
@@ -95,13 +86,13 @@ int CG(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Blob *x,
   // copy x to p for sparse MV operation
   CopyLaikVectorToLaikVector(x, p, A.mapping);
   TICK();
-  ComputeSPMV(A, p, Ap);
+  ComputeSPMV_laik(A, p, Ap);
   TOCK(t3); // Ap = A*p
   TICK();
-  ComputeWAXPBY(nrow, 1.0, b, -1.0, Ap, r, A.isWaxpbyOptimized, A.mapping);
+  ComputeWAXPBY_laik(nrow, 1.0, b, -1.0, Ap, r, A.isWaxpbyOptimized, A.mapping);
   TOCK(t2); // r = b - Ax (x stored in p)
   TICK();
-  ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, A.mapping);
+  ComputeDotProduct_laik(nrow, r, r, normr, t4, A.isDotProductOptimized, A.mapping);
   TOCK(t1);
   normr = sqrt(normr);
 #ifdef HPCG_DEBUG
@@ -118,7 +109,7 @@ int CG(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Blob *x,
   {
     TICK();
     if (doPreconditioning)
-      ComputeMG(A, r, z); // Apply preconditioner
+      ComputeMG_laik(A, r, z); // Apply preconditioner
     else
       CopyLaikVectorToLaikVector(r, z, A.mapping); // copy r to z (no preconditioning)
     TOCK(t5);           // Preconditioner apply time
@@ -126,37 +117,37 @@ int CG(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Blob *x,
     if (k == 1)
     {
       TICK();
-      ComputeWAXPBY(nrow, 1.0, z, 0.0, z, p, A.isWaxpbyOptimized, A.mapping);
+      ComputeWAXPBY_laik(nrow, 1.0, z, 0.0, z, p, A.isWaxpbyOptimized, A.mapping);
       TOCK(t2); // Copy Mr to p
       TICK();
-      ComputeDotProduct(nrow, r, z, rtz, t4, A.isDotProductOptimized, A.mapping);
+      ComputeDotProduct_laik(nrow, r, z, rtz, t4, A.isDotProductOptimized, A.mapping);
       TOCK(t1); // rtz = r'*z
     }
     else
     {
       oldrtz = rtz;
       TICK();
-      ComputeDotProduct(nrow, r, z, rtz, t4, A.isDotProductOptimized, A.mapping);
+      ComputeDotProduct_laik(nrow, r, z, rtz, t4, A.isDotProductOptimized, A.mapping);
       TOCK(t1); // rtz = r'*z
       beta = rtz / oldrtz;
       TICK();
-      ComputeWAXPBY(nrow, 1.0, z, beta, p, p, A.isWaxpbyOptimized, A.mapping);
+      ComputeWAXPBY_laik(nrow, 1.0, z, beta, p, p, A.isWaxpbyOptimized, A.mapping);
       TOCK(t2); // p = beta*p + z
     }
 
     TICK();
-    ComputeSPMV(A, p, Ap);
+    ComputeSPMV_laik(A, p, Ap);
     TOCK(t3); // Ap = A*p
     TICK();
-    ComputeDotProduct(nrow, p, Ap, pAp, t4, A.isDotProductOptimized, A.mapping);
+    ComputeDotProduct_laik(nrow, p, Ap, pAp, t4, A.isDotProductOptimized, A.mapping);
     TOCK(t1); // alpha = p'*Ap
     alpha = rtz / pAp;
     TICK();
-    ComputeWAXPBY(nrow, 1.0, x, alpha, p, x, A.isWaxpbyOptimized, A.mapping); // x = x + alpha*p
-    ComputeWAXPBY(nrow, 1.0, r, -alpha, Ap, r, A.isWaxpbyOptimized, A.mapping);
+    ComputeWAXPBY_laik(nrow, 1.0, x, alpha, p, x, A.isWaxpbyOptimized, A.mapping); // x = x + alpha*p
+    ComputeWAXPBY_laik(nrow, 1.0, r, -alpha, Ap, r, A.isWaxpbyOptimized, A.mapping);
     TOCK(t2); // r = r - alpha*Ap
     TICK();
-    ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, A.mapping);
+    ComputeDotProduct_laik(nrow, r, r, normr, t4, A.isDotProductOptimized, A.mapping);
     TOCK(t1);
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
@@ -176,9 +167,12 @@ int CG(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Blob *x,
   //   times[6] += t6; // exchange halo time
   // #endif
   times[0] += mytimer() - t_begin; // Total time. All done...
+
+  // printf("Validation Testing Phase: %.5f seconds\n", times[0]);
+
   return 0;
 }
-#else
+
 /*!
   Routine to compute an approximate solution to Ax = b
 
@@ -314,4 +308,3 @@ int CG(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   times[0] += mytimer() - t_begin; // Total time. All done...
   return 0;
 }
-#endif

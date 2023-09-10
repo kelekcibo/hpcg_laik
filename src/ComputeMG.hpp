@@ -15,16 +15,11 @@
 #ifndef COMPUTEMG_HPP
 #define COMPUTEMG_HPP
  
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
 #include "laik_instance.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
-#ifdef USE_LAIK
-int ComputeMG(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *x);
-#else
+int ComputeMG_laik(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *x);
 int ComputeMG(const SparseMatrix  & A, const Vector & r, Vector & x);
-#endif
+
 #endif // COMPUTEMG_HPP

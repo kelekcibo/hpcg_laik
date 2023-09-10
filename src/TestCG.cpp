@@ -31,16 +31,12 @@
 using std::endl;
 #include <vector>
 
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
 #include "laik_instance.hpp"
 #include "hpcg.hpp"
 #include "TestCG.hpp"
 #include "CG.hpp"
 #include "Vector.hpp"
 
-#ifdef USE_LAIK
 /*!
   Test the correctness of the Preconditined CG implementation by using a system matrix with a dominant diagonal.
 
@@ -55,7 +51,7 @@ using std::endl;
 
   @see CG()
  */
-int TestCG(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestCGData &testcg_data)
+int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestCGData &testcg_data)
 {
 
   // Use this array for collecting timing information
@@ -80,12 +76,12 @@ int TestCG(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestCGData
     {
       double scale = (globalRowID + 2) * 1.0e6;
       ScaleVectorValue(exaggeratedDiagA, i, scale);
-      ScaleLaikVectorValue(b, i, scale);
+      ScaleLaikVectorValue(b, i, scale, A.mapping);
     }
     else
     {
       ScaleVectorValue(exaggeratedDiagA, i, 1.0e6);
-      ScaleLaikVectorValue(b, i, 1.0e6);
+      ScaleLaikVectorValue(b, i, 1.0e6, A.mapping);
     }
   }
   ReplaceMatrixDiagonal(A, exaggeratedDiagA);
@@ -108,7 +104,7 @@ int TestCG(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestCGData
     for (int i = 0; i < numberOfCgCalls; ++i)
     {
       ZeroLaikVector(x, A.mapping); // Zero out x
-      int ierr = CG(A, data, b, x, maxIters, tolerance, niters, normr, normr0, &times[0], k == 1);
+      int ierr = CG_laik(A, data, b, x, maxIters, tolerance, niters, normr, normr0, &times[0], k == 1);
       if (ierr)
         HPCG_fout << "Error in call to CG: " << ierr << ".\n"
                   << endl;
@@ -126,7 +122,7 @@ int TestCG(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestCGData
         testcg_data.niters_max_prec = niters; // Same for preconditioned run
       if (A.geom->rank == 0)
       {
-        HPCG_fout << "Call [" << i << "] Number of Iterations [" << niters << "] Scaled Residual [" << normr / normr0 << "]" << endl;
+        HPCG_fout << "Call LAIK [" << i << "] Number of Iterations [" << niters << "] Scaled Residual [" << normr / normr0 << "]" << endl;
         if (niters > expected_niters)
           HPCG_fout << " Expected " << expected_niters << " iterations.  Performed " << niters << "." << endl;
       }
@@ -144,7 +140,7 @@ int TestCG(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestCGData
 
   return 0;
 }
-#else
+
 /*!
   Test the correctness of the Preconditined CG implementation by using a system matrix with a dominant diagonal.
 
@@ -231,4 +227,3 @@ int TestCG(SparseMatrix & A, CGData & data, Vector & b, Vector & x, TestCGData &
 
   return 0;
 }
-#endif

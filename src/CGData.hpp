@@ -21,26 +21,21 @@
 #ifndef CGDATA_HPP
 #define CGDATA_HPP
 
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-
+#include "laik_instance.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
-#include "laik_instance.hpp"
 
 struct CGData_STRUCT {
-#ifdef USE_LAIK
-  Laik_Blob * r;  //!< pointer to residual vector
-  Laik_Blob * z;  //!< pointer to preconditioned residual vector
-  Laik_Blob * p;  //!< pointer to direction vector
-  Laik_Blob * Ap; //!< pointer to Krylov vector
-#else
+
+  Laik_Blob * r_blob;  //!< pointer to residual vector
+  Laik_Blob * z_blob;  //!< pointer to preconditioned residual vector
+  Laik_Blob * p_blob;  //!< pointer to direction vector
+  Laik_Blob * Ap_blob; //!< pointer to Krylov vector
+
   Vector r;  //!< pointer to residual vector
   Vector z;  //!< pointer to preconditioned residual vector
   Vector p;  //!< pointer to direction vector
   Vector Ap; //!< pointer to Krylov vector
-#endif
 };
 typedef struct CGData_STRUCT CGData;
 
@@ -54,17 +49,15 @@ inline void InitializeSparseCGData(SparseMatrix & A, CGData & data) {
   local_int_t nrow = A.localNumberOfRows;
   local_int_t ncol = A.localNumberOfColumns;
 
-#ifdef USE_LAIK
-  data.r = init_blob(A, false);
-  data.z = init_blob(A, true);
-  data.p = init_blob(A, true);
-  data.Ap = init_blob(A, false);
-#else
+  data.r_blob = init_blob(A, false);
+  data.z_blob = init_blob(A, true);
+  data.p_blob = init_blob(A, true);
+  data.Ap_blob = init_blob(A, false);
+ 
   InitializeVector(data.r, nrow);
   InitializeVector(data.z, ncol);
   InitializeVector(data.p, ncol);
   InitializeVector(data.Ap, nrow);
-#endif
 
   return;
 }
@@ -76,14 +69,11 @@ inline void InitializeSparseCGData(SparseMatrix & A, CGData & data) {
  */
 inline void DeleteCGData(CGData & data) {
 
-#ifdef USE_LAIK
-  // TODO delete Laik vectors
-#else
   DeleteVector (data.r);
   DeleteVector (data.z);
   DeleteVector (data.p);
   DeleteVector (data.Ap);
-#endif
+  
   return;
 }
 

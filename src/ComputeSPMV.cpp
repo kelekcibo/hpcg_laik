@@ -18,14 +18,10 @@
  HPCG routine
  */
 
+#include "laik_instance.hpp"
 #include "ComputeSPMV.hpp"
 #include "ComputeSPMV_ref.hpp"
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-#include "laik_instance.hpp"
 
-#ifdef USE_LAIK
 /*!
   Routine to compute sparse matrix vector product y = Ax where:
   Precondition: First call exchange_externals to get off-processor values of x
@@ -42,14 +38,12 @@
 
   @see ComputeSPMV_ref
 */
-int ComputeSPMV( const SparseMatrix & A, Laik_Blob *x_blob, Laik_Blob *y_blob) {
+int ComputeSPMV_laik( const SparseMatrix & A, Laik_Blob *x_blob, Laik_Blob *y_blob) {
 
   // This line and the next two lines should be removed and your version of ComputeSPMV should be used.
   A.isSpmvOptimized = false;
-  return ComputeSPMV_ref(A, x_blob, y_blob);
+  return ComputeSPMV_laik_ref(A, x_blob, y_blob);
 }
-
-#else
 
 /*!
   Routine to compute sparse matrix vector product y = Ax where:
@@ -74,5 +68,4 @@ int ComputeSPMV(const SparseMatrix &A, Vector &x, Vector &y)
   A.isSpmvOptimized = false;
   return ComputeSPMV_ref(A, x, y);
 }
-#endif
 

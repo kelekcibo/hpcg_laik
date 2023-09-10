@@ -36,7 +36,6 @@
 #endif
 #include <cassert>
 
-#ifdef USE_LAIK
 /*!
   Routine to compute matrix vector product y = Ax where:
   Precondition: First call exchange_externals to get off-processor values of x
@@ -52,10 +51,11 @@
 
   @see ComputeSPMV
 */
-int ComputeSPMV_ref(const SparseMatrix &A, Laik_Blob *x, Laik_Blob *y)
+int ComputeSPMV_laik_ref(const SparseMatrix &A, Laik_Blob *x, Laik_Blob *y)
 {
-  assert(x->localLength >= A.localNumberOfRows); // Test vector lengths
-  assert(y->localLength >= A.localNumberOfRows);
+  assert(x->localLength == A.localNumberOfRows); // Test vector lengths
+  assert(y->localLength == A.localNumberOfRows);
+  assert(A.mapping->localNumberOfRows == x->localLength);
 
   laik_switchto_partitioning(x->values, A.ext, LAIK_DF_Preserve, LAIK_RO_None);
 
@@ -64,6 +64,7 @@ int ComputeSPMV_ref(const SparseMatrix &A, Laik_Blob *x, Laik_Blob *y)
   laik_get_map_1d(x->values, 0, (void **)&xv, 0);
   laik_get_map_1d(y->values, 0, (void **)&yv, 0);
   const local_int_t nrow = A.localNumberOfRows;
+  
 #ifndef HPCG_NO_OPENMP
   #pragma omp parallel for
 #endif
@@ -79,12 +80,11 @@ int ComputeSPMV_ref(const SparseMatrix &A, Laik_Blob *x, Laik_Blob *y)
     yv[map_l2a(A.mapping, i, false)] = sum;
   }
 
-  laik_switchto_partitioning(x->values, A.ext, LAIK_DF_None, LAIK_RO_None);
+  laik_switchto_partitioning(x->values, A.local, LAIK_DF_None, LAIK_RO_None);
   
   return 0;
 }
 
-#else
 /*!
   Routine to compute matrix vector product y = Ax where:
   Precondition: First call exchange_externals to get off-processor values of x
@@ -128,5 +128,3 @@ int ComputeSPMV_ref(const SparseMatrix &A, Vector &x, Vector &y)
   }
   return 0;
 }
-
-#endif

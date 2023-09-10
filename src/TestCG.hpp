@@ -21,9 +21,6 @@
 #ifndef TESTCG_HPP
 #define TESTCG_HPP
 
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
 #include "laik_instance.hpp"
 #include "hpcg.hpp"
 #include "SparseMatrix.hpp"
@@ -41,10 +38,7 @@ struct TestCGData_STRUCT {
 };
 typedef struct TestCGData_STRUCT TestCGData;
 
-#ifdef USE_LAIK
-extern int TestCG(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestCGData &testcg_data);
-#else
+extern int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestCGData &testcg_data);
 extern int TestCG(SparseMatrix & A, CGData & data, Vector & b, Vector & x, TestCGData & testcg_data);
-#endif
 #endif  // TESTCG_HPP
 

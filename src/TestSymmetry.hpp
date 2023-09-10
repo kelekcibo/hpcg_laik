@@ -21,9 +21,6 @@
 #ifndef TESTSYMMETRY_HPP
 #define TESTSYMMETRY_HPP
 
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
 #include "laik_instance.hpp"
 #include "hpcg.hpp"
 #include "SparseMatrix.hpp"
@@ -36,9 +33,6 @@ struct TestSymmetryData_STRUCT {
 };
 typedef struct TestSymmetryData_STRUCT TestSymmetryData;
 
-#ifdef USE_LAIK
-  extern int TestSymmetry(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymmetryData &testsymmetry_data);
-#else
+  extern int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymmetryData &testsymmetry_data);
   extern int TestSymmetry(SparseMatrix & A, Vector & b, Vector & xexact, TestSymmetryData & testsymmetry_data);
-#endif
 #endif  // TESTSYMMETRY_HPP

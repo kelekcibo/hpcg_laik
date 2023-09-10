@@ -18,14 +18,10 @@
  HPCG routine
  */
 
+#include "laik_instance.hpp"
 #include "ComputeWAXPBY.hpp"
 #include "ComputeWAXPBY_ref.hpp"
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-#include "laik_instance.hpp"
 
-#ifdef USE_LAIK
 /*!
   Routine to compute the update of a vector with the sum of two
   scaled vectors where: w = alpha*x + beta*y
@@ -44,15 +40,15 @@
 
   @see ComputeWAXPBY_ref
 */
-int ComputeWAXPBY(const local_int_t n, const double alpha, const Laik_Blob * x,
+int ComputeWAXPBY_laik(const local_int_t n, const double alpha, const Laik_Blob * x,
                   const double beta, const Laik_Blob * y, Laik_Blob * w, bool &isOptimized, L2A_map * mapping)
 {
 
   // This line and the next two lines should be removed and your version of ComputeWAXPBY should be used.
   isOptimized = false;
-  return ComputeWAXPBY_ref(n, alpha, x, beta, y, w, mapping);
+  return ComputeWAXPBY_laik_ref(n, alpha, x, beta, y, w, mapping);
 }
-#else
+
 /*!
   Routine to compute the update of a vector with the sum of two
   scaled vectors where: w = alpha*x + beta*y
@@ -78,4 +74,3 @@ int ComputeWAXPBY(const local_int_t n, const double alpha, const Vector & x,
   isOptimized = false;
   return ComputeWAXPBY_ref(n, alpha, x, beta, y, w);
 }
-#endif

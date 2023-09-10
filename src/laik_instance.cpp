@@ -8,13 +8,11 @@
  *
  */
 
+#include <cstdlib>
 #include <iostream>
 #include <cstring>
 #include <cassert>
 
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
 #include "laik_instance.hpp"
 #include "Geometry.hpp"
 #include "Vector.hpp"
@@ -106,6 +104,9 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
         if (data->offset == -1 && rank == proc)
             data->offset = i;
 
+        // if(i== 0)
+        //     printf("Global row 0 belongs to proc %d\n", ComputeRankOfMatrixRow(*data->geom, 0));
+
         // a += std::to_string(ComputeRankOfMatrixRow(*data->geom, i)) + ", ";
     }
 
@@ -133,7 +134,7 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
                     data->offset = globalIndex;
                 }
 
-                printf("I (%d) need to have access to global index %lld of x vector (updated by proc %d)\n", rank, globalIndex, data->neighbors[nb]);
+                // printf("I (%d) need to have access to global index %lld of x vector (updated by proc %d)\n", rank, globalIndex, data->neighbors[nb]);
             }
         }
 
@@ -168,14 +169,16 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
  *
  * @see ZeroVector in Vector.hpp
  */
-void ZeroLaikVector(Laik_Blob *x_blob, L2A_map *mapping)
+void ZeroLaikVector(Laik_Blob *x, L2A_map *mapping)
 {
+    assert(x->localLength == mapping->localNumberOfRows);
+
     double *base;
     uint64_t count;
     
-    laik_get_map_1d(x_blob->values, 0, (void **)&base, &count);
+    laik_get_map_1d(x->values, 0, (void **)&base, &count);
 
-    for (uint64_t i = 0; i < x_blob->localLength; i++)
+    for (uint64_t i = 0; i < x->localLength; i++)
         base[map_l2a(mapping, i, false)] = 0;
     
     return;
@@ -188,12 +191,14 @@ void ZeroLaikVector(Laik_Blob *x_blob, L2A_map *mapping)
   @param[in] index Local index of entry to scale
   @param[in] value Value to scale by
  */
-void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value)
+void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value, L2A_map * mapping)
 {
     assert(index >= 0 && index < v->localLength);
+    assert(v->localLength == mapping->localNumberOfRows);
+
     double *vv;
     laik_get_map_1d(v->values, 0, (void **)&vv, 0);
-    vv[index] *= value;
+    vv[map_l2a(mapping, index, false)] *= value;
     return;
 }
 
@@ -205,7 +210,8 @@ void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value)
  */
 void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y, L2A_map *mapping)
 {
-    assert(x->localLength == y->localLength);
+    assert(x->localLength == y->localLength); /* they use the same mapping */
+    assert(x->localLength == mapping->localNumberOfRows);
 
     double * xv;
     double * yv;
@@ -228,6 +234,10 @@ void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y, L2A_map *mapping)
  */
 void fillRandomLaikVector(Laik_Blob *x, L2A_map *mapping)
 {
+    assert(x != NULL);
+    assert(mapping != NULL);
+    assert(x->localLength == mapping->localNumberOfRows);
+
     double *xv;
     uint64_t count;
 
@@ -249,6 +259,9 @@ void fillRandomLaikVector(Laik_Blob *x, L2A_map *mapping)
  */
 void CopyVectorToLaikVector(Vector &v, Laik_Blob *x, L2A_map *mapping)
 {
+    assert(v.localLength >= x->localLength);
+    assert(x->localLength == mapping->localNumberOfRows);
+
     double *xv;
     uint64_t count;
     laik_get_map_1d(x->values, 0, (void **)&xv, &count);
@@ -269,6 +282,9 @@ void CopyVectorToLaikVector(Vector &v, Laik_Blob *x, L2A_map *mapping)
  */
 void CopyLaikVectorToVector(Laik_Blob *x, Vector &v, L2A_map *mapping)
 {
+    assert(x->localLength == v.localLength);
+    assert(x->localLength == mapping->localNumberOfRows);
+
     double *xv;
     uint64_t count;
     laik_get_map_1d(x->values, 0, (void **)&xv, &count);
@@ -304,11 +320,13 @@ void init_partitionings(SparseMatrix &A, pt_data *local, pt_data *ext)
 {
     A.space = laik_new_space_1d(hpcg_instance, A.totalNumberOfRows);
 
-    Laik_Partitioner *x_extPR = laik_new_partitioner("x_extPR", partitioner_x, (void *)ext, LAIK_PF_None);
     Laik_Partitioner *x_localPR = laik_new_partitioner("x_localPR", partitioner_x, (void *)local, LAIK_PF_None);
+    Laik_Partitioner *x_extPR = laik_new_partitioner("x_extPR", partitioner_x, (void *)ext, LAIK_PF_None);
 
-    A.ext = laik_new_partitioning(x_extPR, world, A.space, NULL);
+
     A.local = laik_new_partitioning(x_localPR, world, A.space, NULL);
+    A.ext = laik_new_partitioning(x_extPR, world, A.space, NULL);
+    
 
     A.mapping->offset = local->offset;
     A.mapping->offset_ext = ext->offset;

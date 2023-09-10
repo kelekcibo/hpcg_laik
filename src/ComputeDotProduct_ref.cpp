@@ -19,9 +19,7 @@
  */
 
 #ifndef HPCG_NO_MPI
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
+#include "mpi.h"
 #include "laik_instance.hpp"
 #include "mytimer.hpp"
 #endif
@@ -29,9 +27,9 @@
 #include <omp.h>
 #endif
 #include <cassert>
+
 #include "ComputeDotProduct_ref.hpp"
 
-#ifdef USE_LAIK
 /*!
   Routine to compute the dot product of two vectors where:
 
@@ -47,11 +45,12 @@
 
   @see ComputeDotProduct
 */
-int ComputeDotProduct_ref(const local_int_t n, const Laik_Blob *x, const Laik_Blob *y,
+int ComputeDotProduct_laik_ref(const local_int_t n, const Laik_Blob *x, const Laik_Blob *y,
                           double &result, double &time_allreduce, L2A_map * mapping)
 {
   assert(x->localLength == n); // Test vector lengths
   assert(y->localLength == n);
+  assert(n == mapping->localNumberOfRows); // mapping being used should fit the vectors
 
   double local_result = 0.0;
 
@@ -68,7 +67,7 @@ int ComputeDotProduct_ref(const local_int_t n, const Laik_Blob *x, const Laik_Bl
     for (local_int_t i = 0; i < n; i++)
     {
       allocation_int_t j = map_l2a(mapping, i, false);
-      local_result += xv[i] * xv[i];
+      local_result += xv[j] * xv[j];
     }
   }
   else
@@ -79,7 +78,7 @@ int ComputeDotProduct_ref(const local_int_t n, const Laik_Blob *x, const Laik_Bl
     for (local_int_t i = 0; i < n; i++)
     {
       allocation_int_t j = map_l2a(mapping, i, false);
-      local_result += xv[i] * yv[i];
+      local_result += xv[j] * yv[j];
     }
   }
 
@@ -93,7 +92,6 @@ int ComputeDotProduct_ref(const local_int_t n, const Laik_Blob *x, const Laik_Bl
   return 0;
 }
 
-#else
 /*!
   Routine to compute the dot product of two vectors where:
 
@@ -150,4 +148,3 @@ int ComputeDotProduct_ref(const local_int_t n, const Vector &x, const Vector &y,
 
   return 0;
 }
-#endif

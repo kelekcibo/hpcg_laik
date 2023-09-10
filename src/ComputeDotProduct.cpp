@@ -17,15 +17,10 @@
 
  HPCG routine
  */
-
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
 #include "laik_instance.hpp"
 #include "ComputeDotProduct.hpp"
 #include "ComputeDotProduct_ref.hpp"
 
-#ifdef USE_LAIK
 /*!
   Routine to compute the dot product of two vectors.
 
@@ -43,15 +38,15 @@
 
   @see ComputeDotProduct_ref
 */
-int ComputeDotProduct(const local_int_t n, const Laik_Blob *x, const Laik_Blob *y,
+int ComputeDotProduct_laik(const local_int_t n, const Laik_Blob *x, const Laik_Blob *y,
                       double &result, double &time_allreduce, bool &isOptimized, L2A_map * mapping)
 {
 
   // This line and the next two lines should be removed and your version of ComputeDotProduct should be used.
   isOptimized = false;
-  return ComputeDotProduct_ref(n, x, y, result, time_allreduce, mapping);
+  return ComputeDotProduct_laik_ref(n, x, y, result, time_allreduce, mapping);
 }
-#else
+
 /*!
   Routine to compute the dot product of two vectors.
 
@@ -77,4 +72,3 @@ int ComputeDotProduct(const local_int_t n, const Vector &x, const Vector &y,
   isOptimized = false;
   return ComputeDotProduct_ref(n, x, y, result, time_allreduce);
 }
-#endif

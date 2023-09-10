@@ -19,9 +19,7 @@
  */
 struct SparseMatrix_STRUCT;
 typedef struct SparseMatrix_STRUCT SparseMatrix;
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
+
 // #ifndef HPCG_NO_MPI
 #include "laik_instance.hpp"
 // #endif
@@ -29,7 +27,6 @@ typedef struct SparseMatrix_STRUCT SparseMatrix;
 #include "ComputeMG.hpp"
 #include "ComputeMG_ref.hpp"
 
-#ifdef USE_LAIK
 /*!
   @param[in] A the known system matrix
   @param[in] r the input vector
@@ -39,14 +36,14 @@ typedef struct SparseMatrix_STRUCT SparseMatrix;
 
   @see ComputeMG_ref
 */
-int ComputeMG(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *x)
+int ComputeMG_laik(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *x)
 {
 
   // This line and the next two lines should be removed and your version of ComputeSYMGS should be used.
   A.isMgOptimized = false;
-  return ComputeMG_ref(A, r, x);
+  return ComputeMG_laik_ref(A, r, x);
 }
-#else
+
 /*!
   @param[in] A the known system matrix
   @param[in] r the input vector
@@ -62,4 +59,3 @@ int ComputeMG(const SparseMatrix  & A, const Vector & r, Vector & x) {
   A.isMgOptimized = false;
   return ComputeMG_ref(A, r, x);
 }
-#endif

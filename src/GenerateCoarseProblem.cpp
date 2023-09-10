@@ -103,21 +103,19 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
   GenerateProblem(*Ac, 0, 0, 0);
   SetupHalo(*Ac);
 
-#ifdef USE_LAIK
-  Laik_Blob *rc = init_blob(*Ac, false);
-  Laik_Blob *xc = init_blob(*Ac, true);
-  Laik_Blob *Axf = init_blob(Af, true);
-#else
+  Laik_Blob *rc_blob = init_blob(*Ac, false);
+  Laik_Blob *xc_blob = init_blob(*Ac, true);
+  Laik_Blob *Axf_blob = init_blob(Af, true);
   Vector *rc = new Vector;
   Vector *xc = new Vector;
   Vector * Axf = new Vector;
   InitializeVector(*rc, Ac->localNumberOfRows);
   InitializeVector(*xc, Ac->localNumberOfColumns);
   InitializeVector(*Axf, Af.localNumberOfColumns);
-#endif
 
   Af.Ac = Ac;
-  MGData * mgData = new MGData;  
+  MGData * mgData = new MGData;
+  InitializeMGData_laik(f2cOperator, rc_blob, xc_blob, Axf_blob, *mgData);
   InitializeMGData(f2cOperator, rc, xc, Axf, *mgData);
   Af.mgData = mgData;
 

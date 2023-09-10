@@ -174,7 +174,6 @@ void SetupHalo_ref(SparseMatrix & A) {
   A.sendLength = sendLength;
   A.sendBuffer = sendBuffer;
 
-#ifdef USE_LAIK
   // ########## Data for partitioning algorithm
   pt_data * pt_data_ext = (pt_data *)malloc(sizeof(pt_data));
   pt_data * pt_data_local = (pt_data *)malloc(sizeof(pt_data));
@@ -188,10 +187,12 @@ void SetupHalo_ref(SparseMatrix & A) {
   pt_data_ext->elementsToSend = A.elementsToSend;
   pt_data_ext->receiveLength = A.receiveLength;
   pt_data_ext->halo = true;
+  pt_data_ext->offset = -1;
 
   pt_data_local->halo = false;
   pt_data_local->geom = pt_data_ext->geom;
   pt_data_local->size = pt_data_ext->size;
+  pt_data_local->offset = -1;
   /* These values are not needed for the 2nd partitioning */
   pt_data_local->neighbors = NULL;
   pt_data_local->localToGlobalMap = NULL;
@@ -215,13 +216,17 @@ void SetupHalo_ref(SparseMatrix & A) {
   // ########## Data to calculate mapping
   A.mapping = map_data;
 
-  init_partitionings(A, pt_data_ext, pt_data_local); 
-  
-  printf("Offset to ALLOC BUffer; %lld / %lld\n", A.mapping->offset, A.mapping->offset_ext);
-  exit(1);
-  
+  init_partitionings(A, pt_data_local, pt_data_ext);
+
+  // DO not delete before I tested it for the three next layers
+  // int testrank = 1; /* debug  next 6 lines */
+  // if (A.geom->rank == testrank && level == 3)
+  //   printf("LAIK %d\tOffset to ALLOC BUffer; local (%lld) / ext (%lld)\n", A.geom->rank, A.mapping->offset, A.mapping->offset_ext);
+
+  // if (A.geom->rank == testrank && level == 3)
+  //   printf("LAIK %d\tOffset to ALLOC BUffer pt_data; (%d) / ext (%d)\n", A.geom->rank, pt_data_local->offset, pt_data_ext->offset);
+
   A.level = level++;
-#endif // ifdef USE_LAIK
 
 #ifdef HPCG_DETAILED_DEBUG
   HPCG_fout << " For rank " << A.geom->rank << " of " << A.geom->size << ", number of neighbors = " << A.numberOfSendNeighbors << endl;

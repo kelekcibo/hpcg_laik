@@ -25,11 +25,6 @@
 #include <cassert>
 #include <map>
 
-struct L2A_map;
-
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
 #include "laik_instance.hpp"
 #include "Geometry.hpp"
 #include "Vector.hpp"
@@ -43,6 +38,8 @@ typedef std::map< global_int_t, local_int_t > GlobalToLocalMap;
 #include <unordered_map>
 using GlobalToLocalMap = std::unordered_map< global_int_t, local_int_t >;
 #endif
+
+struct L2A_map;
 
 struct SparseMatrix_STRUCT {
   char  * title; //!< name of the sparse matrix

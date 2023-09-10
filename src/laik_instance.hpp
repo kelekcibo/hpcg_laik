@@ -15,10 +15,6 @@ extern "C" {
     #include <laik.h>
 }
 
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-
 #include <vector>
 #include <set>
 #include <map>
@@ -105,7 +101,7 @@ extern void ZeroLaikVector(Laik_Blob *x, L2A_map *mapping);
 extern void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y, L2A_map *mapping);
 extern void CopyVectorToLaikVector(Vector &v, Laik_Blob *x_blob, L2A_map *mapping);
 extern void CopyLaikVectorToVector(Laik_Blob *x_blob, Vector &v, L2A_map *mapping);
-extern void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value);
+extern void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value, L2A_map *mapping);
 
 extern void init_partitionings(SparseMatrix &A, pt_data * local, pt_data * ext);
 extern Laik_Blob *init_blob(const SparseMatrix &A, bool exchangeHalo);

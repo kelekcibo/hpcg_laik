@@ -19,16 +19,12 @@
  */
 
 #include "ComputeWAXPBY_ref.hpp"
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
 #include "laik_instance.hpp"
 #ifndef HPCG_NO_OPENMP
 #include <omp.h>
 #endif
 #include <cassert>
 
-#ifdef USE_LAIK
 /*!
   Routine to compute the update of a vector with the sum of two
   scaled vectors where: w = alpha*x + beta*y
@@ -45,12 +41,14 @@
 
   @see ComputeWAXPBY
 */
-int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Laik_Blob *x,
+int ComputeWAXPBY_laik_ref(const local_int_t n, const double alpha, const Laik_Blob *x,
                       const double beta, const Laik_Blob *y, const Laik_Blob *w, L2A_map * mapping)
 {
 
-  assert(x->localLength >= n); // Test vector lengths
-  assert(y->localLength >= n);
+  assert(x->localLength == n); // Test vector lengths
+  assert(y->localLength == n);
+  assert(w->localLength == n);
+  assert(mapping->localNumberOfRows == n);
 
   const double * xv;
   const double * yv;
@@ -78,7 +76,7 @@ int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Laik_Blob *
     for (local_int_t i = 0; i < n; i++)
     {
       allocation_int_t j = map_l2a(mapping, i, false);
-      wv[i] = alpha * xv[i] + yv[i];
+      wv[j] = alpha * xv[j] + yv[j];
     }
   }
   else
@@ -89,14 +87,13 @@ int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Laik_Blob *
     for (local_int_t i = 0; i < n; i++)
     {
       allocation_int_t j = map_l2a(mapping, i, false);
-      wv[i] = alpha * xv[i] + beta * yv[i];
+      wv[j] = alpha * xv[j] + beta * yv[j];
     }
   }
 
   return 0;
 }
 
-#else
 /*!
   Routine to compute the update of a vector with the sum of two
   scaled vectors where: w = alpha*x + beta*y
@@ -151,4 +148,3 @@ int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Vector &x,
 
   return 0;
 }
-#endif

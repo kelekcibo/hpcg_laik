@@ -19,19 +19,15 @@
  */
 
 #ifndef HPCG_NO_MPI
-#include "ExchangeHalo.hpp"
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-#include "laik_instance.hpp"
 #include <cmath>
+#include "ExchangeHalo.hpp"
+#include "laik_instance.hpp"
 #endif
-#include "ComputeSYMGS_ref.hpp"
 #include <cassert>
 #include <iostream>
 #include <cstdlib>
+#include "ComputeSYMGS_ref.hpp"
 
-#ifdef USE_LAIK
 /*!
   Computes one step of symmetric Gauss-Seidel:
 
@@ -59,7 +55,7 @@
 
   @see ComputeSYMGS
 */
-int ComputeSYMGS_ref(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *x)
+int ComputeSYMGS_laik_ref(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *x)
 {
 
   assert(x->localLength == A.localNumberOfRows); // Make sure x contain space for halo values
@@ -118,7 +114,7 @@ int ComputeSYMGS_ref(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *x)
 
   return 0;
 }
-#else
+
 /*!
   Computes one step of symmetric Gauss-Seidel:
 
@@ -200,4 +196,3 @@ int ComputeSYMGS_ref(const SparseMatrix &A, const Vector &r, Vector &x)
 
   return 0;
 }
-#endif
