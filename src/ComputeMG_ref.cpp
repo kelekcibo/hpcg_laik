@@ -21,14 +21,15 @@
 struct SparseMatrix_STRUCT;
 typedef struct SparseMatrix_STRUCT SparseMatrix;
 
+#include <cassert>
+#include <iostream>
+
 #include "laik_instance.hpp"
 #include "ComputeMG_ref.hpp"
 #include "ComputeSYMGS_ref.hpp"
 #include "ComputeSPMV_ref.hpp"
 #include "ComputeRestriction_ref.hpp"
 #include "ComputeProlongation_ref.hpp"
-#include <cassert>
-#include <iostream>
 
 /*!
 
@@ -52,8 +53,7 @@ int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x
   if (A.mgData != 0)
   { // Go to next coarse level if defined
     int numberOfPresmootherSteps = A.mgData->numberOfPresmootherSteps;
-    for (int i = 0; i < numberOfPresmootherSteps; ++i)
-      ierr += ComputeSYMGS_laik_ref(A, r, x);
+    for (int i = 0; i < numberOfPresmootherSteps; ++i) ierr += ComputeSYMGS_laik_ref(A, r, x);
 
     if (ierr != 0)
       return ierr;

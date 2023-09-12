@@ -22,6 +22,9 @@
 Laik_Instance *hpcg_instance; /* Laik instance during HPCG run */
 Laik_Group *world;
 
+// Debug testsymmetry
+Vector x_ncol_test;
+Vector y_ncol_test;
 
 /**
  * @brief Map the local index (mtxIndL) to the corresponding global index. Then map this global index to the allocation index
@@ -65,7 +68,7 @@ allocation_int_t map_l2a(L2A_map * mapping, local_int_t local_index, bool halo)
     a += std::to_string(allocation_index) + "   (AI)\n";
 
     // if (laik_myid(world) == 0)
-        // printf("%s", a.data());
+    //     printf("%s", a.data());
 
     return allocation_index;
 }
@@ -280,7 +283,7 @@ void CopyVectorToLaikVector(Vector &v, Laik_Blob *x, L2A_map *mapping)
  * @param[in] x contains input vector
  * @param[in] v output vector
  */
-void CopyLaikVectorToVector(Laik_Blob *x, Vector &v, L2A_map *mapping)
+void CopyLaikVectorToVector(const Laik_Blob *x, Vector &v, L2A_map *mapping)
 {
     assert(x->localLength == v.localLength);
     assert(x->localLength == mapping->localNumberOfRows);
@@ -295,6 +298,11 @@ void CopyLaikVectorToVector(Laik_Blob *x, Vector &v, L2A_map *mapping)
         vv[i] = xv[map_l2a(mapping, i, false)];
 
     return;
+}
+void CopyLaikVectorToVector(Laik_Blob *x, Vector &v, L2A_map *mapping)
+{
+    const Laik_Blob * x_const = x;
+    CopyLaikVectorToVector(x_const, v, mapping);
 }
 
 /**
@@ -474,4 +482,86 @@ void laik_barrier()
     // Synchronize all processes by making use of an All-to-All-Reduction
     laik_helper((void *)&data, (void *)&data, 1, laik_Int32, LAIK_RO_None, laik_All);
     return;
+}
+
+// #######################################################################################
+// Debug functions
+
+void compare2(double x, double y, bool doIO, allocation_int_t curIndex)
+{
+    double delta = std::abs(x - y);
+
+    if(doIO)
+        printf("map_l2a index: %lld\t| %.10f - %.10f | = %.10f\n", curIndex, x, y, delta);
+
+    if (delta != 0.0)
+    {
+        if(doIO)
+            printf("Difference is not tolerated: %.20f\nindex of map_l2a: %lld\n", delta, curIndex);
+        assert(delta == 0);
+    }
+}
+
+void compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO)
+{
+    assert(x.localLength >= y->localLength); // Test vector lengths
+    assert(y->localLength == mapping->localNumberOfRows);
+
+    double *xv = x.values;
+    double *yv;
+    laik_get_map_1d(y->values, 0, (void **)&yv, 0);
+
+    size_t length = y->localLength;
+
+    for (size_t i = 0; i < length; i++)
+    {
+        double delta = std::abs(xv[i] - yv[map_l2a(mapping, i, false)]);
+        if (doIO)
+        // printf("Index %lld: Delta %.10f\n", i, delta);
+        if (doIO)
+            printf("xv[%ld]=%.10f\tyv_blob[%lld]=%.10f\n", i, xv[i], map_l2a(mapping, i, false), yv[map_l2a(mapping, i, false)]);
+        if (delta != 0)
+        {
+            if (doIO)
+                printf("Difference is not tolerated: %.20f\n", delta);
+            assert(false);
+        }
+    }
+
+    if (doIO)
+        printf("Compare done\n");
+}
+
+void printResultVector(Vector &x)
+{
+    if (laik_myid(world) == 0)
+    {
+        printf("Print result of vector\n");
+        double *xv = x.values;
+        size_t length = x.localLength;
+
+        for (size_t i = 0; i < length; i++)
+            printf("xv[%ld]=%.10f\n", i, xv[i]);
+    }
+     
+}
+
+void printResultLaikVector(Laik_Blob *x, L2A_map *mapping)
+{
+    if (laik_myid(world) == 0)
+        printf("Print result of Laik-vector\n");
+    double *xv;
+    laik_get_map_1d(x->values, 0, (void **)&xv, 0);
+
+    size_t length = x->localLength;
+
+    if (laik_myid(world) == 0)
+        for (size_t i = 0; i < length; i++)
+            printf("xv[%ld]=%.10f\n", i, xv[map_l2a(mapping, i, false)]);
+}
+
+void compareAfterExchange(Vector &x, Laik_Blob * y, SparseMatrix &A)
+{
+    const local_int_t nrow = A.localNumberOfRows;
+    double **matrixDiagonal = A.matrixDiagonal; // An array of pointers to the diagonal entries A.matrixValues
 }

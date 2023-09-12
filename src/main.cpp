@@ -69,35 +69,7 @@ using std::endl;
 #include "TestNorms.hpp"
 
 // #### Debug
-void compareResult(Vector &x, Laik_Blob * y, L2A_map * mapping, bool doIO)
-{
-  assert(x.localLength == mapping->localNumberOfRows); // Test vector lengths
-  assert(y->localLength == x.localLength);
-
-  double *xv = x.values;
-  double *yv;
-  laik_get_map_1d(y->values, 0, (void **)&yv, 0);
-
-  size_t length = x.localLength;
-
-  for (size_t i = 0; i < length; i++)
-  {
-    double delta = std::abs(xv[i] - yv[map_l2a(mapping, i, false)]);
-    if(doIO)
-    // printf("Index %lld: Delta %.10f\n", i, delta);
-    if(doIO)
-    printf("xv[i]=%.10f\tyv[j]=%.10f\n", xv[i], yv[map_l2a(mapping, i, false)]);
-    if (delta > 0.0001)
-    {
-      printf("Difference is not tolerated: %.20f\n", delta);
-      exit(1);
-    }
-  }
-
-  if(laik_myid(world) == 0)
-    printf("Compare done\n");
-}
-
+ 
 void printSPM(SparseMatrix *spm, int coarseLevel)
 {
   // Global data
@@ -126,13 +98,13 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
 
   // HPCG_fout << "\n##################### Mapping of rows #####################\n\n";
 
-  // // Global to local mapping:
-  // HPCG_fout << "\nLocal-to-global Map\n";
-  // HPCG_fout << "Local\tGlobal\n";
-  // for (int c = 0; c < spm->localToGlobalMap.size(); c++)
-  // {
-  //   HPCG_fout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
-  // }
+  // Global to local mapping:
+  HPCG_fout << "\nLocal-to-global Map\n";
+  HPCG_fout << "Local\tGlobal\n";
+  for (int c = 0; c < spm->localToGlobalMap.size(); c++)
+  {
+    HPCG_fout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
+  }
 
   // HPCG_fout << "\nGlobal-to-local Map\n";
   // HPCG_fout << "Global\tlocal\n";
@@ -321,38 +293,37 @@ int main(int argc, char *argv[])
   // Record execution time of reference SpMV and MG kernels for reporting times
   // First load vector with random values
   FillRandomVector(x_overlap);
-
-  CopyVectorToLaikVector(x_overlap, x_overlap_l, A.mapping);
   // #endif
 
+  CopyVectorToLaikVector(x_overlap, x_overlap_l, A.mapping);
+  
   int numberOfCalls = 10;
   if (quickPath)
     numberOfCalls = 1; // QuickPath means we do on one call of each block of repetitive code
   double t_begin = mytimer();
   for (int i = 0; i < numberOfCalls; ++i)
   {
-    printf("Iteration number %d\n", i);
-    // #ifdef USE_LAIK
+    #ifdef USE_LAIK
     ierr = ComputeSPMV_laik_ref(A, x_overlap_l, b_computed_l); // b_computed = A*x_overlap
-    // #else
+    #else
     ierr = ComputeSPMV_ref(A, x_overlap, b_computed); // b_computed = A*x_overlap
-    compareResult(b_computed, b_computed_l, A.mapping, true);
-    // #endif
+    #endif
+
     if (ierr)
       HPCG_fout << "Error in call to SpMV: " << ierr << ".\n"
                 << endl;
-    // #ifdef USE_LAIK
+
+    #ifdef USE_LAIK
     ierr = ComputeMG_laik_ref(A, b_computed_l, x_overlap_l); // b_computed = Minv*y_overlap
-    // #else
+    #else
     ierr = ComputeMG_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
-    // compareResult(b_computed, b_computed_l, A.mapping, i > 0);
-    // #endif
+    #endif
+
     if (ierr)
       HPCG_fout << "Error in call to MG: " << ierr << ".\n"
                 << endl;
   }
   times[8] = (mytimer() - t_begin) / ((double)numberOfCalls); // Total time divided by number of calls.
-  exit(1);
 
   // printf("Reference SpMV+MG Timing Phase: %.5f seconds\n", times[8]);
 
@@ -389,20 +360,18 @@ int main(int argc, char *argv[])
   int err_count = 0;
   for (int i = 0; i < numberOfCalls; ++i)
   {
-    // #ifdef USE_LAIK
+    #ifdef USE_LAIK
       ZeroLaikVector(x_l, A.mapping);
       ierr = CG_laik_ref(A, data, b_l, x_l, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
-    // #else
+    #else
       ZeroVector(x);
       ierr = CG_ref(A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
-    // #endif
-    
+    #endif
+
     if (ierr)
       ++err_count; // count the number of errors in CG
     totalNiters_ref += niters;
   }
-
-  // compareResult(x, x_l, A.mapping);
 
   if (rank == 0 && err_count)
     HPCG_fout << err_count << " error(s) in call(s) to reference CG." << endl;
@@ -437,22 +406,55 @@ int main(int argc, char *argv[])
 #ifdef HPCG_DEBUG
   t1 = mytimer();
 #endif
+  // TestCGData testcg_data_laik;
   TestCGData testcg_data;
+
   testcg_data.count_pass = testcg_data.count_fail = 0;
+  // testcg_data_laik.count_pass = testcg_data_laik.count_fail = 0;
+
   #ifdef USE_LAIK
-    TestCG_laik(A, data, b_l, x_l, testcg_data);
-  #else
+  TestCG_laik(A, data, b_l, x_l, testcg_data);
+#else
     TestCG(A, data, b, x, testcg_data);
   #endif
 
-  TestSymmetryData testsymmetry_data;
+  // printf("Test TestCGData\n");
 
-  #ifdef USE_LAIK
-    TestSymmetry_laik(A, b_l, xexact_l, testsymmetry_data);
-  #else
+  // assert(testcg_data.count_fail == testcg_data_laik.count_fail);
+  // assert(testcg_data.count_pass == testcg_data_laik.count_pass);
+  // assert(testcg_data.expected_niters_no_prec == testcg_data_laik.expected_niters_no_prec);
+  // assert(testcg_data.expected_niters_prec == testcg_data_laik.expected_niters_prec);
+  // assert(testcg_data.niters_max_no_prec == testcg_data_laik.niters_max_no_prec);
+  // assert(testcg_data.niters_max_prec == testcg_data_laik.niters_max_prec);
+  // assert(testcg_data.normr == testcg_data_laik.normr);
+
+
+  TestSymmetryData testsymmetry_data;
+  // TestSymmetryData testsymmetry_data_laik;
+
+  // First load vectors with random values
+  InitializeVector(x_ncol_test, A.localNumberOfColumns);
+  InitializeVector(y_ncol_test, A.localNumberOfColumns);
+
+  FillRandomVector(x_ncol_test);
+  FillRandomVector(y_ncol_test);
+
+#ifdef USE_LAIK
+  TestSymmetry_laik(A, b_l, xexact_l, testsymmetry_data);
+#else
     TestSymmetry(A, b, xexact, testsymmetry_data);
   #endif
-  
+
+    // printf("Test TestSymmetryData\n");
+
+    // assert(testsymmetry_data.count_fail == testsymmetry_data_laik.count_fail);
+    // // will fail since both calls TestSymmetry fill x vector with random values
+    // compare2(testsymmetry_data.depsym_mg, testsymmetry_data_laik.depsym_mg, false, 0);
+    // compare2(testsymmetry_data.depsym_spmv, testsymmetry_data_laik.depsym_spmv, false, 0);
+
+    // printf("normal; %.20f\t laik: %.20f\n", testsymmetry_data.depsym_mg, testsymmetry_data_laik.depsym_mg);
+    // printf("normal; %.20f\t laik: %.20f\n", testsymmetry_data.depsym_spmv, testsymmetry_data_laik.depsym_spmv);
+
 #ifdef HPCG_DEBUG
   if (rank == 0)
     HPCG_fout << "Total validation (TestCG and TestSymmetry) execution time in main (sec) = " << mytimer() - t1 << endl;
@@ -568,6 +570,7 @@ int main(int argc, char *argv[])
       ZeroVector(x); // Zero out x
       ierr = CG(A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);
     #endif
+
     if (ierr)
       HPCG_fout << "Error in call to CG: " << ierr << ".\n"
                 << endl;

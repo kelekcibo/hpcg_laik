@@ -74,8 +74,10 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
   // Test symmetry of matrix
 
   // First load vectors with random values
-  fillRandomLaikVector(x_ncol, A.mapping);
-  fillRandomLaikVector(y_ncol, A.mapping);
+  // fillRandomLaikVector(x_ncol, A.mapping);
+  // fillRandomLaikVector(y_ncol, A.mapping);
+  CopyVectorToLaikVector(x_ncol_test, x_ncol, A.mapping);
+  CopyVectorToLaikVector(y_ncol_test, y_ncol, A.mapping);
 
   double xNorm2, yNorm2;
   double ANorm = 2 * 26.0;
@@ -199,8 +201,10 @@ int TestSymmetry(SparseMatrix &A, Vector &b, Vector &xexact, TestSymmetryData &t
   // Test symmetry of matrix
 
   // First load vectors with random values
-  FillRandomVector(x_ncol);
-  FillRandomVector(y_ncol);
+  // FillRandomVector(x_ncol);
+  // FillRandomVector(y_ncol);
+  CopyVector(x_ncol_test, x_ncol);
+  CopyVector(y_ncol_test, y_ncol);
 
   double xNorm2, yNorm2;
   double ANorm = 2 * 26.0;

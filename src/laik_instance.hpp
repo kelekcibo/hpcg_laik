@@ -85,12 +85,19 @@ struct Laik_Blob
     Laik_Data * values;
     uint64_t localLength;
 
+    // delete me
+    Vector  x;
+
     bool exchange; /* This blob will exchange values if true */
 };
 
 
 extern Laik_Instance *hpcg_instance;
 extern Laik_Group * world;
+
+// Debug testsymmetry
+extern Vector x_ncol_test;
+extern Vector y_ncol_test;
 
 extern void laik_broadcast(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data_type);
 extern void laik_allreduce(const void * sendBuf, void * recvBuf, uint64_t n, Laik_Type * data_type, Laik_ReductionOperation ro_type);
@@ -100,12 +107,20 @@ extern void fillRandomLaikVector(Laik_Blob *x, L2A_map *mapping);
 extern void ZeroLaikVector(Laik_Blob *x, L2A_map *mapping);
 extern void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y, L2A_map *mapping);
 extern void CopyVectorToLaikVector(Vector &v, Laik_Blob *x_blob, L2A_map *mapping);
-extern void CopyLaikVectorToVector(Laik_Blob *x_blob, Vector &v, L2A_map *mapping);
+extern void CopyLaikVectorToVector(const Laik_Blob *x_blob, Vector &v, L2A_map *mapping);
+extern void CopyLaikVectorToVector(Laik_Blob *x, Vector &v, L2A_map *mapping);
 extern void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value, L2A_map *mapping);
 
 extern void init_partitionings(SparseMatrix &A, pt_data * local, pt_data * ext);
 extern Laik_Blob *init_blob(const SparseMatrix &A, bool exchangeHalo);
 
 extern allocation_int_t map_l2a(L2A_map *mapping, local_int_t local_index, bool halo);
+
+
+// debug functions
+extern void compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO);
+extern void printResultLaikVector(Laik_Blob *x, L2A_map *mapping);
+extern void printResultVector(Vector &x);
+extern void compare2(double x, double y, bool doIO, allocation_int_t curIndex);
 
 #endif

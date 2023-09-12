@@ -28,6 +28,7 @@
 #include <cstdlib>
 #include "ComputeSYMGS_ref.hpp"
 
+
 /*!
   Computes one step of symmetric Gauss-Seidel:
 
@@ -61,7 +62,6 @@ int ComputeSYMGS_laik_ref(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *
   assert(x->localLength == A.localNumberOfRows); // Make sure x contain space for halo values
 
   laik_switchto_partitioning(x->values, A.ext, LAIK_DF_Preserve, LAIK_RO_None);
-
   const local_int_t nrow = A.localNumberOfRows;
   double **matrixDiagonal = A.matrixDiagonal; // An array of pointers to the diagonal entries A.matrixValues
 
@@ -77,7 +77,7 @@ int ComputeSYMGS_laik_ref(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *
     const local_int_t *const currentColIndices = A.mtxIndL[i];
     const int currentNumberOfNonzeros = A.nonzerosInRow[i];
     const double currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
-    double sum = rv[i];                                  // RHS value
+    double sum = rv[map_l2a(A.mapping, i, false)];        // RHS value
 
     for (int j = 0; j < currentNumberOfNonzeros; j++)
     {
@@ -98,7 +98,7 @@ int ComputeSYMGS_laik_ref(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *
     const local_int_t *const currentColIndices = A.mtxIndL[i];
     const int currentNumberOfNonzeros = A.nonzerosInRow[i];
     const double currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
-    double sum = rv[i];                                  // RHS value
+    double sum = rv[map_l2a(A.mapping, i, false)];       // RHS value
 
     for (int j = 0; j < currentNumberOfNonzeros; j++)
     {

@@ -220,10 +220,9 @@ void SetupHalo_ref(SparseMatrix & A) {
 
   // DO not delete before I tested it for the three next layers
   // int testrank = 1; /* debug  next 6 lines */
-  // if (A.geom->rank == testrank && level == 3)
+  // if (A.geom->rank == testrank && level == 0)
   //   printf("LAIK %d\tOffset to ALLOC BUffer; local (%lld) / ext (%lld)\n", A.geom->rank, A.mapping->offset, A.mapping->offset_ext);
-
-  // if (A.geom->rank == testrank && level == 3)
+  // if (A.geom->rank == testrank && level == 0)
   //   printf("LAIK %d\tOffset to ALLOC BUffer pt_data; (%d) / ext (%d)\n", A.geom->rank, pt_data_local->offset, pt_data_ext->offset);
 
   A.level = level++;
