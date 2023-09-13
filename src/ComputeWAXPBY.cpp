@@ -18,9 +18,36 @@
  HPCG routine
  */
 
+#include "laik_instance.hpp"
 #include "ComputeWAXPBY.hpp"
 #include "ComputeWAXPBY_ref.hpp"
-#include "laik_instance.hpp"
+
+/*!
+  Routine to compute the update of a vector with the sum of two
+  scaled vectors where: w = alpha*x + beta*y
+
+  This routine calls the reference WAXPBY implementation by default, but
+  can be replaced by a custom, optimized routine suited for
+  the target system.
+
+  @param[in] n the number of vector elements (on this processor)
+  @param[in] alpha, beta the scalars applied to x and y respectively.
+  @param[in] x, y the input vectors
+  @param[out] w the output vector
+  @param[out] isOptimized should be set to false if this routine uses the reference implementation (is not optimized); otherwise leave it unchanged
+
+  @return returns 0 upon success and non-zero otherwise
+
+  @see ComputeWAXPBY_ref
+*/
+int ComputeWAXPBY_laik(const local_int_t n, const double alpha, const Laik_Blob * x,
+                  const double beta, const Laik_Blob * y, Laik_Blob * w, bool &isOptimized, L2A_map * mapping)
+{
+
+  // This line and the next two lines should be removed and your version of ComputeWAXPBY should be used.
+  isOptimized = false;
+  return ComputeWAXPBY_laik_ref(n, alpha, x, beta, y, w, mapping);
+}
 
 /*!
   Routine to compute the update of a vector with the sum of two
@@ -41,9 +68,9 @@
   @see ComputeWAXPBY_ref
 */
 int ComputeWAXPBY(const local_int_t n, const double alpha, const Vector & x,
-    const double beta, const Vector & y, Vector & w, bool & isOptimized, Laik_Blob * x_blob, Laik_Blob * y_blob, Laik_Blob * w_blob) {
+    const double beta, const Vector & y, Vector & w, bool & isOptimized) {
 
   // This line and the next two lines should be removed and your version of ComputeWAXPBY should be used.
   isOptimized = false;
-  return ComputeWAXPBY_ref(n, alpha, x, beta, y, w, x_blob, y_blob, w_blob);
+  return ComputeWAXPBY_ref(n, alpha, x, beta, y, w);
 }

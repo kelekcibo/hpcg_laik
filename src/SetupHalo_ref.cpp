@@ -19,14 +19,17 @@
  */
 
 #ifndef HPCG_NO_MPI
-#include "laik_instance.hpp"
 #include <map>
 #include <set>
 #include <cstring>
-
 #include <iostream>
 #include <cstdlib>
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 int level = 0;
+
 #endif
 
 #ifndef HPCG_NO_OPENMP
@@ -171,7 +174,6 @@ void SetupHalo_ref(SparseMatrix & A) {
   A.sendLength = sendLength;
   A.sendBuffer = sendBuffer;
 
-
   // ########## Data for partitioning algorithm
   pt_data * pt_data_ext = (pt_data *)malloc(sizeof(pt_data));
   pt_data * pt_data_local = (pt_data *)malloc(sizeof(pt_data));
@@ -185,10 +187,12 @@ void SetupHalo_ref(SparseMatrix & A) {
   pt_data_ext->elementsToSend = A.elementsToSend;
   pt_data_ext->receiveLength = A.receiveLength;
   pt_data_ext->halo = true;
+  pt_data_ext->offset = -1;
 
   pt_data_local->halo = false;
   pt_data_local->geom = pt_data_ext->geom;
   pt_data_local->size = pt_data_ext->size;
+  pt_data_local->offset = -1;
   /* These values are not needed for the 2nd partitioning */
   pt_data_local->neighbors = NULL;
   pt_data_local->localToGlobalMap = NULL;
@@ -200,7 +204,7 @@ void SetupHalo_ref(SparseMatrix & A) {
 
   // ########## Data to calculate mapping
 
-  L2A_map * map_data = (L2A_map *)malloc(sizeof(L2A_map));
+  L2A_map * map_data = (L2A_map *) malloc(sizeof(L2A_map));
 
   map_data->localNumberOfRows = A.localNumberOfRows;
   map_data->offset = -1;
@@ -210,11 +214,17 @@ void SetupHalo_ref(SparseMatrix & A) {
   std::memcpy((void *)&map_data->localToExternalMap, (void *)&A.localToExternalMap, sizeof(A.localToExternalMap));
   
   // ########## Data to calculate mapping
+  A.mapping = map_data;
 
-  A.A_map_data = map_data;
-  A.A_local = pt_data_local;
-  A.A_ext = pt_data_ext;
-   
+  init_partitionings(A, pt_data_local, pt_data_ext);
+
+  // DO not delete before I tested it for the three next layers
+  // int testrank = 1; /* debug  next 6 lines */
+  // if (A.geom->rank == testrank && level == 0)
+  //   printf("LAIK %d\tOffset to ALLOC BUffer; local (%lld) / ext (%lld)\n", A.geom->rank, A.mapping->offset, A.mapping->offset_ext);
+  // if (A.geom->rank == testrank && level == 0)
+  //   printf("LAIK %d\tOffset to ALLOC BUffer pt_data; (%d) / ext (%d)\n", A.geom->rank, pt_data_local->offset, pt_data_ext->offset);
+
   A.level = level++;
 
 #ifdef HPCG_DETAILED_DEBUG

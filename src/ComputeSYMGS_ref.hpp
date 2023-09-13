@@ -14,9 +14,12 @@
 
 #ifndef COMPUTESYMGS_REF_HPP
 #define COMPUTESYMGS_REF_HPP
+
+#include "laik_instance.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
-int ComputeSYMGS_ref(const SparseMatrix &A, const Vector &r, Vector &x, Laik_Blob *x_blob);
+int ComputeSYMGS_laik_ref(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *x);
+int ComputeSYMGS_ref(const SparseMatrix &A, const Vector &r, Vector &x);
 
 #endif // COMPUTESYMGS_REF_HPP

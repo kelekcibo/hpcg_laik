@@ -14,13 +14,15 @@
 
 #ifndef COMPUTEMG_REF_HPP
 #define COMPUTEMG_REF_HPP
-#include "SparseMatrix.hpp"
-#include "Vector.hpp"
 
 // #ifndef HPCG_NO_MPI
 #include "laik_instance.hpp"
 // #endif
+#include "SparseMatrix.hpp"
+#include "Vector.hpp"
 
-int ComputeMG_ref(const SparseMatrix  & A, const Vector & r, Vector & x, Laik_Blob * x_blob);
+
+int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *x);
+int ComputeMG_ref(const SparseMatrix &A, const Vector &r, Vector &x);
 
 #endif // COMPUTEMG_REF_HPP

@@ -14,6 +14,9 @@
 
 #ifndef CHECKASPECTRATIO_HPP
 #define CHECKASPECTRATIO_HPP
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
 extern int CheckAspectRatio(double smallest_ratio, int x, int y, int z, const char *what, bool DoIo);
 #endif // CHECKASPECTRATIO_HPP
 

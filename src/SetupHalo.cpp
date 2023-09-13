@@ -28,6 +28,10 @@
 #include <omp.h>
 #endif
 
+#ifndef USE_LAIK
+#define USE_LAIK
+#endif
+#include "laik_instance.hpp"
 #include "SetupHalo.hpp"
 #include "SetupHalo_ref.hpp"
 

@@ -14,9 +14,14 @@
 
 #ifndef COMPUTEDOTPRODUCT_REF_HPP
 #define COMPUTEDOTPRODUCT_REF_HPP
-#include "Vector.hpp"
+
 #include "laik_instance.hpp"
+#include "Vector.hpp"
+
+int ComputeDotProduct_laik_ref(const local_int_t n, const Laik_Blob *x, const Laik_Blob *y,
+                          double &result, double &time_allreduce, L2A_map * mapping);
+
 int ComputeDotProduct_ref(const local_int_t n, const Vector & x, const Vector & y,
-    double & result, double & time_allreduce, Laik_Blob * x_blob, Laik_Blob * y_blob);
+    double & result, double & time_allreduce);
 
 #endif // COMPUTEDOTPRODUCT_REF_HPP

@@ -27,12 +27,12 @@
 #include <omp.h>
 #endif
 
-// #define HPCG_DETAILED_DEBUG
 #if defined(HPCG_DEBUG) || defined(HPCG_DETAILED_DEBUG)
 #include <fstream>
-    using std::endl;
+using std::endl;
 #include "hpcg.hpp"
 #endif
+
 #include <cassert>
 #include <iostream>
 
@@ -215,7 +215,7 @@ void GenerateProblem_ref(SparseMatrix &A, Vector *b, Vector *x, Vector *xexact)
 #ifndef HPCG_NO_MPI
     // Use reduce function to sum all nonzeros
 #ifdef HPCG_NO_LONG_LONG
-    laik_allreduce((void *)&localNumberOfNonzeros, (void *)&totalNumberOfNonzeros, 1,laik_UInt32, LAIK_RO_Sum)
+    laik_allreduce((void *)&localNumberOfNonzeros, (void *)&totalNumberOfNonzeros, 1, laik_UInt32, LAIK_RO_Sum)
 #else
     long long lnnz = localNumberOfNonzeros, gnnz = 0; // convert to 64 bit for MPI call
     laik_allreduce((void *)&lnnz, (void *)&gnnz, 1, laik_UInt64, LAIK_RO_Sum);
@@ -224,9 +224,9 @@ void GenerateProblem_ref(SparseMatrix &A, Vector *b, Vector *x, Vector *xexact)
 #else
     totalNumberOfNonzeros = localNumberOfNonzeros;
 #endif
-    // If this assert fails, it most likely means that the global_int_t is set to int and should be set to long long
-    // This assert is usually the first to fail as problem size increases beyond the 32-bit integer range.
-    assert(totalNumberOfNonzeros > 0); // Throw an exception of the number of nonzeros is less than zero (can happen if int overflow)
+        // If this assert fails, it most likely means that the global_int_t is set to int and should be set to long long
+        // This assert is usually the first to fail as problem size increases beyond the 32-bit integer range.
+        assert(totalNumberOfNonzeros > 0); // Throw an exception of the number of nonzeros is less than zero (can happen if int overflow)
 
     A.title = 0;
     A.totalNumberOfRows = totalNumberOfRows;
