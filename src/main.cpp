@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
 #endif
 
   if (doIO)
-    printf("LAIK %d\tINIT\n", laik_myid(world));
+    printf("\t######## HPCG LAIK v1.0 ########\n\n");
 
   if (doIO)
     printf("Start Setup Phase\n");
