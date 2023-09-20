@@ -122,7 +122,7 @@ int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestC
         testcg_data.niters_max_prec = niters; // Same for preconditioned run
       if (A.geom->rank == 0)
       {
-        HPCG_fout << "Call LAIK [" << i << "] Number of Iterations [" << niters << "] Scaled Residual [" << normr / normr0 << "]" << endl;
+        HPCG_fout << "Call [" << i << "] Number of Iterations [" << niters << "] Scaled Residual [" << normr / normr0 << "]" << endl;
         if (niters > expected_niters)
           HPCG_fout << " Expected " << expected_niters << " iterations.  Performed " << niters << "." << endl;
       }
