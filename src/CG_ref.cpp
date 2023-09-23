@@ -108,6 +108,31 @@ int CG_laik_ref(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Bl
   // Start iterations
   for (int k = 1; k <= max_iter && normr / normr0 > tolerance; k++)
   {
+
+#ifdef REPARTITION
+    // Repartitioning / Resizing of current world (group of proccesses)
+    laik_set_iteration(hpcg_instance, k); /* Current iteration */
+
+    // allow resize of world and get new world
+    Laik_Group *newworld = laik_allow_world_resize(hpcg_instance, k);
+
+
+    if (newworld != world)
+    {
+      // Save pointers to old variables, because we need to free them after re_setup() is called
+      Laik_Partitioning * old_local = A.local;
+      Laik_Partitioning * old_ext = A.ext;
+      L2A_map * old_mapping = A.mapping;
+      std::map<local_int_t, global_int_t> old_localToExternalMap = A.localToExternalMap;
+
+      // Releasing old world and old partitionings
+      laik_release_group(world);
+      laik_free_partitioning(old_local);
+      laik_free_partitioning(old_ext);
+      free_L2A_map(old_mapping);
+    }
+#endif
+
     TICK();
     if (doPreconditioning)
       ComputeMG_laik_ref(A, r, z); // Apply preconditioner

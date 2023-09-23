@@ -19,6 +19,11 @@ extern "C" {
 #include <set>
 #include <map>
 
+
+// Defs
+#define REPARTITION
+
+// Forw. decl.
 struct SparseMatrix_STRUCT;
 typedef struct SparseMatrix_STRUCT SparseMatrix;
 
@@ -116,6 +121,8 @@ extern Laik_Blob *init_blob(const SparseMatrix &A, bool exchangeHalo);
 
 extern allocation_int_t map_l2a(L2A_map *mapping, local_int_t local_index, bool halo);
 
+// clean up functions
+extern void free_L2A_map(L2A_map * mapping);
 
 // debug functions
 extern void compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO);

@@ -485,6 +485,20 @@ void laik_barrier()
 }
 
 // #######################################################################################
+// Clean-up functions
+
+void free_L2A_map(L2A_map *mapping)
+{
+    mapping->localNumberOfRows = 0;
+    mapping->offset = 0;
+    mapping->offset_ext = 0;
+
+    mapping->localToExternalMap.clear();
+    mapping->localToGlobalMap.clear();
+    free((void*)mapping);
+}
+
+// #######################################################################################
 // Debug functions
 
 void compare2(double x, double y, bool doIO, allocation_int_t curIndex)
