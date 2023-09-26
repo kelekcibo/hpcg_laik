@@ -59,7 +59,6 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
   local_int_t localNumberOfRows = nxc*nyc*nzc; // This is the size of our subblock
   // If this assert fails, it most likely means that the local_int_t is set to int and should be set to long long
   assert(localNumberOfRows>0); // Throw an exception of the number of rows is less than zero (can happen if "int" overflows)
-
   // Use a parallel loop to do initial assignment:
   // distributes the physical placement of arrays of pointers across the memory system
 #ifndef HPCG_NO_OPENMP
@@ -98,26 +97,51 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
   }
   GenerateGeometry(Af.geom->size, Af.geom->rank, Af.geom->numThreads, Af.geom->pz, zlc, zuc, nxc, nyc, nzc, Af.geom->npx, Af.geom->npy, Af.geom->npz, geomc);
 
-  SparseMatrix * Ac = new SparseMatrix;
-  InitializeSparseMatrix(*Ac, geomc);
-  GenerateProblem(*Ac, 0, 0, 0);
-  SetupHalo(*Ac);
+ // TODO generating coarse problem but need to give it a look
 
-  Laik_Blob *rc_blob = init_blob(*Ac, false);
-  Laik_Blob *xc_blob = init_blob(*Ac, true);
-  Laik_Blob *Axf_blob = init_blob(Af, true);
-  Vector *rc = new Vector;
-  Vector *xc = new Vector;
-  Vector * Axf = new Vector;
-  InitializeVector(*rc, Ac->localNumberOfRows);
-  InitializeVector(*xc, Ac->localNumberOfColumns);
-  InitializeVector(*Axf, Af.localNumberOfColumns);
+  if(Af.Ac == NULL)
+  {
+    assert(Af.mgData == NULL); /* Af.Ac == NULL means mgData == NULL */
 
-  Af.Ac = Ac;
-  MGData * mgData = new MGData;
-  InitializeMGData_laik(f2cOperator, rc_blob, xc_blob, Axf_blob, *mgData);
-  InitializeMGData(f2cOperator, rc, xc, Axf, *mgData);
-  Af.mgData = mgData;
+    SparseMatrix *Ac = new SparseMatrix;
+    InitializeSparseMatrix(*Ac, geomc);
+    GenerateProblem(*Ac, 0, 0, 0);
+    SetupHalo(*Ac);
+
+    // This if is for the case if repartition is enabled. Do not need to init the vectors again
+    Laik_Blob *rc_blob = init_blob(*Ac, false);
+    Laik_Blob *xc_blob = init_blob(*Ac, true);
+    Laik_Blob *Axf_blob = init_blob(Af, true);
+    Vector *rc = new Vector;
+    Vector *xc = new Vector;
+    Vector *Axf = new Vector;
+    InitializeVector(*rc, Ac->localNumberOfRows);
+    InitializeVector(*xc, Ac->localNumberOfColumns);
+    InitializeVector(*Axf, Af.localNumberOfColumns);
+
+    MGData *mgData = new MGData;
+    InitializeMGData_laik(f2cOperator, rc_blob, xc_blob, Axf_blob, *mgData);
+    InitializeMGData(f2cOperator, rc, xc, Axf, *mgData);
+    Af.mgData = mgData;
+
+    Af.Ac = Ac;
+  }
+  else
+  {
+    // This else is for repartitioning. 
+    assert(Af.Ac != NULL);
+    assert(Af.mgData != NULL);
+    assert(Af.mgData->Axf_blob != NULL); /* Means other blobs are also != NULL */
+
+    Af.Ac->geom = geomc; /* Only new geom will be set, other variables are assigned in generateProblem and SetupHalo */
+
+    GenerateProblem(*Af.Ac, 0, 0, 0); // "Main level" Maitrx
+    SetupHalo(*Af.Ac);
+
+    // This means we are repartitioning the world. Need to update f2cOperator of current mg Data
+    // is this correct?
+    Af.mgData->f2cOperator = f2cOperator;
+  }
 
   return;
 }

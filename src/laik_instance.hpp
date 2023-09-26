@@ -30,6 +30,7 @@ typedef struct SparseMatrix_STRUCT SparseMatrix;
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
 #include "Geometry.hpp"
+#include "hpcg.hpp"
 
 /**
  * @brief Struct (data) needed for the partitioner algorithms
@@ -88,14 +89,10 @@ struct L2A_map
 struct Laik_Blob
 {
     Laik_Data * values;
-    uint64_t localLength;
-
-    // delete me
-    Vector  x;
+    mutable uint64_t localLength;
 
     bool exchange; /* This blob will exchange values if true */
 };
-
 
 extern Laik_Instance *hpcg_instance;
 extern Laik_Group * world;
@@ -124,10 +121,23 @@ extern allocation_int_t map_l2a(L2A_map *mapping, local_int_t local_index, bool 
 // clean up functions
 extern void free_L2A_map(L2A_map * mapping);
 
+
+// Needed functions/variables for shrink/expand feature
+#ifdef REPARTITION
+
+extern HPCG_Params hpcg_params;
+
+extern void re_setup_problem(SparseMatrix &A);
+extern void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list);
+#endif
+
 // debug functions
-extern void compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO);
+extern void
+compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO);
 extern void printResultLaikVector(Laik_Blob *x, L2A_map *mapping);
 extern void printResultVector(Vector &x);
 extern void compare2(double x, double y, bool doIO, allocation_int_t curIndex);
+extern void printSPM(SparseMatrix *spm, int coarseLevel);
+extern void exit_hpcg_run(const char *msg);
 
 #endif

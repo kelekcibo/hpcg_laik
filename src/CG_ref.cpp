@@ -54,7 +54,7 @@
 
   @see CG()
 */
-int CG_laik_ref(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Blob *x,
+int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
            const int max_iter, const double tolerance, int &niters, double &normr, double &normr0,
            double *times, bool doPreconditioning)
 {
@@ -67,6 +67,10 @@ int CG_laik_ref(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Bl
   // #ifndef HPCG_NO_MPI
   //   double t6 = 0.0;
   // #endif
+
+  #ifdef REPARTITION
+  int laik_iter = laik_get_iteration(hpcg_instance);
+  #endif
 
   local_int_t nrow = A.localNumberOfRows;
 
@@ -84,6 +88,12 @@ int CG_laik_ref(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Bl
     print_freq = 50;
   if (print_freq < 1)
     print_freq = 1;
+#endif
+
+#ifdef REPARTITION
+// Old processes are in the 2nd iteration. Skip this part
+  if(laik_iter < 2)
+  {
 #endif
   // copy x to p for sparse MV operation
   CopyLaikVectorToLaikVector(x, p, A.mapping);
@@ -103,34 +113,92 @@ int CG_laik_ref(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Bl
 #endif
 
   // Record initial residual for convergence testing
-  normr0 = normr;
+  normr0 = normr; /* TODO. If new joining processes join and skip first part, this means they need to get normr0 from old procs */
+  #ifdef REPARTITION
+  }
+  else
+  {
+    laik_broadcast(&normr, &normr0, 1, laik_Double); /* Get normr0 by proc 0 */
+  }
+  #endif
+
+
+  std::string debug_str{""};
 
   // Start iterations
-  for (int k = 1; k <= max_iter && normr / normr0 > tolerance; k++)
+  int k = 1;
+  // For new joining processes
+  if (laik_iter > 1)
+    k = laik_iter;
+
+  for (; k <= max_iter && normr / normr0 > tolerance; k++)
   {
 
 #ifdef REPARTITION
+
+  if(k == 1)
+  {
     // Repartitioning / Resizing of current world (group of proccesses)
     laik_set_iteration(hpcg_instance, k); /* Current iteration */
 
     // allow resize of world and get new world
     Laik_Group *newworld = laik_allow_world_resize(hpcg_instance, k);
 
+    int shrink_count = 1;
+    int plist[1];
+    plist[0] = 1; // remove proc 1 as test with config: size = 2
+
+    debug_str += "Before shrinking: size " + std::to_string(laik_size(newworld)) + " (id " + std::to_string(laik_myid(newworld)) + ")\n";
+
+    newworld = laik_new_shrinked_group(world, shrink_count, plist);
+
+    debug_str += "After shrinking: size " + std::to_string(laik_size(newworld)) + " (id " + std::to_string(laik_myid(newworld)) + ")";
+
+    // exit_hpcg_run(debug_str.c_str());
+
+    laik_finish_world_resize(hpcg_instance);
 
     if (newworld != world)
     {
-      // Save pointers to old variables, because we need to free them after re_setup() is called
-      Laik_Partitioning * old_local = A.local;
-      Laik_Partitioning * old_ext = A.ext;
-      L2A_map * old_mapping = A.mapping;
-      std::map<local_int_t, global_int_t> old_localToExternalMap = A.localToExternalMap;
 
-      // Releasing old world and old partitionings
+      // Assign new world and release old world
       laik_release_group(world);
-      laik_free_partitioning(old_local);
-      laik_free_partitioning(old_ext);
-      free_L2A_map(old_mapping);
+      world = newworld;
+
+      // TODO. Re-run setup functions and run partitioners for the new group, if the group changed. Free old ressources before re-run
+      re_setup_problem(A);
+      exit_hpcg_run("RE-SETUP PROBLEM WORKS!");
+
+      // TODO. Switch to the new partitioning on all Laik_data containers
+      std::vector<Laik_Blob *> list{};
+
+      list.push_back(b);
+      list.push_back(x);
+      list.push_back(r);
+      list.push_back(z);
+      list.push_back(p);
+      list.push_back(Ap);
+    
+      /* Send normr0 to new procs, old procs have already this value */
+      laik_broadcast(&normr0, &normr0, 1, laik_Double); /* Get normr0 by proc 0 */
+
+      /* Vectors in MG_data will be recursively handled in re_switch_LaikVectors */
+      re_switch_LaikVectors(A, list);
+
+      // Releasing old, not needed ressources in re_setup_problem(A);
+      // Exit, if we got removed from the world
+      if (laik_myid(world) < 0)
+      {
+        laik_finalize(hpcg_instance);
+        exit(0);
+        // return 0;
+      }
+
+      debug_str += "IN IF ";
+      exit_hpcg_run(debug_str.c_str());
     }
+  }
+
 #endif
 
     TICK();

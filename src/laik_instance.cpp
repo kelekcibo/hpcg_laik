@@ -18,6 +18,20 @@
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
 
+#ifdef REPARTITION
+#include "hpcg.hpp"
+#include "Geometry.hpp"
+#include "GenerateProblem.hpp"
+#include "SetupHalo.hpp"
+#include "GenerateCoarseProblem.hpp"
+#include "GenerateGeometry.hpp"
+#include "CheckProblem.hpp"
+#endif
+
+// debug forw. delc
+void printSPM(SparseMatrix *spm, int coarseLevel);
+// debug forw. delc
+
 // should be initialized at the very beginning of the program. No use without init.
 Laik_Instance *hpcg_instance; /* Laik instance during HPCG run */
 Laik_Group *world;
@@ -86,6 +100,7 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
     pt_data *data = (pt_data *)laik_partitioner_data(p->partitioner);
     Laik_Space * x_space = p->space;
 
+    printf("data->size=%d\tspace->size=%ld\n", data->size, laik_space_size(x_space));
     assert(data->size == laik_space_size(x_space));
 
     int rank = data->geom->rank;
@@ -326,15 +341,20 @@ Laik_Blob * init_blob(const SparseMatrix &A, bool exchangeHalo)
 
 void init_partitionings(SparseMatrix &A, pt_data *local, pt_data *ext)
 {
-    A.space = laik_new_space_1d(hpcg_instance, A.totalNumberOfRows);
+    // For the case, if repartitioning is enabled. We do not need a new space
+    if(A.space == NULL)
+    {
+        A.space = laik_new_space_1d(hpcg_instance, A.totalNumberOfRows);
+    }
 
     Laik_Partitioner *x_localPR = laik_new_partitioner("x_localPR", partitioner_x, (void *)local, LAIK_PF_None);
     Laik_Partitioner *x_extPR = laik_new_partitioner("x_extPR", partitioner_x, (void *)ext, LAIK_PF_None);
+   
 
 
     A.local = laik_new_partitioning(x_localPR, world, A.space, NULL);
     A.ext = laik_new_partitioning(x_extPR, world, A.space, NULL);
-    
+
 
     A.mapping->offset = local->offset;
     A.mapping->offset_ext = ext->offset;
@@ -484,18 +504,135 @@ void laik_barrier()
     return;
 }
 
+#ifdef REPARTITION
+// #######################################################################################
+// Needed functions/variables for shrink/expand feature
+
+HPCG_Params hpcg_params; /* Global copy of params in main function */
+
+/**
+ * @brief Re-run the setup phase to update parameters and data for partitioner with new config (size of world / num of procs).
+ *
+ * Free old ressources before re-setup
+ *
+ * @param A SparseMatrix
+ */
+void re_setup_problem(SparseMatrix &A)
+{
+
+    // Old variables for debug
+    global_int_t totalnumbRows = A.totalNumberOfRows;
+    global_int_t totalnumbNNZ = A.totalNumberOfNonzeros;
+
+    HPCG_fout << "OLD GLOBAL VALUES\nTotal # of rows " << std::to_string(totalnumbRows) << "\nTotal # of nonzeros " << std::to_string(totalnumbNNZ) << std::endl;
+    
+    if(A.geom->rank != 0)
+        std::cout << "OLD GLOBAL VALUES\nTotal # of rows " << std::to_string(totalnumbRows) << "\nTotal # of nonzeros " << std::to_string(totalnumbNNZ) << std::endl;
+
+    // Delete old setup; Everything except next layer matrix, space and mgdata
+    DeleteMatrix_repartition(A);
+
+    // Update parameters of params struct (hpcg_params is a copy)
+    // hpcg_params.comm_rank = laik_myid(world);
+    // hpcg_params.comm_size = laik_size(world); /* I need to leave the origin size of the world the same? */
+    // TODO. Send params_struct to new procs; old procs already have them
+    // laik_broadcast(iparams, iparams, nparams, laik_Int32);
+
+    // Construct the new geometry and linear system
+    Geometry * new_geom = new Geometry;
+    GenerateGeometry(hpcg_params.comm_size, hpcg_params.comm_rank, hpcg_params.numThreads, hpcg_params.pz, hpcg_params.zl, hpcg_params.zu, hpcg_params.nx, hpcg_params.ny, hpcg_params.nz, hpcg_params.npx, hpcg_params.npy, hpcg_params.npz, new_geom);
+    A.geom = new_geom; /* Only new geom will be set, other variables are assigned in generateProblem and SetupHalo */
+
+    GenerateProblem(A, 0,0,0); // "Main level" Maitrx
+    assert(A.totalNumberOfRows == totalnumbRows);
+    printSPM(&A, 0);
+
+    // printf("LAIK %d\t%d vs %d\n", laik_myid(world), A.totalNumberOfNonzeros, totalnumbNNZ);
+    // assert(A.totalNumberOfNonzeros == totalnumbNNZ);
+    // TODO SHOULDNT NNZ BE EQUAL? NEED TO LOOK HOW THINGS ARE CREATED! AND WHAT I NEED TO REINITIALIZE
+
+    SetupHalo(A);
+    exit_hpcg_run("SETUP HALO");
+
+    int numberOfMgLevels = 4; // Number of levels including first
+    SparseMatrix *curLevelMatrix = &A;
+    for (int level = 1; level < numberOfMgLevels; ++level)
+    {
+        // std::cout << "\nCoarse Problem level " << level << std::endl;
+        GenerateCoarseProblem(*curLevelMatrix);
+        curLevelMatrix = curLevelMatrix->Ac; // Make the just-constructed coarse grid the next level
+    }
+
+    curLevelMatrix = &A;
+    Vector *curb = 0;
+    Vector *curx = 0;
+    Vector *curxexact = 0;
+    for (int level = 0; level < numberOfMgLevels; ++level)
+    {
+        CheckProblem(*curLevelMatrix, curb, curx, curxexact);
+        curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
+        curb = 0;                            // No vectors after the top level
+        curx = 0;
+        curxexact = 0;
+    }
+    
+}
+
+/**
+ * @brief Switch to the new local partioning on every Laik_Blob 
+ * 
+ * @param A SparseMatrix
+ * @param list of Laik_Blobs
+ */
+void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
+{
+    // Add the Laik_Blob to the list, which is stored in MGData as well
+    list.push_back(A.mgData->Axf_blob);
+    exit_hpcg_run("re_switch_LaikVectors");
+
+
+    for (uint32_t i = 0; i < list.size(); i++)
+    {
+        Laik_Blob * elem = list[i];
+        laik_switchto_partitioning(elem->values, A.local, LAIK_DF_Preserve, LAIK_RO_None);
+        elem->localLength = A.localNumberOfRows; /* Need to update local length, since it could have changed */
+    }
+
+    // MGData has two container with partitioning of next layer matrix.
+    int numberOfMgLevels = 3; // Number of levels excluding last layer matrix (has no MGData)
+    SparseMatrix *curLevelMatrix = &A;
+    MGData * curMGData;
+    for (int level = 1; level < numberOfMgLevels; ++level)
+    {
+        curMGData = curLevelMatrix->mgData;
+        
+        laik_switchto_partitioning(curMGData->rc_blob->values, A.Ac->local, LAIK_DF_Preserve, LAIK_RO_None);
+        laik_switchto_partitioning(curMGData->xc_blob->values, A.Ac->local, LAIK_DF_Preserve, LAIK_RO_None);
+        // Update local lengths as well
+        curMGData->xc_blob->localLength = A.Ac->localNumberOfRows;
+        curMGData->rc_blob->localLength = A.Ac->localNumberOfRows;
+
+        curLevelMatrix = curLevelMatrix->Ac; // Next level
+    }
+}
+
+#endif
+
 // #######################################################################################
 // Clean-up functions
 
-void free_L2A_map(L2A_map *mapping)
+void free_L2A_map(L2A_map * mapping)
 {
-    mapping->localNumberOfRows = 0;
-    mapping->offset = 0;
-    mapping->offset_ext = 0;
+    if(mapping != NULL)
+    {
+        mapping->localNumberOfRows = 0;
+        mapping->offset = 0;
+        mapping->offset_ext = 0;
 
-    mapping->localToExternalMap.clear();
-    mapping->localToGlobalMap.clear();
-    free((void*)mapping);
+        mapping->localToExternalMap.clear();
+        mapping->localToGlobalMap.clear();
+        free((void*)mapping);
+    }
 }
 
 // #######################################################################################
@@ -574,8 +711,106 @@ void printResultLaikVector(Laik_Blob *x, L2A_map *mapping)
             printf("xv[%ld]=%.10f\n", i, xv[map_l2a(mapping, i, false)]);
 }
 
-void compareAfterExchange(Vector &x, Laik_Blob * y, SparseMatrix &A)
+void printSPM(SparseMatrix *spm, int coarseLevel)
 {
-    const local_int_t nrow = A.localNumberOfRows;
-    double **matrixDiagonal = A.matrixDiagonal; // An array of pointers to the diagonal entries A.matrixValues
+    
+    // Global data
+    HPCG_fout << "\n##################### Global stats #####################\n\n";
+
+    HPCG_fout << "\nTotal # of rows " << spm->totalNumberOfRows
+              << std::endl
+              << "\nTotal # of nonzeros " << spm->totalNumberOfNonzeros
+              << std::endl;
+
+
+    HPCG_fout << "\n##################### Local stats #####################\n\n";
+
+    // Local
+    HPCG_fout << "\nLocal # of rows " << spm->localNumberOfRows
+              << std::endl
+              << "\nLocal # of nonzeros " << spm->localNumberOfNonzeros
+              << std::endl;
+
+    HPCG_fout << "NumberOfExternalValues: " << (spm->localNumberOfColumns - spm->localNumberOfRows)
+              << std::endl;
+
+    HPCG_fout << "\n##################### Mapping of rows #####################\n\n";
+
+    // Global to local mapping:
+    HPCG_fout << "\nLocal-to-global Map\n";
+    HPCG_fout << "Local\tGlobal\n";
+    for (int c = 0; c < spm->localToGlobalMap.size(); c++)
+    {
+        HPCG_fout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
+    }
+
+    // HPCG_fout << "\nGlobal-to-local Map\n";
+    // HPCG_fout << "Global\tlocal\n";
+    // for (int c = 0; c < spm->globalToLocalMap.size(); c++)
+    // {
+    //   HPCG_fout << c << "\t\t" << spm->globalToLocalMap[c] << std::endl;
+    // }
+
+    // // Non zero indexes
+    // HPCG_fout << "\n\n##################### Local subblock in matrix #####################\n\n";
+    // for (uint64_t row_i = 0; row_i < spm->localNumberOfRows && row_i < 8; row_i++)
+    // {
+    //   HPCG_fout << "Row " << row_i << " (" << (int)spm->nonzerosInRow[row_i] << " non zeros) mtxIndL" << std::endl
+    //             << std::endl;
+
+    //   for (uint64_t nz_column_j = 0; nz_column_j < spm->nonzerosInRow[row_i]; nz_column_j++)
+    //   {
+    //     HPCG_fout << "Index (" << row_i << "," << spm->mtxIndL[row_i][nz_column_j] << ") = " << spm->matrixValues[row_i][nz_column_j] << std::endl;
+    //   }
+    //   HPCG_fout << std::endl;
+    // }
+
+    if(spm->geom->rank != 0)
+    {
+        // Global data
+        std::cout << "\n##################### Global stats #####################\n\n";
+
+        std::cout << "\nTotal # of rows " << spm->totalNumberOfRows
+                  << std::endl
+                  << "\nTotal # of nonzeros " << spm->totalNumberOfNonzeros
+                  << std::endl;
+
+        std::cout << "\n##################### Local stats #####################\n\n";
+
+        // Local
+        std::cout << "\nLocal # of rows " << spm->localNumberOfRows
+                  << std::endl
+                  << "\nLocal # of nonzeros " << spm->localNumberOfNonzeros
+                  << std::endl;
+
+        std::cout << "NumberOfExternalValues: " << (spm->localNumberOfColumns - spm->localNumberOfRows)
+                  << std::endl;
+
+        std::cout << "\n##################### Mapping of rows #####################\n\n";
+
+        // Global to local mapping:
+        std::cout << "\nLocal-to-global Map\n";
+        std::cout << "Local\tGlobal\n";
+        for (int c = 0; c < spm->localToGlobalMap.size(); c++)
+        {
+            std::cout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
+        }
+    }
+}
+
+/**
+ * @brief Debug function. 
+ * 
+ * Exit the program on all processes
+ * 
+ * @param msg will be printed (No need to add "\\n")
+ */
+void exit_hpcg_run(const char * msg)
+{
+    if(laik_myid(world) == 0)
+        printf("\n####### %s\n####### Debug DONE -> Exiting #######\n", msg);
+
+    exit(0);
+
+    return ;
 }

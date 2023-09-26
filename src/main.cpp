@@ -35,6 +35,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <cstring>
 #ifdef HPCG_DETAILED_DEBUG
 using std::cin;
 #endif
@@ -67,67 +68,6 @@ using std::endl;
 #include "TestCG.hpp"
 #include "TestSymmetry.hpp"
 #include "TestNorms.hpp"
-
-// #### Debug
- 
-void printSPM(SparseMatrix *spm, int coarseLevel)
-{
-  // Global data
-  HPCG_fout << "\n##################### Global stats #####################\n\n";
-
-  HPCG_fout << "\nTotal # of rows " << spm->totalNumberOfRows
-            << std::endl
-            << "\nTotal # of nonzeros " << spm->totalNumberOfNonzeros
-            << std::endl;
-
-  HPCG_fout << "\n##################### Local stats #####################\n\n";
-
-  // Local
-  HPCG_fout << "\nLocal # of rows " << spm->localNumberOfRows
-            << std::endl
-            << "\nLocal # of nonzeros " << spm->localNumberOfNonzeros
-            << std::endl;
-
-  HPCG_fout << "NumberOfExternalValues: " << (spm->localNumberOfColumns - spm->localNumberOfRows)
-            << std::endl;
-
-  if(spm->geom->rank != 0){
-    std::cout << "LAIK " << laik_myid(world) << "\tCoarseLevel" << coarseLevel << "\tNumberOfExternalValues: " << (spm->localNumberOfColumns - spm->localNumberOfRows)
-              << std::endl;
-  }
-
-  // HPCG_fout << "\n##################### Mapping of rows #####################\n\n";
-
-  // Global to local mapping:
-  HPCG_fout << "\nLocal-to-global Map\n";
-  HPCG_fout << "Local\tGlobal\n";
-  for (int c = 0; c < spm->localToGlobalMap.size(); c++)
-  {
-    HPCG_fout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
-  }
-
-  // HPCG_fout << "\nGlobal-to-local Map\n";
-  // HPCG_fout << "Global\tlocal\n";
-  // for (int c = 0; c < spm->globalToLocalMap.size(); c++)
-  // {
-  //   HPCG_fout << c << "\t\t" << spm->globalToLocalMap[c] << std::endl;
-  // }
-
-  // // Non zero indexes
-  // HPCG_fout << "\n\n##################### Local subblock in matrix #####################\n\n";
-  // for (uint64_t row_i = 0; row_i < spm->localNumberOfRows && row_i < 8; row_i++)
-  // {
-  //   HPCG_fout << "Row " << row_i << " (" << (int)spm->nonzerosInRow[row_i] << " non zeros) mtxIndL" << std::endl
-  //             << std::endl;
-
-  //   for (uint64_t nz_column_j = 0; nz_column_j < spm->nonzerosInRow[row_i]; nz_column_j++)
-  //   {
-  //     HPCG_fout << "Index (" << row_i << "," << spm->mtxIndL[row_i][nz_column_j] << ") = " << spm->matrixValues[row_i][nz_column_j] << std::endl;
-  //   }
-  //   HPCG_fout << std::endl;
-  // }
-}
-// #### Debug
 
 /*!
   Main driver program: Construct synthetic problem, run V&V tests, compute benchmark parameters, run benchmark, report results.
@@ -184,16 +124,16 @@ int main(int argc, char *argv[])
   if (ierr)
     return ierr;
 
-    /////////////////////////
-    // Problem setup Phase //
-    /////////////////////////
+  /////////////////////////
+  // Problem setup Phase //
+  /////////////////////////
 
 #ifdef HPCG_DEBUG
   double t1 = mytimer();
 #endif
 
   if (doIO)
-    printf("\t######## HPCG LAIK v1.0 ########\n\n");
+    printf("######## HPCG LAIK v1.1 ########\n\nNew Features\n\t-Expanding/Shrinking the group of processes\n\n");
 
   if (doIO)
     printf("Start Setup Phase\n");
@@ -213,6 +153,10 @@ int main(int argc, char *argv[])
   SparseMatrix A;
   InitializeSparseMatrix(A, geom);
 
+  #ifdef REPARTITION
+  std::memcpy(&hpcg_params, &params, sizeof(params));  
+  // currently hpcg_params is an global variable, fix this
+  #endif
 
   Vector b, x, xexact;
   GenerateProblem(A, &b, &x, &xexact);
@@ -297,7 +241,9 @@ int main(int argc, char *argv[])
 
   CopyVectorToLaikVector(x_overlap, x_overlap_l, A.mapping);
   
-  int numberOfCalls = 10;
+  // int numberOfCalls = 10; // TODO. Uncomment -> only for now for debug 
+  int numberOfCalls = 0;
+
   if (quickPath)
     numberOfCalls = 1; // QuickPath means we do on one call of each block of repetitive code
   double t_begin = mytimer();
@@ -361,8 +307,8 @@ int main(int argc, char *argv[])
   for (int i = 0; i < numberOfCalls; ++i)
   {
     #ifdef USE_LAIK
-      ZeroLaikVector(x_l, A.mapping);
-      ierr = CG_laik_ref(A, data, b_l, x_l, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
+    ZeroLaikVector(x_l, A.mapping);
+    ierr = CG_laik_ref(A, data, b_l, x_l, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
     #else
       ZeroVector(x);
       ierr = CG_ref(A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
@@ -402,6 +348,13 @@ int main(int argc, char *argv[])
 
   if (doIO)
     printf("Start Validation Testing Phase\n");
+
+
+  std::string a{};
+
+  a = "LAIK NEW WORLD SIZE RUNNING: " + std::to_string(laik_size(world));
+
+  exit_hpcg_run(a.c_str());
 
 #ifdef HPCG_DEBUG
   t1 = mytimer();
