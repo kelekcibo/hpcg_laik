@@ -100,7 +100,7 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
     pt_data *data = (pt_data *)laik_partitioner_data(p->partitioner);
     Laik_Space * x_space = p->space;
 
-    printf("data->size=%d\tspace->size=%ld\n", data->size, laik_space_size(x_space));
+    // printf("data->size=%d\tspace->size=%ld\n", data->size, laik_space_size(x_space));
     assert(data->size == laik_space_size(x_space));
 
     int rank = data->geom->rank;
@@ -521,38 +521,86 @@ void re_setup_problem(SparseMatrix &A)
 {
 
     // Old variables for debug
-    global_int_t totalnumbRows = A.totalNumberOfRows;
-    global_int_t totalnumbNNZ = A.totalNumberOfNonzeros;
+    // global_int_t totalnumbRows = A.totalNumberOfRows;
+    // global_int_t totalnumbNNZ = A.totalNumberOfNonzeros;
 
-    HPCG_fout << "OLD GLOBAL VALUES\nTotal # of rows " << std::to_string(totalnumbRows) << "\nTotal # of nonzeros " << std::to_string(totalnumbNNZ) << std::endl;
-    
-    if(A.geom->rank != 0)
-        std::cout << "OLD GLOBAL VALUES\nTotal # of rows " << std::to_string(totalnumbRows) << "\nTotal # of nonzeros " << std::to_string(totalnumbNNZ) << std::endl;
+    // HPCG_fout << "OLD GLOBAL VALUES\nTotal # of rows " << std::to_string(totalnumbRows) << "\nTotal # of nonzeros " << std::to_string(totalnumbNNZ) << std::endl;
+
+    // if(A.geom->rank != 0)
+    //     std::cout << "OLD GLOBAL VALUES\nTotal # of rows " << std::to_string(totalnumbRows) << "\nTotal # of nonzeros " << std::to_string(totalnumbNNZ) << std::endl;
+    // print_HPCG_PARAMS(hpcg_params, A.geom->rank == 0);
+
+   
 
     // Delete old setup; Everything except next layer matrix, space and mgdata
     DeleteMatrix_repartition(A);
 
     // Update parameters of params struct (hpcg_params is a copy)
-    // hpcg_params.comm_rank = laik_myid(world);
-    // hpcg_params.comm_size = laik_size(world); /* I need to leave the origin size of the world the same? */
+    hpcg_params.comm_rank = laik_myid(world);
+    hpcg_params.comm_size = laik_size(world);
+
     // TODO. Send params_struct to new procs; old procs already have them
     // laik_broadcast(iparams, iparams, nparams, laik_Int32);
 
     // Construct the new geometry and linear system
     Geometry * new_geom = new Geometry;
-    GenerateGeometry(hpcg_params.comm_size, hpcg_params.comm_rank, hpcg_params.numThreads, hpcg_params.pz, hpcg_params.zl, hpcg_params.zu, hpcg_params.nx, hpcg_params.ny, hpcg_params.nz, hpcg_params.npx, hpcg_params.npy, hpcg_params.npz, new_geom);
+    if (hpcg_params.comm_rank == 0)
+    {
+        hpcg_params.nx *= 2; // = 32 for -np 2
+        GenerateGeometry(hpcg_params.comm_size, hpcg_params.comm_rank, hpcg_params.numThreads, hpcg_params.pz, hpcg_params.zl, hpcg_params.zu, hpcg_params.nx, hpcg_params.ny, hpcg_params.nz, hpcg_params.npx, hpcg_params.npy, hpcg_params.npz, new_geom);
+        // printf("gnx %lld, npx %d, nx %d\n", new_geom->gnx, new_geom->npx, new_geom->nx);
+    }
+    else if (hpcg_params.comm_rank < 0)
+    {
+        // kicked out procs
+        // hardcoded vals for now. need it for totalNumbOfRows for kicked out procs
+        local_int_t old_gnx = 32;
+        local_int_t old_gny = 16;
+        local_int_t old_gnz = 16;
+
+        hpcg_params.nx = 0;
+        hpcg_params.ny = 0;
+        hpcg_params.nz = 0;
+        GenerateGeometry(hpcg_params.comm_size, hpcg_params.comm_rank, hpcg_params.numThreads, hpcg_params.pz, hpcg_params.zl, hpcg_params.zu, hpcg_params.nx, hpcg_params.ny, hpcg_params.nz, hpcg_params.npx, hpcg_params.npy, hpcg_params.npz, new_geom);
+        new_geom->gnx = old_gnx;
+        new_geom->gny = old_gny;
+        new_geom->gnz = old_gnz;
+    }
+
     A.geom = new_geom; /* Only new geom will be set, other variables are assigned in generateProblem and SetupHalo */
+ 
+    print_GEOMETRY(A.geom, A.geom->rank == -1);
+
+    // exit_hpcg_run("PROC 1");
+ 
+    // print_GEOMETRY(A.geom, A.geom->rank == 0);
+    // exit_hpcg_run("GEOM VALS PROC 0");
 
     GenerateProblem(A, 0,0,0); // "Main level" Maitrx
-    assert(A.totalNumberOfRows == totalnumbRows);
-    printSPM(&A, 0);
+    // printf("TotalNUmb: %lld\n", A.totalNumberOfRows);
+    // printSPM(&A, 0);
+    // exit_hpcg_run("NUmb Rows fine");
 
-    // printf("LAIK %d\t%d vs %d\n", laik_myid(world), A.totalNumberOfNonzeros, totalnumbNNZ);
-    // assert(A.totalNumberOfNonzeros == totalnumbNNZ);
-    // TODO SHOULDNT NNZ BE EQUAL? NEED TO LOOK HOW THINGS ARE CREATED! AND WHAT I NEED TO REINITIALIZE
+    // due to computeRankOfMatrixRow
+    new_geom->nx = 16;
+    new_geom->ny = 16;
+    new_geom->nz = 16;
+    printf("Start test\n"); /* if all rows are mapped on proc 0 */
+    for(int i = 0; i < A.totalNumberOfRows; i++)
+    {
+            // printf("%d ", ComputeRankOfMatrixRow(*(A.geom), i) == 0);
+            assert(ComputeRankOfMatrixRow(*(A.geom), i) == 0);
+    }
 
-    SetupHalo(A);
-    exit_hpcg_run("SETUP HALO");
+    while(1);
+
+    exit_hpcg_run("Test ComputeRankOfMatrixRow!");
+
+    // printf("LAIK %d\t%lld vs %lld\n", laik_myid(world), A.totalNumberOfNonzeros, totalnumbNNZ);
+    // exit_hpcg_run("NNZ");
+
+    SetupHalo(A); //  size of old container for kicked out procs should be the same.
+    // exit_hpcg_run("SETUP HALO");
 
     int numberOfMgLevels = 4; // Number of levels including first
     SparseMatrix *curLevelMatrix = &A;
@@ -621,6 +669,11 @@ void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
 // #######################################################################################
 // Clean-up functions
 
+/**
+ * @brief Deallocate L2A_map Struct
+ * 
+ * @param mapping 
+ */
 void free_L2A_map(L2A_map * mapping)
 {
     if(mapping != NULL)
@@ -638,6 +691,14 @@ void free_L2A_map(L2A_map * mapping)
 // #######################################################################################
 // Debug functions
 
+/**
+ * @brief Compare two double values x and y
+ * 
+ * @param x 
+ * @param y 
+ * @param doIO 
+ * @param curIndex 
+ */
 void compare2(double x, double y, bool doIO, allocation_int_t curIndex)
 {
     double delta = std::abs(x - y);
@@ -653,6 +714,14 @@ void compare2(double x, double y, bool doIO, allocation_int_t curIndex)
     }
 }
 
+/**
+ * @brief Compare the two vectors x and y.
+ * 
+ * @param x 
+ * @param y 
+ * @param mapping 
+ * @param doIO 
+ */
 void compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO)
 {
     assert(x.localLength >= y->localLength); // Test vector lengths
@@ -683,6 +752,11 @@ void compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO)
         printf("Compare done\n");
 }
 
+/**
+ * @brief Print the vector
+ * 
+ * @param x 
+ */
 void printResultVector(Vector &x)
 {
     if (laik_myid(world) == 0)
@@ -697,6 +771,12 @@ void printResultVector(Vector &x)
      
 }
 
+/**
+ * @brief Print the Laik Vector
+ * 
+ * @param x 
+ * @param mapping 
+ */
 void printResultLaikVector(Laik_Blob *x, L2A_map *mapping)
 {
     if (laik_myid(world) == 0)
@@ -711,6 +791,12 @@ void printResultLaikVector(Laik_Blob *x, L2A_map *mapping)
             printf("xv[%ld]=%.10f\n", i, xv[map_l2a(mapping, i, false)]);
 }
 
+/**
+ * @brief Print information about the SparseMatrix
+ * 
+ * @param spm 
+ * @param coarseLevel 
+ */
 void printSPM(SparseMatrix *spm, int coarseLevel)
 {
     
@@ -795,6 +881,96 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
         {
             std::cout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
         }
+    }
+}
+
+/**
+ * @brief Print members of HPCG_Params Struct
+ * 
+ * @param params 
+ * @param doIO 
+ */
+void print_HPCG_PARAMS(HPCG_Params params, bool doIO)
+{
+    if(doIO)
+    {
+        std::string a{"####### PARAM values\n"};
+        a += "npx: " + std::to_string(params.npx) + "\n";
+        a += "npy: " + std::to_string(params.npy) + "\n";
+        a += "npz: " + std::to_string(params.npz) + "\n";
+        a += "numThreads: " + std::to_string(params.numThreads) + "\n";
+        a += "nx: " + std::to_string(params.nx) + "\n";
+        a += "ny: " + std::to_string(params.ny) + "\n";
+        a += "nz: " + std::to_string(params.nz) + "\n";
+        a += "pz: " + std::to_string(params.pz) + "\n";
+        a += "runningTime: " + std::to_string(params.runningTime) + "\n";
+        a += "zl: " + std::to_string(params.zl) + "\n";
+        a += "zu: " + std::to_string(params.zu) + "\n";
+
+        std::cout << a;
+    }
+    
+    return ;
+}
+
+/**
+ * @brief Print members of geometry struct
+ * 
+ * @param geom 
+ * @param doIO 
+ */
+void print_GEOMETRY(Geometry * geom, bool doIO)
+{
+    if(doIO)
+    {
+        std::string a{"####### Geometry values\n"};
+
+        a += "gix0: " + std::to_string(geom->gix0) + "\n";
+        a += "giy0: " + std::to_string(geom->giy0) + "\n";
+        a += "giz0: " + std::to_string(geom->giz0) + "\n";
+        a += "gnx: " + std::to_string(geom->gnx) + "\n";
+        a += "gny: " + std::to_string(geom->gny) + "\n";
+        a += "gnz: " + std::to_string(geom->gnz) + "\n";
+        a += "ipx: " + std::to_string(geom->ipx) + "\n";
+        a += "ipy: " + std::to_string(geom->ipy) + "\n";
+        a += "ipz: " + std::to_string(geom->ipz) + "\n";
+        a += "npartz: " + std::to_string(geom->npartz) + "\n";
+        a += "npx: " + std::to_string(geom->npx) + "\n";
+        a += "npy: " + std::to_string(geom->npy) + "\n";
+        a += "npz: " + std::to_string(geom->npz) + "\n";
+        a += "numThreads: " + std::to_string(geom->numThreads) + "\n";
+        a += "nx: " + std::to_string(geom->nx) + "\n";
+        a += "ny: " + std::to_string(geom->ny) + "\n";
+        a += "nz: " + std::to_string(geom->nz) + "\n";
+        a += "pz: " + std::to_string(geom->pz) + "\n";
+       
+        a += "partz_ids: ";
+        for (int i = 0; i < geom->npartz; ++i)
+        {
+            a += std::to_string(geom->partz_ids[i]);
+
+            if(i != geom->npartz - 1)
+                a += ", ";
+        }
+        a += "\n";
+
+        a += "partz_nz: ";
+
+        for (int i = 0; i < geom->npartz; ++i)
+        {
+            a += std::to_string(geom->partz_nz[i]);
+
+            if (i != geom->npartz - 1)
+                a += ", ";
+        }
+        a += "\n";
+
+        a += "rank: " + std::to_string(geom->rank) + "\n";
+        a += "size: " + std::to_string(geom->size) + "\n";
+
+
+
+        std::cout << a;
     }
 }
 

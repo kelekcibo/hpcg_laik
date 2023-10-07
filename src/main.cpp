@@ -28,7 +28,10 @@
 
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
+
+#ifndef USE_LAIK
 #define USE_LAIK
+#endif
 #include "laik_instance.hpp"
 #endif
 
@@ -95,7 +98,8 @@ int main(int argc, char *argv[])
   bool quickPath = (params.runningTime == 0);
 
   int size = params.comm_size, rank = params.comm_rank; // Number of MPI processes, My process ID
-  bool doIO = rank == 0;
+  // bool doIO = rank == 0;
+  bool doIO = false;
 
 #ifdef HPCG_DETAILED_DEBUG
   if (size < 100 && rank == 0)
@@ -133,14 +137,18 @@ int main(int argc, char *argv[])
 #endif
 
   if (doIO)
-    printf("######## HPCG LAIK v1.1 ########\n\nNew Features\n\t-Expanding/Shrinking the group of processes\n\n");
+    printf("######## HPCG LAIK v1.1 ########\n#\n# New Features\n#\t-Expanding/Shrinking the group of processes\n#\n\n");
 
   if (doIO)
     printf("Start Setup Phase\n");
 
   // Construct the geometry and linear system
+ 
   Geometry *geom = new Geometry;
   GenerateGeometry(size, rank, params.numThreads, params.pz, params.zl, params.zu, nx, ny, nz, params.npx, params.npy, params.npz, geom);
+
+  // print_HPCG_PARAMS(params, rank == 0);
+  // exit_hpcg_run("PARAMS");
 
   ierr = CheckAspectRatio(0.125, geom->npx, geom->npy, geom->npz, "process grid", rank == 0);
   if (ierr)
@@ -156,6 +164,18 @@ int main(int argc, char *argv[])
   #ifdef REPARTITION
   std::memcpy(&hpcg_params, &params, sizeof(params));  
   // currently hpcg_params is an global variable, fix this
+  // assert(hpcg_params.npx== params.npx);
+  // assert(hpcg_params.npy == params.npy);
+  // assert(hpcg_params.npz == params.npz);
+  // assert(hpcg_params.numThreads == params.numThreads);
+  // assert(hpcg_params.nx == params.nx);
+  // assert(hpcg_params.ny == params.ny);
+  // assert(hpcg_params.nz == params.nz);
+  // assert(hpcg_params.pz == params.pz);
+  // assert(hpcg_params.runningTime == params.runningTime);
+  // assert(hpcg_params.zl == params.zl);
+  // assert(hpcg_params.zu == params.zu);
+  // exit_hpcg_run("PARAMSARETHE SAME!");
   #endif
 
   Vector b, x, xexact;

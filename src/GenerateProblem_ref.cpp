@@ -65,14 +65,23 @@ void GenerateProblem_ref(SparseMatrix &A, Vector *b, Vector *x, Vector *xexact)
     global_int_t giz0 = A.geom->giz0;
 
     local_int_t localNumberOfRows = nx * ny * nz; // This is the size of our subblock
+
+
     // If this assert fails, it most likely means that the local_int_t is set to int and should be set to long long
+    #ifndef REPARTITION
     assert(localNumberOfRows > 0);           // Throw an exception of the number of rows is less than zero (can happen if int overflow)
+    #endif
+
     local_int_t numberOfNonzerosPerRow = 27; // We are approximating a 27-point finite element/volume/difference 3D stencil
 
     global_int_t totalNumberOfRows = gnx * gny * gnz; // Total number of grid points in mesh
-    // If this assert fails, it most likely means that the global_int_t is set to int and should be set to long long
-    assert(totalNumberOfRows > 0); // Throw an exception of the number of rows is less than zero (can happen if int overflow)
 
+
+    // If this assert fails, it most likely means that the global_int_t is set to int and should be set to long long
+    #ifndef REPARTITION
+    assert(totalNumberOfRows > 0); // Throw an exception of the number of rows is less than zero (can happen if int overflow)
+    #endif
+    
     // Allocate arrays that are of length localNumberOfRows
     char *nonzerosInRow = new char[localNumberOfRows];
     global_int_t **mtxIndG = new global_int_t *[localNumberOfRows];
@@ -211,6 +220,8 @@ void GenerateProblem_ref(SparseMatrix &A, Vector *b, Vector *x, Vector *xexact)
               << "Process " << A.geom->rank << " of " << A.geom->size << " has " << localNumberOfNonzeros << " nonzeros." << endl;
 #endif
 
+    if(A.space != NULL)
+        printf("LAIK %d\tLocalNumberOfNonzeros %d\n", laik_myid(world), localNumberOfNonzeros);
     global_int_t totalNumberOfNonzeros = 0;
 #ifndef HPCG_NO_MPI
     // Use reduce function to sum all nonzeros
@@ -226,7 +237,9 @@ void GenerateProblem_ref(SparseMatrix &A, Vector *b, Vector *x, Vector *xexact)
 #endif
         // If this assert fails, it most likely means that the global_int_t is set to int and should be set to long long
         // This assert is usually the first to fail as problem size increases beyond the 32-bit integer range.
+    #ifndef REPARTITION
         assert(totalNumberOfNonzeros > 0); // Throw an exception of the number of nonzeros is less than zero (can happen if int overflow)
+    #endif
 
     A.title = 0;
     A.totalNumberOfRows = totalNumberOfRows;

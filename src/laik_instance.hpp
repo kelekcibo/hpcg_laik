@@ -132,12 +132,13 @@ extern void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list
 #endif
 
 // debug functions
-extern void
-compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO);
+extern void compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO);
 extern void printResultLaikVector(Laik_Blob *x, L2A_map *mapping);
 extern void printResultVector(Vector &x);
 extern void compare2(double x, double y, bool doIO, allocation_int_t curIndex);
 extern void printSPM(SparseMatrix *spm, int coarseLevel);
+extern void print_HPCG_PARAMS(HPCG_Params params, bool doIO);
+extern void print_GEOMETRY(Geometry * geom, bool doIO);
 extern void exit_hpcg_run(const char *msg);
 
 #endif

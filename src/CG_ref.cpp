@@ -167,7 +167,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 
       // TODO. Re-run setup functions and run partitioners for the new group, if the group changed. Free old ressources before re-run
       re_setup_problem(A);
-      exit_hpcg_run("RE-SETUP PROBLEM WORKS!");
+      exit_hpcg_run("RE-SETUP PROBLEM WORKS (without crashing)!");
 
       // TODO. Switch to the new partitioning on all Laik_data containers
       std::vector<Laik_Blob *> list{};

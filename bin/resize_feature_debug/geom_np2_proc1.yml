@@ -1,0 +1,51 @@
+####### Geometry values Proc 1
+gix0: 16
+giy0: 0
+giz0: 0
+gnx: 32
+gny: 16
+gnz: 16
+ipx: 1
+ipy: 0
+ipz: 0
+npartz: 1
+npx: 2
+npy: 1
+npz: 1
+numThreads: 1
+nx: 16
+ny: 16
+nz: 16
+pz: 0
+partz_ids: 1
+partz_nz: 16
+rank: 1
+size: 2
+
+####### PROC 1
+
+####### NEW Geometry values
+gix0: 0
+giy0: 0
+giz0: 0
+gnx: 32
+gny: 16
+gnz: 16
+ipx: 0
+ipy: 0
+ipz: -1
+npartz: 1
+npx: 1
+npy: 1
+npz: 1
+numThreads: 1
+nx: 0
+ny: 0
+nz: 0
+pz: 0
+partz_ids: 1
+partz_nz: 0
+rank: -1
+size: 1
+
+####### PROC 1

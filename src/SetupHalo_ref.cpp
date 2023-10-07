@@ -82,7 +82,6 @@ void SetupHalo_ref(SparseMatrix & A) {
   typedef std::set<global_int_t>::iterator set_iter;
   std::map< global_int_t, local_int_t > externalToLocalMap;
 
-
   // TODO: With proper critical and atomic regions, this loop could be threaded, but not attempting it at this time
   for (local_int_t i=0; i< localNumberOfRows; i++) {
     global_int_t currentGlobalRow = A.localToGlobalMap[i];
@@ -100,8 +99,6 @@ void SetupHalo_ref(SparseMatrix & A) {
       }
     }
   }
-
-
 
   // Count number of matrix entries to send and receive
   local_int_t totalToBeSent = 0;

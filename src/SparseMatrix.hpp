@@ -250,7 +250,7 @@ inline void DeleteMatrix_repartition(SparseMatrix &A)
 #endif
 
   /* We do not free the space, since all LAIK Data containers are associated with that space */
-  laik_free_partitioning(A.local);
+  laik_free_partitioning(A.local); /* But we will need new partitionings according to the new size*/
   laik_free_partitioning(A.ext);
   free_L2A_map(A.mapping);
 

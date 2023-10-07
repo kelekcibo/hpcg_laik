@@ -21,6 +21,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cassert>
+#include <cstdio>
 
 #include "ComputeOptimalShapeXYZ.hpp"
 #include "GenerateGeometry.hpp"
@@ -53,10 +54,14 @@ void GenerateGeometry(int size, int rank, int numThreads,
   Geometry * geom)
 {
 
+  // printf("%d, %d, %d \n", npx, npy, npz);
+
   if (npx * npy * npz <= 0 || npx * npy * npz > size)
     ComputeOptimalShapeXYZ( size, npx, npy, npz );
 
-  int * partz_ids = 0;
+  // printf("%d, %d, %d \n", npx, npy, npz);
+
+  int *partz_ids = 0;
   local_int_t * partz_nz = 0;
   int npartz = 0;
   if (pz==0) { // No variation in nz sizes
