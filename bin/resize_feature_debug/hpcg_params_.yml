@@ -1,0 +1,29 @@
+########## OLD UPDATED PARAM values
+####### PARAM values
+npx: 0
+npy: 0
+npz: 0
+numThreads: 1
+nx: 32
+ny: 16
+nz: 16
+pz: 0
+runningTime: 60
+zl: 0
+zu: 0
+
+
+
+
+####### PARAM values for -np 1
+npx: 0
+npy: 0
+npz: 0
+numThreads: 1
+nx: 32
+ny: 16
+nz: 16
+pz: 0
+runningTime: 60
+zl: 0
+zu: 0

@@ -165,9 +165,9 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
       laik_release_group(world);
       world = newworld;
 
-      // TODO. Re-run setup functions and run partitioners for the new group, if the group changed. Free old ressources before re-run
+      // Re-run setup functions and run partitioners for the new group
       re_setup_problem(A);
-      exit_hpcg_run("RE-SETUP PROBLEM WORKS (without crashing)!");
+      // exit_hpcg_run("RE-SETUP PROBLEM WORKS (without crashing)!");
 
       // TODO. Switch to the new partitioning on all Laik_data containers
       std::vector<Laik_Blob *> list{};
@@ -178,17 +178,25 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
       list.push_back(z);
       list.push_back(p);
       list.push_back(Ap);
-    
+
       /* Send normr0 to new procs, old procs have already this value */
       laik_broadcast(&normr0, &normr0, 1, laik_Double); /* Get normr0 by proc 0 */
 
       /* Vectors in MG_data will be recursively handled in re_switch_LaikVectors */
       re_switch_LaikVectors(A, list);
 
+
+      exit_hpcg_run("RE_SWITCH_LAIKVECTORS PROBLEM WORKS (without crashing)!");
+
       // Releasing old, not needed ressources in re_setup_problem(A);
       // Exit, if we got removed from the world
       if (laik_myid(world) < 0)
       {
+        DeleteMatrix_repartition(A, true);
+        DeleteCGData(data);
+        DeleteLaikVector(x);
+        DeleteLaikVector(b);
+
         laik_finalize(hpcg_instance);
         exit(0);
         // return 0;

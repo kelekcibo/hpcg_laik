@@ -186,8 +186,11 @@ int main(int argc, char *argv[])
 #ifdef USE_LAIK
 
   Laik_Blob *b_l = init_blob(A, false);
+  b_l->name = "b_l";
   Laik_Blob *x_l = init_blob(A, false);
+  x_l->name = "x_l";
   Laik_Blob *xexact_l = init_blob(A, false);
+  xexact_l->name = "xexact_l";
 
   CopyVectorToLaikVector(b, b_l, A.mapping);
   CopyVectorToLaikVector(x, x_l, A.mapping);

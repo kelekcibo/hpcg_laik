@@ -68,7 +68,6 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
     f2cOperator[i] = 0;
   }
 
-
   // TODO:  This triply nested loop could be flattened or use nested parallelism
 #ifndef HPCG_NO_OPENMP
   #pragma omp parallel for
@@ -95,11 +94,63 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
     zlc = Af.geom->partz_nz[0]/2; // Coarsen nz for the lower block in the z processor dimension
     zuc = Af.geom->partz_nz[1]/2; // Coarsen nz for the upper block in the z processor dimension
   }
-  GenerateGeometry(Af.geom->size, Af.geom->rank, Af.geom->numThreads, Af.geom->pz, zlc, zuc, nxc, nyc, nzc, Af.geom->npx, Af.geom->npy, Af.geom->npz, geomc);
 
- // TODO generating coarse problem but need to give it a look
+  if(Af.Ac != NULL)
+  {
+    Geometry * old_geom_Ac = Af.Ac->geom;
+    // Need this variables for generateGeometry, before we delete them
+    assert(old_geom_Ac != NULL);
 
-  if(Af.Ac == NULL)
+    // TEST AFTERWARDS
+    global_int_t old_gnx = old_geom_Ac->gnx;
+    global_int_t old_gny = old_geom_Ac->gny;
+    global_int_t old_gnz = old_geom_Ac->gnz;
+
+    DeleteGeometry(*old_geom_Ac); /* Delete old geom (was not deleted in DeleteMatrix_repartition())*/
+
+    // need old gnx to calculate new nx, ny, nz. As npx, npy, npz may change due to new world size
+    geomc->gnx = old_gnx;
+    geomc->gny = old_gny;
+    geomc->gnz = old_gnz;
+    int dynamicCalculation = hpcg_params.numThreads; // TODO. Change 0 param
+    GenerateGeometry(Af.geom->size, Af.geom->rank, 0, Af.geom->pz, zlc, zuc, nxc, nyc, nzc, Af.geom->npx, Af.geom->npy, Af.geom->npz, geomc);
+    geomc->numThreads = dynamicCalculation;
+    
+    // should be the same problem size
+    assert(old_gnx == geomc->gnx);
+    assert(old_gny == geomc->gny);
+    assert(old_gnz == geomc->gnz);
+  }
+  else
+  {
+    GenerateGeometry(Af.geom->size, Af.geom->rank, Af.geom->numThreads, Af.geom->pz, zlc, zuc, nxc, nyc, nzc, Af.geom->npx, Af.geom->npy, Af.geom->npz, geomc);
+  }
+
+
+  if(Af.Ac != NULL)
+  {
+    // This is for repartitioning.
+    assert(Af.Ac != NULL);
+    assert(Af.mgData != NULL);
+    assert(Af.mgData->Axf_blob != NULL); /* Means other blobs are also != NULL */
+
+    Af.Ac->geom = geomc; /* Only new geom will be set, other variables are assigned in generateProblem and SetupHalo */
+
+    GenerateProblem(*Af.Ac, 0, 0, 0); // "Main level" Maitrx
+
+    // save pointer to old partitionings, since they need to be freed after call to re_switch_LaikVectors
+    assert(Af.Ac->old_local == NULL);
+    assert(Af.Ac->old_ext == NULL);
+    Af.Ac->old_local = Af.Ac->local;
+    Af.Ac->old_ext = Af.Ac->ext;
+
+    SetupHalo(*Af.Ac);
+
+    // This means we are repartitioning the world. Need to update f2cOperator of current mg Data
+    // is this correct?
+    Af.mgData->f2cOperator = f2cOperator;
+  }
+  else
   {
     assert(Af.mgData == NULL); /* Af.Ac == NULL means mgData == NULL */
 
@@ -110,8 +161,12 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
 
     // This if is for the case if repartition is enabled. Do not need to init the vectors again
     Laik_Blob *rc_blob = init_blob(*Ac, false);
+    rc_blob->name = "MG_Data rc";
     Laik_Blob *xc_blob = init_blob(*Ac, true);
+    rc_blob->name = "MG_Data xc";
     Laik_Blob *Axf_blob = init_blob(Af, true);
+    Axf_blob->name = "MG_Data Axf";
+
     Vector *rc = new Vector;
     Vector *xc = new Vector;
     Vector *Axf = new Vector;
@@ -125,22 +180,6 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
     Af.mgData = mgData;
 
     Af.Ac = Ac;
-  }
-  else
-  {
-    // This else is for repartitioning. 
-    assert(Af.Ac != NULL);
-    assert(Af.mgData != NULL);
-    assert(Af.mgData->Axf_blob != NULL); /* Means other blobs are also != NULL */
-
-    Af.Ac->geom = geomc; /* Only new geom will be set, other variables are assigned in generateProblem and SetupHalo */
-
-    GenerateProblem(*Af.Ac, 0, 0, 0); // "Main level" Maitrx
-    SetupHalo(*Af.Ac);
-
-    // This means we are repartitioning the world. Need to update f2cOperator of current mg Data
-    // is this correct?
-    Af.mgData->f2cOperator = f2cOperator;
   }
 
   return;

@@ -220,8 +220,6 @@ void GenerateProblem_ref(SparseMatrix &A, Vector *b, Vector *x, Vector *xexact)
               << "Process " << A.geom->rank << " of " << A.geom->size << " has " << localNumberOfNonzeros << " nonzeros." << endl;
 #endif
 
-    if(A.space != NULL)
-        printf("LAIK %d\tLocalNumberOfNonzeros %d\n", laik_myid(world), localNumberOfNonzeros);
     global_int_t totalNumberOfNonzeros = 0;
 #ifndef HPCG_NO_MPI
     // Use reduce function to sum all nonzeros

@@ -23,6 +23,7 @@
 #include <cassert>
 #include <cstdio>
 
+#include "laik_instance.hpp"
 #include "ComputeOptimalShapeXYZ.hpp"
 #include "GenerateGeometry.hpp"
 
@@ -54,22 +55,44 @@ void GenerateGeometry(int size, int rank, int numThreads,
   Geometry * geom)
 {
 
-  // printf("%d, %d, %d \n", npx, npy, npz);
-
   if (npx * npy * npz <= 0 || npx * npy * npz > size)
     ComputeOptimalShapeXYZ( size, npx, npy, npz );
 
-  // printf("%d, %d, %d \n", npx, npy, npz);
+#ifdef REPARTITION
+    // change if, such that this part is executed iff. a reseize has been done
+    if(numThreads == -1)
+    {
+      global_int_t old_gnx = geom->gnx;
+      global_int_t old_gny = geom->gny;
+      global_int_t old_gnz = geom->gnz;
 
-  int *partz_ids = 0;
-  local_int_t * partz_nz = 0;
-  int npartz = 0;
-  if (pz==0) { // No variation in nz sizes
-    npartz = 1;
-    partz_ids = new int[1];
-    partz_nz = new local_int_t[1];
-    partz_ids[0] = npz;
-    partz_nz[0] = nz;
+      local_int_t new_nx, new_ny, new_nz = 0;
+
+      assert(old_gnx % npx == 0); 
+      assert(old_gny % npy == 0);
+      assert(old_gnz % npz == 0);
+
+      new_nx = old_gnx / npx;
+      new_ny = old_gny / npy;
+      new_nz = old_gnz / npz;
+    
+      nx = new_nx;
+      ny = new_ny;
+      nz = new_nz;
+    }
+#endif
+
+
+    int *partz_ids = 0;
+    local_int_t *partz_nz = 0;
+    int npartz = 0;
+    if (pz == 0)
+    { // No variation in nz sizes
+      npartz = 1;
+      partz_ids = new int[1];
+      partz_nz = new local_int_t[1];
+      partz_ids[0] = npz;
+      partz_nz[0] = nz;
   }
   else {
     npartz = 2;

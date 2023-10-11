@@ -13,6 +13,7 @@
 
 extern "C" {
     #include <laik.h>
+    #include "laik-internal.h"
 }
 
 #include <vector>
@@ -88,6 +89,8 @@ struct L2A_map
 
 struct Laik_Blob
 {
+    char * name; // name of the vector
+
     Laik_Data * values;
     mutable uint64_t localLength;
 
@@ -120,7 +123,7 @@ extern allocation_int_t map_l2a(L2A_map *mapping, local_int_t local_index, bool 
 
 // clean up functions
 extern void free_L2A_map(L2A_map * mapping);
-
+extern void DeleteLaikVector(Laik_Blob * x);
 
 // Needed functions/variables for shrink/expand feature
 #ifdef REPARTITION
@@ -139,6 +142,7 @@ extern void compare2(double x, double y, bool doIO, allocation_int_t curIndex);
 extern void printSPM(SparseMatrix *spm, int coarseLevel);
 extern void print_HPCG_PARAMS(HPCG_Params params, bool doIO);
 extern void print_GEOMETRY(Geometry * geom, bool doIO);
+extern void print_LaikBlob(Laik_Blob * x);
 extern void exit_hpcg_run(const char *msg);
 
 #endif

@@ -88,6 +88,13 @@ struct SparseMatrix_STRUCT {
   Laik_Space * space;
   Laik_Partitioning * ext;
   Laik_Partitioning * local;
+
+  #ifdef REPARTITION
+    // For Repartition.
+    Laik_Partitioning * old_ext;
+    Laik_Partitioning * old_local;
+  #endif // REPARTITION
+
   // #endif // USE_LAIK
 #endif
 };
@@ -134,6 +141,11 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
   A.space = 0;
   A.ext = 0;
   A.local = 0;
+
+  #ifdef REPARTITION
+    A.old_local = 0;
+    A.old_ext = 0;
+  #endif
 #endif
   A.mgData = 0; // Fine-to-coarse grid transfer initially not defined.
   A.Ac =0;
@@ -213,9 +225,13 @@ inline void DeleteMatrix(SparseMatrix & A) {
 
   Delete values which will be updated during repartitioning
 
+  Geometry needs to be deleted seperately.
+
   @param[in] A the known system matrix
+  @param[in] exiting tells if MGData and Geom will be deleted as well
+
  */
-inline void DeleteMatrix_repartition(SparseMatrix &A)
+inline void DeleteMatrix_repartition(SparseMatrix &A, bool exiting)
 {
 
 #ifndef HPCG_CONTIGUOUS_ARRAYS
@@ -249,16 +265,25 @@ inline void DeleteMatrix_repartition(SparseMatrix &A)
   A.globalToLocalMap.clear();
 #endif
 
-  /* We do not free the space, since all LAIK Data containers are associated with that space */
-  laik_free_partitioning(A.local); /* But we will need new partitionings according to the new size*/
-  laik_free_partitioning(A.ext);
+  /* We do not free the space, since all LAIK Data containers are associated with that space. Partitionings will be deleted after a switch to */
   free_L2A_map(A.mapping);
 
-  if (A.geom!=0) { DeleteGeometry(*A.geom); delete A.geom; A.geom = 0;}
-  if (A.Ac!=0) { DeleteMatrix(*A.Ac); } /* Do not set to NULL, since we repartition and we need the space in SPM*/
-  // if (A.mgData!=0) { DeleteMGData(*A.mgData); delete A.mgData; A.mgData = 0;} 
-  // Do not delete MG data, we need the Laik Containers for repartitioning  
-  
+  if (A.Ac != 0)  { DeleteMatrix_repartition(*A.Ac, exiting); }
+
+  // Procs will delete this information as well after the last switch to.
+  if(exiting)
+  {
+    if (A.mgData != 0) { DeleteMGData(*A.mgData); delete A.mgData; A.mgData = 0; }
+    if (A.geom != 0) { DeleteGeometry(*A.geom); delete A.geom; A.geom = 0; }
+    if (A.space != 0) { laik_free_space(A.space); A.space = 0; }
+    if (A.local != 0) { laik_free_partitioning(A.local); A.local = 0; };
+    if (A.ext != 0) { laik_free_partitioning(A.ext); A.ext = 0; };
+    if (A.old_ext != 0) { laik_free_partitioning(A.old_ext); A.old_ext = 0; };
+    if (A.old_local != 0) { laik_free_partitioning(A.old_local); A.old_local = 0; };
+    
+    delete A.Ac; A.Ac = 0;
+  }
+
   return;
 }
 #endif // REPARTITION

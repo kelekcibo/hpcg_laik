@@ -114,6 +114,16 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
         // assign every process its global part
         int proc = ComputeRankOfMatrixRow(*data->geom, i);
 
+        /* DEBUG */
+        if(rank == -1)
+        {
+            assert(proc == 0);
+            assert((proc >= 0) && (proc < (int)r->list->tid_count));
+            // a += std::to_string(ComputeRankOfMatrixRow(*data->geom, i));
+            // printf("%s", a.data());
+        }
+        /* DEBUG */
+
         laik_range_init_1d(&range, x_space, i, i + 1);
         laik_append_range(r, proc, &range, 1, 0);
 
@@ -128,9 +138,10 @@ void partitioner_x(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
         // a += std::to_string(ComputeRankOfMatrixRow(*data->geom, i)) + ", ";
     }
 
-    // a += "]\n";
 
-    // printf("%s", a.data());
+        // a += "]\n";
+
+        // printf("%s", a.data());
 
     // Specifying ranges which need to be exchanged
     if (data->halo)
@@ -345,6 +356,8 @@ void init_partitionings(SparseMatrix &A, pt_data *local, pt_data *ext)
     if(A.space == NULL)
     {
         A.space = laik_new_space_1d(hpcg_instance, A.totalNumberOfRows);
+        if(A.localNumberOfRows==8192)
+            printf("new_space should not be done");
     }
 
     Laik_Partitioner *x_localPR = laik_new_partitioner("x_localPR", partitioner_x, (void *)local, LAIK_PF_None);
@@ -513,117 +526,130 @@ HPCG_Params hpcg_params; /* Global copy of params in main function */
 /**
  * @brief Re-run the setup phase to update parameters and data for partitioner with new config (size of world / num of procs).
  *
- * Free old ressources before re-setup
- *
  * @param A SparseMatrix
  */
 void re_setup_problem(SparseMatrix &A)
 {
 
-    // Old variables for debug
-    // global_int_t totalnumbRows = A.totalNumberOfRows;
-    // global_int_t totalnumbNNZ = A.totalNumberOfNonzeros;
-
-    // HPCG_fout << "OLD GLOBAL VALUES\nTotal # of rows " << std::to_string(totalnumbRows) << "\nTotal # of nonzeros " << std::to_string(totalnumbNNZ) << std::endl;
-
-    // if(A.geom->rank != 0)
-    //     std::cout << "OLD GLOBAL VALUES\nTotal # of rows " << std::to_string(totalnumbRows) << "\nTotal # of nonzeros " << std::to_string(totalnumbNNZ) << std::endl;
-    // print_HPCG_PARAMS(hpcg_params, A.geom->rank == 0);
-
-   
+    // Need this variables for generateGeometry, before we delete them
+    global_int_t old_gnx = A.geom->gnx;
+    global_int_t old_gny = A.geom->gny;
+    global_int_t old_gnz = A.geom->gnz;
 
     // Delete old setup; Everything except next layer matrix, space and mgdata
-    DeleteMatrix_repartition(A);
+    DeleteGeometry(*(A.geom));
+    DeleteMatrix_repartition(A, false);
 
     // Update parameters of params struct (hpcg_params is a copy)
     hpcg_params.comm_rank = laik_myid(world);
     hpcg_params.comm_size = laik_size(world);
 
     // TODO. Send params_struct to new procs; old procs already have them
+    // Broadcast updated values. New joining processes will need them, if broadcast was done in init
     // laik_broadcast(iparams, iparams, nparams, laik_Int32);
 
     // Construct the new geometry and linear system
     Geometry * new_geom = new Geometry;
-    if (hpcg_params.comm_rank == 0)
+
+    // need old gnx to calculate new nx, ny, nz. As npx, npy, npz may change due to new world size
+    new_geom->gnx = old_gnx; 
+    new_geom->gny = old_gny;
+    new_geom->gnz = old_gnz;
+
+    int dynamicCalculation = hpcg_params.numThreads;
+    // use numThreads param to jump into the if to calculate new nx,ny,nz for now
+    GenerateGeometry(hpcg_params.comm_size, hpcg_params.comm_rank, -1, hpcg_params.pz, hpcg_params.zl, hpcg_params.zu, hpcg_params.nx, hpcg_params.ny, hpcg_params.nz, hpcg_params.npx, hpcg_params.npy, hpcg_params.npz, new_geom);
+    new_geom->numThreads = dynamicCalculation;
+
+    // should be the same problem size
+    assert(old_gnx == new_geom->gnx);
+    assert(old_gny == new_geom->gny);
+    assert(old_gnz == new_geom->gnz);
+
+    // Only new geom will be set, other variables are assigned in generateProblem and SetupHalo
+    A.geom = new_geom;
+
+
+    if(hpcg_params.comm_rank >= 0)
     {
-        hpcg_params.nx *= 2; // = 32 for -np 2
-        GenerateGeometry(hpcg_params.comm_size, hpcg_params.comm_rank, hpcg_params.numThreads, hpcg_params.pz, hpcg_params.zl, hpcg_params.zu, hpcg_params.nx, hpcg_params.ny, hpcg_params.nz, hpcg_params.npx, hpcg_params.npy, hpcg_params.npz, new_geom);
-        // printf("gnx %lld, npx %d, nx %d\n", new_geom->gnx, new_geom->npx, new_geom->nx);
-    }
-    else if (hpcg_params.comm_rank < 0)
+        // Only active procs need to generate problem again.
+        GenerateProblem(A, 0, 0, 0);
+
+        // save pointer to old partitionings, since they need to be freed after call to re_switch_LaikVectors
+        assert(A.old_local == NULL);
+        assert(A.old_ext == NULL);
+        A.old_local = A.local;
+        A.old_ext = A.ext;
+
+        SetupHalo(A);
+
+        int numberOfMgLevels = 4; // Number of levels including first
+        SparseMatrix *curLevelMatrix = &A;
+        for (int level = 1; level < numberOfMgLevels; ++level)
+        {
+            // std::cout << "\nCoarse Problem level " << level << std::endl;
+
+            /* if all rows are mapped on proc 0 */
+            for (int i = 0; i < curLevelMatrix->totalNumberOfRows; i++)
+                assert(ComputeRankOfMatrixRow(*(curLevelMatrix->geom), i) == 0); // TEST CASE. -np 2 => shrinking to world size 1
+
+            GenerateCoarseProblem(*curLevelMatrix);
+            curLevelMatrix = curLevelMatrix->Ac; // Make the just-constructed coarse grid the next level
+
+            // #### Debug
+            // printSPM(curLevelMatrix, level);
+            // #### Debug
+        }
+
+        curLevelMatrix = &A;
+        Vector *curb = 0;
+        Vector *curx = 0;
+        Vector *curxexact = 0;
+        for (int level = 0; level < numberOfMgLevels; ++level)
+        {
+            // std::cout << "\nCoarse Problem level " << level << std::endl;
+            CheckProblem(*curLevelMatrix, curb, curx, curxexact);
+            curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
+            curb = 0;                            // No vectors after the top level
+            curx = 0;
+            curxexact = 0;
+        }
+    } 
+    else
     {
-        // kicked out procs
-        // hardcoded vals for now. need it for totalNumbOfRows for kicked out procs
-        local_int_t old_gnx = 32;
-        local_int_t old_gny = 16;
-        local_int_t old_gnz = 16;
+        // Processes, which are removed from the world do not need to re-generate the problem
+        // They need to create the local partitiniong, so they send their values to the active procs
 
-        hpcg_params.nx = 0;
-        hpcg_params.ny = 0;
-        hpcg_params.nz = 0;
-        GenerateGeometry(hpcg_params.comm_size, hpcg_params.comm_rank, hpcg_params.numThreads, hpcg_params.pz, hpcg_params.zl, hpcg_params.zu, hpcg_params.nx, hpcg_params.ny, hpcg_params.nz, hpcg_params.npx, hpcg_params.npy, hpcg_params.npz, new_geom);
-        new_geom->gnx = old_gnx;
-        new_geom->gny = old_gny;
-        new_geom->gnz = old_gnz;
+        int numberOfMgLevels = 4; // Number of levels including first
+        SparseMatrix *curLevelMatrix = &A;
+
+        for (int level = 0; level < numberOfMgLevels; ++level)
+        {
+            std::cout << "\nCoarse Problem level " << level << std::endl;
+
+            /* if all rows are mapped on proc 0 */ // TODO. Create geometry for next layers as well. Not done yet for kicked out procs
+            for (int i = 0; i < curLevelMatrix->totalNumberOfRows; i++)
+                assert(ComputeRankOfMatrixRow(*(curLevelMatrix->geom), i) == 0); // TEST CASE. -np 2 => shrinking to world size 1
+
+            pt_data *pt_local = (pt_data *) malloc(sizeof(pt_data));
+
+            pt_local->halo = false;
+            pt_local->geom = curLevelMatrix->geom;
+            pt_local->size = curLevelMatrix->totalNumberOfRows;
+            /* pt_ext and the rest of the information in pt_data is not needed. */
+
+            Laik_Partitioner *x_localPR = laik_new_partitioner("x_localPR_temporary", partitioner_x, (void *)pt_local, LAIK_PF_None);
+
+            // save pointer to old partitionings, since they need to be freed after call to re_switch_LaikVectors
+            assert(curLevelMatrix->old_local == NULL);
+            assert(curLevelMatrix->old_ext == NULL);
+            curLevelMatrix->old_local = curLevelMatrix->local;
+
+            curLevelMatrix->local = laik_new_partitioning(x_localPR, world, curLevelMatrix->space, NULL);
+
+            curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
+        }
     }
-
-    A.geom = new_geom; /* Only new geom will be set, other variables are assigned in generateProblem and SetupHalo */
- 
-    print_GEOMETRY(A.geom, A.geom->rank == -1);
-
-    // exit_hpcg_run("PROC 1");
- 
-    // print_GEOMETRY(A.geom, A.geom->rank == 0);
-    // exit_hpcg_run("GEOM VALS PROC 0");
-
-    GenerateProblem(A, 0,0,0); // "Main level" Maitrx
-    // printf("TotalNUmb: %lld\n", A.totalNumberOfRows);
-    // printSPM(&A, 0);
-    // exit_hpcg_run("NUmb Rows fine");
-
-    // due to computeRankOfMatrixRow
-    new_geom->nx = 16;
-    new_geom->ny = 16;
-    new_geom->nz = 16;
-    printf("Start test\n"); /* if all rows are mapped on proc 0 */
-    for(int i = 0; i < A.totalNumberOfRows; i++)
-    {
-            // printf("%d ", ComputeRankOfMatrixRow(*(A.geom), i) == 0);
-            assert(ComputeRankOfMatrixRow(*(A.geom), i) == 0);
-    }
-
-    while(1);
-
-    exit_hpcg_run("Test ComputeRankOfMatrixRow!");
-
-    // printf("LAIK %d\t%lld vs %lld\n", laik_myid(world), A.totalNumberOfNonzeros, totalnumbNNZ);
-    // exit_hpcg_run("NNZ");
-
-    SetupHalo(A); //  size of old container for kicked out procs should be the same.
-    // exit_hpcg_run("SETUP HALO");
-
-    int numberOfMgLevels = 4; // Number of levels including first
-    SparseMatrix *curLevelMatrix = &A;
-    for (int level = 1; level < numberOfMgLevels; ++level)
-    {
-        // std::cout << "\nCoarse Problem level " << level << std::endl;
-        GenerateCoarseProblem(*curLevelMatrix);
-        curLevelMatrix = curLevelMatrix->Ac; // Make the just-constructed coarse grid the next level
-    }
-
-    curLevelMatrix = &A;
-    Vector *curb = 0;
-    Vector *curx = 0;
-    Vector *curxexact = 0;
-    for (int level = 0; level < numberOfMgLevels; ++level)
-    {
-        CheckProblem(*curLevelMatrix, curb, curx, curxexact);
-        curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
-        curb = 0;                            // No vectors after the top level
-        curx = 0;
-        curxexact = 0;
-    }
-    
 }
 
 /**
@@ -636,15 +662,25 @@ void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
 {
     // Add the Laik_Blob to the list, which is stored in MGData as well
     list.push_back(A.mgData->Axf_blob);
-    exit_hpcg_run("re_switch_LaikVectors");
-
 
     for (uint32_t i = 0; i < list.size(); i++)
     {
         Laik_Blob * elem = list[i];
-        laik_switchto_partitioning(elem->values, A.local, LAIK_DF_Preserve, LAIK_RO_None);
         elem->localLength = A.localNumberOfRows; /* Need to update local length, since it could have changed */
+        /* DEBUG */
+        // printf("size of current A.space: %lu\nA.totalNumbOfRows: %lld\n\n", laik_space_size(A.space), A.totalNumberOfRows);
+        Laik_Space * pt_Space = laik_partitioning_get_space(A.local);
+        Laik_Space * data_space = laik_data_get_space(elem->values);
+        assert(A.space == pt_Space);
+        assert(A.space = data_space);
+        /* DEBUG */
+
+        // laik_switchto_partitioning(elem->values, A.local, LAIK_DF_Preserve, LAIK_RO_None);
     }
+
+    // while(1) ;
+
+    exit_hpcg_run("ASSERTION ERROR");
 
     // MGData has two container with partitioning of next layer matrix.
     int numberOfMgLevels = 3; // Number of levels excluding last layer matrix (has no MGData)
@@ -653,12 +689,12 @@ void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
     for (int level = 1; level < numberOfMgLevels; ++level)
     {
         curMGData = curLevelMatrix->mgData;
-        
-        laik_switchto_partitioning(curMGData->rc_blob->values, A.Ac->local, LAIK_DF_Preserve, LAIK_RO_None);
-        laik_switchto_partitioning(curMGData->xc_blob->values, A.Ac->local, LAIK_DF_Preserve, LAIK_RO_None);
+
+        laik_switchto_partitioning(curMGData->rc_blob->values, curLevelMatrix->Ac->local, LAIK_DF_Preserve, LAIK_RO_None);
+        laik_switchto_partitioning(curMGData->xc_blob->values, curLevelMatrix->Ac->local, LAIK_DF_Preserve, LAIK_RO_None);
         // Update local lengths as well
-        curMGData->xc_blob->localLength = A.Ac->localNumberOfRows;
-        curMGData->rc_blob->localLength = A.Ac->localNumberOfRows;
+        curMGData->xc_blob->localLength = curLevelMatrix->Ac->localNumberOfRows;
+        curMGData->rc_blob->localLength = curLevelMatrix->Ac->localNumberOfRows;
 
         curLevelMatrix = curLevelMatrix->Ac; // Next level
     }
@@ -671,8 +707,8 @@ void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
 
 /**
  * @brief Deallocate L2A_map Struct
- * 
- * @param mapping 
+ *
+ * @param mapping to be deallocated
  */
 void free_L2A_map(L2A_map * mapping)
 {
@@ -682,10 +718,26 @@ void free_L2A_map(L2A_map * mapping)
         mapping->offset = 0;
         mapping->offset_ext = 0;
 
-        mapping->localToExternalMap.clear();
-        mapping->localToGlobalMap.clear();
+        if(!mapping->localToExternalMap.empty())
+            mapping->localToExternalMap.clear();
+        if (!mapping->localToGlobalMap.empty())
+            mapping->localToGlobalMap.clear();
+
         free((void*)mapping);
     }
+}
+
+/**
+ * @brief Deallocate a Laik vector
+ *
+ * @param x to be deallocated
+ */
+void DeleteLaikVector(Laik_Blob *x)
+{
+    x->localLength = 0;
+    x->exchange = 0;
+
+    // TODO how to free Laik_data ?
 }
 
 // #######################################################################################
@@ -817,18 +869,18 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
               << "\nLocal # of nonzeros " << spm->localNumberOfNonzeros
               << std::endl;
 
-    HPCG_fout << "NumberOfExternalValues: " << (spm->localNumberOfColumns - spm->localNumberOfRows)
-              << std::endl;
+    // HPCG_fout << "NumberOfExternalValues: " << (spm->localNumberOfColumns - spm->localNumberOfRows)
+    //           << std::endl;
 
-    HPCG_fout << "\n##################### Mapping of rows #####################\n\n";
+    // HPCG_fout << "\n##################### Mapping of rows #####################\n\n";
 
-    // Global to local mapping:
-    HPCG_fout << "\nLocal-to-global Map\n";
-    HPCG_fout << "Local\tGlobal\n";
-    for (int c = 0; c < spm->localToGlobalMap.size(); c++)
-    {
-        HPCG_fout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
-    }
+    // // Global to local mapping:
+    // HPCG_fout << "\nLocal-to-global Map\n";
+    // HPCG_fout << "Local\tGlobal\n";
+    // for (int c = 0; c < spm->localToGlobalMap.size(); c++)
+    // {
+    //     HPCG_fout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
+    // }
 
     // HPCG_fout << "\nGlobal-to-local Map\n";
     // HPCG_fout << "Global\tlocal\n";
@@ -869,18 +921,18 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
                   << "\nLocal # of nonzeros " << spm->localNumberOfNonzeros
                   << std::endl;
 
-        std::cout << "NumberOfExternalValues: " << (spm->localNumberOfColumns - spm->localNumberOfRows)
-                  << std::endl;
+        // std::cout << "NumberOfExternalValues: " << (spm->localNumberOfColumns - spm->localNumberOfRows)
+        //           << std::endl;
 
-        std::cout << "\n##################### Mapping of rows #####################\n\n";
+        // std::cout << "\n##################### Mapping of rows #####################\n\n";
 
-        // Global to local mapping:
-        std::cout << "\nLocal-to-global Map\n";
-        std::cout << "Local\tGlobal\n";
-        for (int c = 0; c < spm->localToGlobalMap.size(); c++)
-        {
-            std::cout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
-        }
+        // // Global to local mapping:
+        // std::cout << "\nLocal-to-global Map\n";
+        // std::cout << "Local\tGlobal\n";
+        // for (int c = 0; c < spm->localToGlobalMap.size(); c++)
+        // {
+        //     std::cout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
+        // }
     }
 }
 
@@ -971,6 +1023,22 @@ void print_GEOMETRY(Geometry * geom, bool doIO)
 
 
         std::cout << a;
+    }
+}
+
+void print_LaikBlob(Laik_Blob * x)
+{
+    if(x != NULL)
+    {
+        std::string str{"####### Laik_Blob\n"};
+
+        std::string str2{x->name};
+        // str += "Exchange: " + std::to_string(x->exchange) + "\n";
+        str += "LAIK " + std::to_string(laik_myid(world)) + "\n";
+        str += "Vector name: " + str2 + "\n";
+        str += "localLength: " + std::to_string(x->localLength) + "\n#######\n";
+
+        std::cout << str;
     }
 }
 
