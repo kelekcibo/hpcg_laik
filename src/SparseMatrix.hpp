@@ -235,15 +235,22 @@ inline void DeleteMatrix_repartition(SparseMatrix &A, bool exiting)
 {
 
 #ifndef HPCG_CONTIGUOUS_ARRAYS
-  for (local_int_t i = 0; i< A.localNumberOfRows; ++i) {
-    delete [] A.matrixValues[i];
-    delete [] A.mtxIndG[i];
-    delete [] A.mtxIndL[i];
+if(!exiting)
+{
+  for (local_int_t i = 0; i < A.localNumberOfRows; ++i)
+  {
+    delete[] A.matrixValues[i];
+    delete[] A.mtxIndG[i];
+    delete[] A.mtxIndL[i];
   }
+}
 #else
-  delete [] A.matrixValues[0];
-  delete [] A.mtxIndG[0];
-  delete [] A.mtxIndL[0];
+if(!exiting)
+{
+  delete[] A.matrixValues[0];
+  delete[] A.mtxIndG[0];
+  delete[] A.mtxIndL[0];
+}
 #endif
   if (A.title)                  delete [] A.title;
   if (A.nonzerosInRow)             delete [] A.nonzerosInRow;
@@ -262,24 +269,25 @@ inline void DeleteMatrix_repartition(SparseMatrix &A, bool exiting)
   /* Will also be updated */
   // A.localToExternalMap.clear(); These two are deleted in free_L2A_map
   // A.localToGlobalMap.clear();
-  A.globalToLocalMap.clear();
+  if(!exiting)
+    A.globalToLocalMap.clear();
 #endif
 
   /* We do not free the space, since all LAIK Data containers are associated with that space. Partitionings will be deleted after a switch to */
-  free_L2A_map(A.mapping);
+  if (A.mapping) free_L2A_map(A.mapping);
 
   if (A.Ac != 0)  { DeleteMatrix_repartition(*A.Ac, exiting); }
 
   // Procs will delete this information as well after the last switch to.
   if(exiting)
   {
-    if (A.mgData != 0) { DeleteMGData(*A.mgData); delete A.mgData; A.mgData = 0; }
-    if (A.geom != 0) { DeleteGeometry(*A.geom); delete A.geom; A.geom = 0; }
-    if (A.space != 0) { laik_free_space(A.space); A.space = 0; }
-    if (A.local != 0) { laik_free_partitioning(A.local); A.local = 0; };
-    if (A.ext != 0) { laik_free_partitioning(A.ext); A.ext = 0; };
-    if (A.old_ext != 0) { laik_free_partitioning(A.old_ext); A.old_ext = 0; };
-    if (A.old_local != 0) { laik_free_partitioning(A.old_local); A.old_local = 0; };
+    if (A.mgData) { DeleteMGData(*A.mgData); delete A.mgData; A.mgData = 0; }
+    if (A.geom) { DeleteGeometry(*A.geom); delete A.geom; A.geom = 0; }
+    if (A.space) { laik_free_space(A.space); A.space = 0; }
+    if (A.local) { laik_free_partitioning(A.local); A.local = 0; };
+    if (A.ext) { laik_free_partitioning(A.ext); A.ext = 0; };
+    if (A.old_ext) { laik_free_partitioning(A.old_ext); A.old_ext = 0; };
+    if (A.old_local) { laik_free_partitioning(A.old_local); A.old_local = 0; };
     
     delete A.Ac; A.Ac = 0;
   }

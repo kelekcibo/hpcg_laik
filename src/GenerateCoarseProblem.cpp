@@ -102,29 +102,19 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
     assert(old_geom_Ac != NULL);
 
     // TEST AFTERWARDS
-    global_int_t old_gnx = old_geom_Ac->gnx;
-    global_int_t old_gny = old_geom_Ac->gny;
-    global_int_t old_gnz = old_geom_Ac->gnz;
+    // global_int_t old_gnx = old_geom_Ac->gnx;
+    // global_int_t old_gny = old_geom_Ac->gny;
+    // global_int_t old_gnz = old_geom_Ac->gnz;
 
     DeleteGeometry(*old_geom_Ac); /* Delete old geom (was not deleted in DeleteMatrix_repartition())*/
 
-    // need old gnx to calculate new nx, ny, nz. As npx, npy, npz may change due to new world size
-    geomc->gnx = old_gnx;
-    geomc->gny = old_gny;
-    geomc->gnz = old_gnz;
-    int dynamicCalculation = hpcg_params.numThreads; // TODO. Change 0 param
-    GenerateGeometry(Af.geom->size, Af.geom->rank, 0, Af.geom->pz, zlc, zuc, nxc, nyc, nzc, Af.geom->npx, Af.geom->npy, Af.geom->npz, geomc);
-    geomc->numThreads = dynamicCalculation;
-    
     // should be the same problem size
-    assert(old_gnx == geomc->gnx);
-    assert(old_gny == geomc->gny);
-    assert(old_gnz == geomc->gnz);
+    // assert(old_gnx == geomc->gnx);
+    // assert(old_gny == geomc->gny);
+    // assert(old_gnz == geomc->gnz);
   }
-  else
-  {
-    GenerateGeometry(Af.geom->size, Af.geom->rank, Af.geom->numThreads, Af.geom->pz, zlc, zuc, nxc, nyc, nzc, Af.geom->npx, Af.geom->npy, Af.geom->npz, geomc);
-  }
+
+  GenerateGeometry(Af.geom->size, Af.geom->rank, Af.geom->numThreads, Af.geom->pz, zlc, zuc, nxc, nyc, nzc, Af.geom->npx, Af.geom->npy, Af.geom->npz, geomc);
 
 
   if(Af.Ac != NULL)
