@@ -20,9 +20,9 @@
 #include "Vector.hpp"
 #include "CGData.hpp"
 
-int CG_laik(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Blob *x,
-       const int max_iter, const double tolerance, int &niters, double &normr, double &normr0,
-       double *times, bool doPreconditioning);
+int CG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
+            const int max_iter, const double tolerance, int &niters, double &normr, double &normr0,
+            double *times, bool doPreconditioning);
 
 int CG(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
     const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,

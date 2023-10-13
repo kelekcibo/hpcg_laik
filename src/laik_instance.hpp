@@ -89,12 +89,23 @@ struct L2A_map
 
 struct Laik_Blob
 {
-    char * name; // name of the vector
+    char * name; // name of the vector /* Debug
 
     Laik_Data * values;
-    mutable uint64_t localLength;
+    mutable local_int_t localLength;
 
     bool exchange; /* This blob will exchange values if true */
+
+#ifdef REPARTITION
+    /*
+        This variable is only for x_l
+        He will store the pointer to xexact_l
+        We need to re-switch this vector as well
+        But when reseizing, xexact_l is out of scope
+        Quick solution is this here.
+    */
+    Laik_Blob * xexact_l_ptr;
+#endif
 };
 
 extern Laik_Instance *hpcg_instance;

@@ -93,7 +93,8 @@ struct SparseMatrix_STRUCT {
     // For Repartition.
     Laik_Partitioning * old_ext;
     Laik_Partitioning * old_local;
-  #endif // REPARTITION
+    bool repartition_me; /* Tell the app, that a reseize should happen. We want to test it during the call to TestCG */
+#endif // REPARTITION
 
   // #endif // USE_LAIK
 #endif
@@ -145,6 +146,7 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
   #ifdef REPARTITION
     A.old_local = 0;
     A.old_ext = 0;
+    A.repartition_me = false;
   #endif
 #endif
   A.mgData = 0; // Fine-to-coarse grid transfer initially not defined.

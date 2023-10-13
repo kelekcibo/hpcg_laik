@@ -595,7 +595,6 @@ void re_setup_problem(SparseMatrix &A)
 
             GenerateCoarseProblem(*curLevelMatrix);
             curLevelMatrix = curLevelMatrix->Ac; // Make the just-constructed coarse grid the next level
-
             // #### Debug
             // printSPM(curLevelMatrix, level);
             // #### Debug
@@ -725,36 +724,28 @@ void re_setup_problem(SparseMatrix &A)
  */
 void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
 {
-    // Add the Laik_Blob to the list, which is stored in MGData as well
-    list.push_back(A.mgData->Axf_blob);
-
     for (uint32_t i = 0; i < list.size(); i++)
     {
         Laik_Blob * elem = list[i];
         elem->localLength = A.localNumberOfRows; /* Need to update local length, since it could have changed */
-        /* DEBUG */
-        // printf("size of current A.space: %lu\nA.totalNumbOfRows: %lld\n\n", laik_space_size(A.space), A.totalNumberOfRows);
-        Laik_Space * pt_Space = laik_partitioning_get_space(A.local);
-        Laik_Space * data_space = laik_data_get_space(elem->values);
-        assert(A.space == pt_Space);
-        assert(A.space = data_space);
-        /* DEBUG */
 
         laik_switchto_partitioning(elem->values, A.local, LAIK_DF_Preserve, LAIK_RO_None);
     }
 
-
-    // MGData has two container with partitioning of next layer matrix.
-    int numberOfMgLevels = 3; // Number of levels excluding last layer matrix (has no MGData)
+    // MGData has two container with partitioning of next layer matrix and one of the current layer
+    int numberOfMgLevels = 4; // Number of levels excluding last layer matrix (has no MGData)
     SparseMatrix *curLevelMatrix = &A;
     MGData * curMGData;
     for (int level = 1; level < numberOfMgLevels; ++level)
     {
+        // std::cout << "\nCoarse Problem level " << level << std::endl;
         curMGData = curLevelMatrix->mgData;
 
+        laik_switchto_partitioning(curMGData->Axf_blob->values, curLevelMatrix->local, LAIK_DF_Preserve, LAIK_RO_None);
         laik_switchto_partitioning(curMGData->rc_blob->values, curLevelMatrix->Ac->local, LAIK_DF_Preserve, LAIK_RO_None);
         laik_switchto_partitioning(curMGData->xc_blob->values, curLevelMatrix->Ac->local, LAIK_DF_Preserve, LAIK_RO_None);
         // Update local lengths as well
+        curMGData->Axf_blob->localLength = curLevelMatrix->localNumberOfRows;
         curMGData->xc_blob->localLength = curLevelMatrix->Ac->localNumberOfRows;
         curMGData->rc_blob->localLength = curLevelMatrix->Ac->localNumberOfRows;
 

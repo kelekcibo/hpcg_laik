@@ -196,9 +196,13 @@ int main(int argc, char *argv[])
   CopyVectorToLaikVector(x, x_l, A.mapping);
   CopyVectorToLaikVector(xexact, xexact_l, A.mapping);
 
+#ifdef REPARTITION
+  x_l->xexact_l_ptr = xexact_l; /* See @Laik_Blob in laik_instance.hpp */
 #endif
 
-  int numberOfMgLevels = 4; // Number of levels including first
+#endif
+
+      int numberOfMgLevels = 4; // Number of levels including first
   SparseMatrix *curLevelMatrix = &A;
   for (int level = 1; level < numberOfMgLevels; ++level)
   {
@@ -332,7 +336,7 @@ int main(int argc, char *argv[])
     #ifdef USE_LAIK
     ZeroLaikVector(x_l, A.mapping);
     ierr = CG_laik_ref(A, data, b_l, x_l, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
-    #else
+  #else
       ZeroVector(x);
       ierr = CG_ref(A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
     #endif
@@ -372,13 +376,6 @@ int main(int argc, char *argv[])
   if (doIO)
     printf("Start Validation Testing Phase\n");
 
-
-  std::string a{};
-
-  a = "LAIK NEW WORLD SIZE RUNNING: " + std::to_string(laik_size(world));
-
-  exit_hpcg_run(a.c_str());
-
 #ifdef HPCG_DEBUG
   t1 = mytimer();
 #endif
@@ -388,11 +385,11 @@ int main(int argc, char *argv[])
   testcg_data.count_pass = testcg_data.count_fail = 0;
   // testcg_data_laik.count_pass = testcg_data_laik.count_fail = 0;
 
-  #ifdef USE_LAIK
+#ifdef USE_LAIK
   TestCG_laik(A, data, b_l, x_l, testcg_data);
 #else
-    TestCG(A, data, b, x, testcg_data);
-  #endif
+  TestCG(A, data, b, x, testcg_data);
+#endif
 
   // printf("Test TestCGData\n");
 
@@ -414,6 +411,7 @@ int main(int argc, char *argv[])
 
   FillRandomVector(x_ncol_test);
   FillRandomVector(y_ncol_test);
+
 
 #ifdef USE_LAIK
   TestSymmetry_laik(A, b_l, xexact_l, testsymmetry_data);
