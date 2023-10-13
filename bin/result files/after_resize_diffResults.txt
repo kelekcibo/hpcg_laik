@@ -1,0 +1,30 @@
+/*
+    Resize is done within CG_laik_ref here
+    I get always different results => non deterministic behaviour
+*/
+
+WARNING: PERFORMING UNPRECONDITIONED ITERATIONS
+Call [0] Number of Iterations [11] Scaled Residual [1.97551e-14]
+WARNING: PERFORMING UNPRECONDITIONED ITERATIONS
+Call [1] Number of Iterations [11] Scaled Residual [1.97551e-14]
+Call [0] Number of Iterations [1] Scaled Residual [nan]
+Call [1] Number of Iterations [1] Scaled Residual [nan]
+Departure from symmetry (scaled) for SpMV abs(x'*A*y - y'*A*x) = 8.73893e-06
+Departure from symmetry (scaled) for MG abs(x'*Minv*y - y'*Minv*x) = 6.68461e+255
+SpMV call [0] Residual [0]
+SpMV call [1] Residual [0]
+Call [0] Scaled Residual [nan]
+Call [1] Scaled Residual [nan]
+Call [2] Scaled Residual [nan]
+Call [3] Scaled Residual [nan]
+Call [4] Scaled Residual [nan]
+Call [5] Scaled Residual [nan]
+Call [6] Scaled Residual [nan]
+Call [7] Scaled Residual [nan]
+Call [8] Scaled Residual [nan]
+Call [9] Scaled Residual [nan]
+Call [10] Scaled Residual [nan]
+Call [11] Scaled Residual [nan]
+Call [12] Scaled Residual [nan]
+Call [13] Scaled Residual [nan]
+Call [14] Scaled Residual [nan]

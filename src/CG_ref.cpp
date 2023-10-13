@@ -122,9 +122,6 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
   }
   #endif
 
-
-  std::string debug_str{""};
-
   // Start iterations
   int k = 1;
   // For new joining processes
@@ -133,6 +130,76 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 
   for (; k <= max_iter && normr / normr0 > tolerance; k++)
   {
+#ifdef REPARTITION
+    laik_set_iteration(hpcg_instance, k); /* Current iteration */
+
+    if (k == 1 && A.repartition_me)
+    {
+      // Repartitioning / Resizing of current world (group of proccesses)
+
+      // allow resize of world and get new world
+      // Laik_Group * newworld = laik_allow_world_resize(hpcg_instance, k);
+
+      int shrink_count = 1;
+      int plist[1];
+      plist[0] = 1; // remove proc 1 as test with config: size = 2
+
+      std::string debug_str{""};
+      debug_str += "Before shrinking: size " + std::to_string(laik_size(world)) + " (id " + std::to_string(laik_myid(world)) + ")\n";
+
+      Laik_Group *newworld = laik_new_shrinked_group(world, shrink_count, plist);
+
+      debug_str += "After shrinking: size " + std::to_string(laik_size(newworld)) + " (id " + std::to_string(laik_myid(newworld)) + ")\n";
+
+      // exit_hpcg_run(debug_str.c_str());
+      printf("%s", debug_str.c_str());
+
+      laik_finish_world_resize(hpcg_instance);
+
+      if (newworld != world)
+      {
+
+        // Assign new world and release old world
+        laik_release_group(world);
+        world = newworld;
+
+        // Re-run setup functions and run partitioners for the new group
+        re_setup_problem(A);
+        nrow = A.localNumberOfRows; /* update local value */
+
+        // Switch to the new partitioning on all Laik_data containers
+        std::vector<Laik_Blob *> list{};
+        /* Vectors in MG_data will be recursively handled in re_switch_LaikVectors */
+        list.push_back(b);
+        list.push_back(x);
+        assert(x->name == "x_l");
+        list.push_back(x->xexact_l_ptr);
+        list.push_back(r);
+        list.push_back(z);
+        list.push_back(p);
+        list.push_back(Ap);
+
+        /* Send normr0 to new procs, old procs have already this value */
+        // laik_broadcast(&normr0, &normr0, 1, laik_Double); /* Get normr0 by proc 0 */
+
+        re_switch_LaikVectors(A, list);
+
+        // Releasing old, not needed ressources in re_setup_problem(A);
+        // Exit, if we got removed from the world
+        if (laik_myid(world) < 0)
+        {
+          // DeleteMatrix_repartition(A, true); FIXME throws error due to doulbe free,
+          DeleteCGData(data);
+          DeleteLaikVector(x);
+          DeleteLaikVector(b);
+
+          laik_finalize(hpcg_instance);
+          exit(0);
+        }
+      }
+    }
+
+#endif
     TICK();
     if (doPreconditioning)
       ComputeMG_laik_ref(A, r, z); // Apply preconditioner

@@ -268,8 +268,7 @@ int main(int argc, char *argv[])
 
   CopyVectorToLaikVector(x_overlap, x_overlap_l, A.mapping);
   
-  // int numberOfCalls = 10; // TODO. Uncomment -> only for now for debug 
-  int numberOfCalls = 0;
+  int numberOfCalls = 10;
 
   if (quickPath)
     numberOfCalls = 1; // QuickPath means we do on one call of each block of repetitive code
@@ -334,12 +333,24 @@ int main(int argc, char *argv[])
   for (int i = 0; i < numberOfCalls; ++i)
   {
     #ifdef USE_LAIK
-    ZeroLaikVector(x_l, A.mapping);
-    ierr = CG_laik_ref(A, data, b_l, x_l, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
-  #else
+      ZeroLaikVector(x_l, A.mapping);
+      
+    #ifdef REPARTITION
+      if (i == 0)
+        A.repartition_me = true; /* Repartitioning is only done in Reference CG Timing Phase */
+    #endif // REPARTITION
+  
+      ierr = CG_laik_ref(A, data, b_l, x_l, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
+    
+    #ifdef REPARTITION
+      if (i == 0)
+        A.repartition_me = false;  /* Repartitioning is only done in Reference CG Timing Phase */
+    #endif // REPARTITION
+
+    #else
       ZeroVector(x);
       ierr = CG_ref(A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
-    #endif
+    #endif // USE_LAIK
 
     if (ierr)
       ++err_count; // count the number of errors in CG
@@ -368,6 +379,8 @@ int main(int argc, char *argv[])
 
   if (doIO)
     printf("End Reference CG Timing Phase\n");
+
+
 
   //////////////////////////////
   // Validation Testing Phase //
@@ -582,11 +595,11 @@ int main(int argc, char *argv[])
   ReportResults(A, numberOfMgLevels, numberOfCgSets, refMaxIters, optMaxIters, &times[0], testcg_data, testsymmetry_data, testnorms_data, global_failure, quickPath);
 
   // Clean up
-  DeleteMatrix(A); // This delete will recursively delete all coarse grid data
-  DeleteCGData(data);
-  DeleteVector(x);
-  DeleteVector(b);
-  DeleteVector(xexact);
+  // DeleteMatrix(A); // This delete will recursively delete all coarse grid data
+  // DeleteCGData(data);
+  // DeleteVector(x);
+  // DeleteVector(b);
+  // DeleteVector(xexact);
 
   #ifdef USE_LAIK
     // delete laik containers

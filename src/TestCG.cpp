@@ -53,8 +53,6 @@ using std::endl;
  */
 int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestCGData &testcg_data)
 {
-
-  printf("Jumped into testCG\n");
   // Use this array for collecting timing information
   std::vector<double> times(8, 0.0);
   // Temporary storage for holding original diagonal and RHS
@@ -104,13 +102,6 @@ int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestC
       expected_niters = testcg_data.expected_niters_prec;
     for (int i = 0; i < numberOfCgCalls; ++i)
     {
-
-#ifdef REPARTITION
-      if (k == 1 && i == 0)
-      {
-        A.repartition_me = true;
-      }
-#endif
       ZeroLaikVector(x, A.mapping); // Zero out x
       int ierr = CG_laik(A, data, b, x, maxIters, tolerance, niters, normr, normr0, &times[0], k == 1);
       if (ierr)
@@ -134,23 +125,12 @@ int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestC
         if (niters > expected_niters)
           HPCG_fout << " Expected " << expected_niters << " iterations.  Performed " << niters << "." << endl;
       }
-
-#ifdef REPARTITION
-      if (k == 1 && i == 0)
-      {
-        A.repartition_me = false;
-      }
-#endif
     }
   }
 
   // Restore matrix diagonal and RHS
-  if(A.localNumberOfRows== origDiagA.localLength)
-  {
-    // FIXME Repartition feature changes locallength and matrix diagonal and this results in an assertion error
-    ReplaceMatrixDiagonal(A, origDiagA);
-    CopyVectorToLaikVector(origB, b, A.mapping);
-  }
+  ReplaceMatrixDiagonal(A, origDiagA);
+  CopyVectorToLaikVector(origB, b, A.mapping);
   // Delete vectors
   DeleteVector(origDiagA);
   DeleteVector(exaggeratedDiagA);
