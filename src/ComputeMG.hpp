@@ -14,8 +14,8 @@
 
 #ifndef COMPUTEMG_HPP
 #define COMPUTEMG_HPP
- 
-#include "laik_instance.hpp"
+
+#include "laik/hpcg_laik.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 

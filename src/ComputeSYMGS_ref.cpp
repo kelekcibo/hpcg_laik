@@ -21,7 +21,7 @@
 #ifndef HPCG_NO_MPI
 #include <cmath>
 #include "ExchangeHalo.hpp"
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #endif
 #include <cassert>
 #include <iostream>

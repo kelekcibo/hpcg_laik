@@ -32,7 +32,7 @@
 #ifndef USE_LAIK
 #define USE_LAIK
 #endif
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #endif
 
 #include <fstream>
@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
   CopyVectorToLaikVector(xexact, xexact_l, A.mapping);
 
 #ifdef REPARTITION
-  x_l->xexact_l_ptr = xexact_l; /* See @Laik_Blob in laik_instance.hpp */
+  x_l->xexact_l_ptr = xexact_l; /* See @Laik_Blob */
 #endif
 
 #endif
@@ -417,14 +417,6 @@ int main(int argc, char *argv[])
 
   TestSymmetryData testsymmetry_data;
   // TestSymmetryData testsymmetry_data_laik;
-
-  // First load vectors with random values
-  InitializeVector(x_ncol_test, A.localNumberOfColumns);
-  InitializeVector(y_ncol_test, A.localNumberOfColumns);
-
-  FillRandomVector(x_ncol_test);
-  FillRandomVector(y_ncol_test);
-
 
 #ifdef USE_LAIK
   TestSymmetry_laik(A, b_l, xexact_l, testsymmetry_data);

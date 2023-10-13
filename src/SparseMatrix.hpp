@@ -28,7 +28,7 @@
 struct L2A_map;
 void free_L2A_map(L2A_map *mapping);
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "Geometry.hpp"
 #include "Vector.hpp"
 #include "MGData.hpp"
@@ -83,7 +83,7 @@ struct SparseMatrix_STRUCT {
 
   // #ifdef USE_LAIK
   // ############### Data needed to create partitionings and Laik_Data container
-  std::map<local_int_t, global_int_t> localToExternalMap; /* Needed for LAIK (see laik_instance.hpp: L2A_map)*/
+  std::map<local_int_t, global_int_t> localToExternalMap; /* Needed for LAIK (@see L2A_map)*/
   L2A_map * mapping;
   Laik_Space * space;
   Laik_Partitioning * ext;

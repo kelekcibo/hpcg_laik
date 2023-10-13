@@ -15,7 +15,7 @@
 #ifndef COMPUTEDOTPRODUCT_HPP
 #define COMPUTEDOTPRODUCT_HPP
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "Vector.hpp"
 
 int ComputeDotProduct_laik(const local_int_t n, const Laik_Blob *x, const Laik_Blob *y,

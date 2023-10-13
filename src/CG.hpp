@@ -15,7 +15,7 @@
 #ifndef CG_HPP
 #define CG_HPP
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 #include "CGData.hpp"

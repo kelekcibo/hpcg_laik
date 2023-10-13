@@ -25,10 +25,7 @@
 #include <iostream>
 #include <cassert>
 
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "GenerateCoarseProblem.hpp"
 #include "GenerateGeometry.hpp"
 #include "GenerateProblem.hpp"

@@ -14,11 +14,11 @@
 
 #ifndef GENERATEPROBLEM_REF_HPP
 #define GENERATEPROBLEM_REF_HPP
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-#include "laik_instance.hpp"
+
+#include "laik/hpcg_laik.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
+
 void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact);
+
 #endif // GENERATEPROBLEM_REF_HPP

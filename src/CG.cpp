@@ -21,8 +21,8 @@
 #include <fstream>
 #include <cmath>
 
+#include "laik/hpcg_laik.hpp"
 #include "hpcg.hpp"
-#include "laik_instance.hpp"
 #include "CG.hpp"
 #include "mytimer.hpp"
 #include "ComputeSPMV.hpp"

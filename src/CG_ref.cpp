@@ -21,7 +21,7 @@
 #include <fstream>
 #include <cmath>
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "hpcg.hpp"
 #include "CG_ref.hpp"
 #include "mytimer.hpp"
@@ -133,7 +133,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 #ifdef REPARTITION
     laik_set_iteration(hpcg_instance, k); /* Current iteration */
 
-    if (k == 1 && A.repartition_me)
+    if (k == 10 && A.repartition_me)
     {
       // Repartitioning / Resizing of current world (group of proccesses)
 

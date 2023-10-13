@@ -18,7 +18,7 @@
  HPCG routine
  */
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "ComputeSYMGS.hpp"
 #include "ComputeSYMGS_ref.hpp"
 

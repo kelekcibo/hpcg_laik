@@ -14,7 +14,7 @@
 
 #ifndef COMPUTERESTRICTION_REF_HPP
 #define COMPUTERESTRICTION_REF_HPP
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
 int ComputeRestriction_laik_ref(const SparseMatrix &A, const Laik_Blob *rf);

@@ -14,10 +14,7 @@
 
 #ifndef SETUPHALO_REF_HPP
 #define SETUPHALO_REF_HPP
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "SparseMatrix.hpp"
 
 void SetupHalo_ref(SparseMatrix & A);

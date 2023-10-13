@@ -24,7 +24,7 @@ typedef struct SparseMatrix_STRUCT SparseMatrix;
 #include <cassert>
 #include <iostream>
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "ComputeMG_ref.hpp"
 #include "ComputeSYMGS_ref.hpp"
 #include "ComputeSPMV_ref.hpp"

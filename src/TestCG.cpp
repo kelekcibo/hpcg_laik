@@ -31,7 +31,7 @@
 using std::endl;
 #include <vector>
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "hpcg.hpp"
 #include "TestCG.hpp"
 #include "CG.hpp"

@@ -17,7 +17,7 @@
 
  HPCG routine
  */
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "ComputeDotProduct.hpp"
 #include "ComputeDotProduct_ref.hpp"
 

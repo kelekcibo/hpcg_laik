@@ -21,7 +21,7 @@
 #ifndef TESTSYMMETRY_HPP
 #define TESTSYMMETRY_HPP
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "hpcg.hpp"
 #include "SparseMatrix.hpp"
 #include "CGData.hpp"

@@ -19,7 +19,7 @@
  */
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #endif
 #ifndef HPCG_NO_OPENMP
 #include <omp.h>

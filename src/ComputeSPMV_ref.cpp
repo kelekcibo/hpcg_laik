@@ -22,13 +22,11 @@
 #include "ComputeSPMV_ref.hpp"
 
 #ifndef HPCG_NO_MPI
-#include "ExchangeHalo.hpp"
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-#include "laik_instance.hpp"
 #include <iostream>
 #include <cstdlib>
+
+#include "ExchangeHalo.hpp"
+#include "laik/hpcg_laik.hpp"
 #endif
 
 #ifndef HPCG_NO_OPENMP

@@ -22,7 +22,7 @@
 #include <omp.h>
 #endif
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "ComputeProlongation_ref.hpp"
 
 /*!

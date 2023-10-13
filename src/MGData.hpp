@@ -23,7 +23,7 @@
 
 #include <cassert>
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "Vector.hpp"
 
 struct Laik_Blob;

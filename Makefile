@@ -44,11 +44,15 @@ HPCG_DEPS = src/CG.o \
 	    src/GenerateCoarseProblem.o \
 	    src/init.o \
 	    src/finalize.o \
-		src/laik_instance.o
+		src/laik/laik_debug.o \
+		src/laik/laik_reductions.o \
+		src/laik/laik_repartition.o \
+		src/laik/laik_x_vector.o 
+
 
 # These header files are included in many source files, so we recompile every file if one or more of these header is modified.
 PRIMARY_HEADERS = ./src/Geometry.hpp ./src/SparseMatrix.hpp ./src/Vector.hpp ./src/CGData.hpp \
-                  ./src/MGData.hpp ./src/hpcg.hpp
+                  ./src/MGData.hpp ./src/hpcg.hpp ./src/laik/hpcg_laik.hpp
 
 all: bin/xhpcg
 
@@ -180,5 +184,14 @@ src/CheckAspectRatio.o: ./src/CheckAspectRatio.cpp ./src/CheckAspectRatio.hpp $(
 src/OutputFile.o: ./src/OutputFile.cpp ./src/OutputFile.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -I./src $< -o $@
 
-src/laik_instance.o: ./src/laik_instance.cpp ./src/laik_instance.hpp $(PRIMARY_HEADERS)
+src/laik/laik_debug.o: ./src/laik/laik_debug.cpp ./src/laik/laik_debug.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -I./src $< -o $@ 
+
+src/laik/laik_reductions.o: ./src/laik/laik_reductions.cpp ./src/laik/laik_reductions.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -I./src $< -o $@ 
+
+src/laik/laik_repartition.o: ./src/laik/laik_repartition.cpp ./src/laik/laik_repartition.hpp $(PRIMARY_HEADERS)
+	$(CXX) -c $(CXXFLAGS) -I./src $< -o $@ 
+
+src/laik/laik__x_vector.o: ./src/laik/laik__x_vector.cpp ./src/laik/laik_x_vector.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -I./src $< -o $@ 

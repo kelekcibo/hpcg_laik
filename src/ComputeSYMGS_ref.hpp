@@ -15,7 +15,7 @@
 #ifndef COMPUTESYMGS_REF_HPP
 #define COMPUTESYMGS_REF_HPP
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 

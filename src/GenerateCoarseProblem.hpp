@@ -15,10 +15,6 @@
 #ifndef GENERATECOARSEPROBLEM_HPP
 #define GENERATECOARSEPROBLEM_HPP
 
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-#include "laik_instance.hpp"
 #include "SparseMatrix.hpp"
 
 void GenerateCoarseProblem(const SparseMatrix & A);

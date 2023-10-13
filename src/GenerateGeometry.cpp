@@ -23,7 +23,7 @@
 #include <cassert>
 #include <cstdio>
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "ComputeOptimalShapeXYZ.hpp"
 #include "GenerateGeometry.hpp"
 

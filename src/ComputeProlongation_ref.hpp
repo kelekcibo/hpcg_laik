@@ -15,7 +15,7 @@
 #ifndef COMPUTEPROLONGATION_REF_HPP
 #define COMPUTEPROLONGATION_REF_HPP
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
 
