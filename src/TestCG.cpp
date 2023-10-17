@@ -37,6 +37,7 @@ using std::endl;
 #include "CG.hpp"
 #include "Vector.hpp"
 
+#ifndef HPCG_NO_LAIK
 /*!
   Test the correctness of the Preconditined CG implementation by using a system matrix with a dominant diagonal.
 
@@ -139,7 +140,7 @@ int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestC
 
   return 0;
 }
-
+#else
 /*!
   Test the correctness of the Preconditined CG implementation by using a system matrix with a dominant diagonal.
 
@@ -226,3 +227,4 @@ int TestCG(SparseMatrix & A, CGData & data, Vector & b, Vector & x, TestCGData &
 
   return 0;
 }
+#endif

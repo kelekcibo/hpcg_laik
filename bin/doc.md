@@ -102,3 +102,32 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
   * Forgot Afx_blob, but now all lengths are updated and switched to
 * Disceprancies in the results for the test case -np 2 and shrinking to np 1
   * non deterministic behaviour
+  * Analyzing the discrepancy was done in step 13
+
+## 9 Refactoring of code
+
+* Maintainability was bad
+  * Refactoring of code
+  * Splitting the one big file into multiple smaller files
+
+## 11 Partitioner algorithm for the SparseMatrix
+
+* In 8, setup functions were recalled
+  * Values of matrix are deleted and re-init'ed
+* New Approach
+  * Partitioner algorithm for matrix A, so there is no need to call setup functions again
+    * Analysing which data of A needs to be distributed
+
+## 12 Adjusting setup and other functions
+
+* Usage of LAIK Containers in the matrix A results in changes of code which uses data of the matrix, as we need to get base ptr
+* Due to the lex_layout, we need a mapping here as well
+  * Same approach as in step 3
+
+## 13 Disceprancies in the result
+
+* After implementing step 11 and 12, there were disceprancies in the result
+
+## 14 Code for new joining processes
+
+* Differ between phases

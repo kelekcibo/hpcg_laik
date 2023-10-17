@@ -88,7 +88,6 @@ void SetupHalo_ref(SparseMatrix & A) {
     for (int j=0; j<nonzerosInRow[i]; j++) {
       global_int_t curIndex = mtxIndG[i][j];
       int rankIdOfColumnEntry = ComputeRankOfMatrixRow(*(A.geom), curIndex);
-    // SEGFAULT IS HERE in mtxIndG ? 
 #ifdef HPCG_DETAILED_DEBUG
       // HPCG_fout << "rank, row , col, globalToLocalMap[col] = " << A.geom->rank << " " << currentGlobalRow << " "
       //     << curIndex << " " << A.globalToLocalMap[curIndex] << endl;
@@ -176,8 +175,8 @@ void SetupHalo_ref(SparseMatrix & A) {
 
 
   // ########## Data for partitioning algorithm
-  pt_data * pt_data_ext = (pt_data *)malloc(sizeof(pt_data));
-  pt_data * pt_data_local = (pt_data *)malloc(sizeof(pt_data));
+  partition_d *pt_data_ext = (partition_d *)malloc(sizeof(partition_d));
+  partition_d *pt_data_local = (partition_d *)malloc(sizeof(partition_d));
 
   pt_data_ext->size = A.totalNumberOfRows;
   pt_data_ext->geom = A.geom;
@@ -213,19 +212,20 @@ void SetupHalo_ref(SparseMatrix & A) {
 
   std::memcpy((void *)&map_data->localToGlobalMap, (void *)&A.localToGlobalMap, sizeof(A.localToGlobalMap));
   std::memcpy((void *)&map_data->localToExternalMap, (void *)&A.localToExternalMap, sizeof(A.localToExternalMap));
-  
-  // ########## Data to calculate mapping
+
   A.mapping = map_data;
 
+  // ########## Data to calculate mapping
+
+  #ifdef REPARTITION
+  // If we are repartitioning, this means we already have a space
+  if (A.space == 0)
+    A.space = laik_new_space_1d(hpcg_instance, A.totalNumberOfRows);
+  #else
+    A.space = laik_new_space_1d(hpcg_instance, A.totalNumberOfRows);
+  #endif
+
   init_partitionings(A, pt_data_local, pt_data_ext);
-
-  // DO not delete before I tested it for the three next layers
-  // int testrank = 1; /* debug  next 6 lines */
-  // if (A.geom->rank == testrank )
-  //   printf("LAIK %d\tOffset to ALLOC BUffer; local (%lld) / ext (%lld)\n", A.geom->rank, A.mapping->offset, A.mapping->offset_ext);
-  // if (A.geom->rank == testrank )
-  //   printf("LAIK %d\tOffset to ALLOC BUffer pt_data; (%d) / ext (%d)\n", A.geom->rank, pt_data_local->offset, pt_data_ext->offset);
-
 
 #ifdef HPCG_DETAILED_DEBUG
   HPCG_fout << " For rank " << A.geom->rank << " of " << A.geom->size << ", number of neighbors = " << A.numberOfSendNeighbors << endl;

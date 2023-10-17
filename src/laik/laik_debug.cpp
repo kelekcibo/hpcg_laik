@@ -65,11 +65,11 @@ void compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO)
 
     for (size_t i = 0; i < length; i++)
     {
-        double delta = std::abs(xv[i] - yv[map_l2a(mapping, i, false)]);
+        double delta = std::abs(xv[i] - yv[map_l2a_x(mapping, i, false)]);
         if (doIO)
             // printf("Index %lld: Delta %.10f\n", i, delta);
             if (doIO)
-                printf("xv[%ld]=%.10f\tyv_blob[%lld]=%.10f\n", i, xv[i], map_l2a(mapping, i, false), yv[map_l2a(mapping, i, false)]);
+                printf("xv[%ld]=%.10f\tyv_blob[%lld]=%.10f\n", i, xv[i], map_l2a_x(mapping, i, false), yv[map_l2a_x(mapping, i, false)]);
         if (delta != 0)
         {
             if (doIO)
@@ -117,7 +117,7 @@ void printResultLaikVector(Laik_Blob *x, L2A_map *mapping)
 
     if (laik_myid(world) == 0)
         for (size_t i = 0; i < length; i++)
-            printf("xv[%ld]=%.10f\n", i, xv[map_l2a(mapping, i, false)]);
+            printf("xv[%ld]=%.10f\n", i, xv[map_l2a_x(mapping, i, false)]);
 }
 
 /**
@@ -307,7 +307,6 @@ void print_LaikBlob(Laik_Blob *x)
         std::string str{"####### Laik_Blob\n"};
 
         std::string str2{x->name};
-        // str += "Exchange: " + std::to_string(x->exchange) + "\n";
         str += "LAIK " + std::to_string(laik_myid(world)) + "\n";
         str += "Vector name: " + str2 + "\n";
         str += "localLength: " + std::to_string(x->localLength) + "\n#######\n";

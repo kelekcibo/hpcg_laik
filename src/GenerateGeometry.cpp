@@ -58,6 +58,7 @@ void GenerateGeometry(int size, int rank, int numThreads,
   if (npx * npy * npz <= 0 || npx * npy * npz > size)
     ComputeOptimalShapeXYZ( size, npx, npy, npz );
 
+#ifndef HPCG_NO_LAIK
 #ifdef REPARTITION
     // change if, such that this part is executed iff. a reseize has been done
     if(numThreads == -1)
@@ -80,7 +81,8 @@ void GenerateGeometry(int size, int rank, int numThreads,
       ny = new_ny;
       nz = new_nz;
     }
-#endif
+#endif // REPARTITION
+#endif // HPCG_NO_LAIK
 
 
     int *partz_ids = 0;

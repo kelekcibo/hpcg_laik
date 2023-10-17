@@ -26,6 +26,7 @@
 #include "laik/hpcg_laik.hpp"
 #include "ComputeRestriction_ref.hpp"
 
+#ifndef HPCG_NO_MPI
 /*!
   Routine to compute the coarse residual vector.
 
@@ -50,7 +51,7 @@ int ComputeRestriction_laik_ref(const SparseMatrix &A, const Laik_Blob *rf)
   laik_get_map_1d(A.mgData->Axf_blob->values, 0, (void **)&Axfv, 0);
 
   local_int_t *f2c = A.mgData->f2cOperator;
-  local_int_t nc = A.mgData->rc->localLength;
+  local_int_t nc = A.mgData->rc_blob->localLength;
 
   // rc vector is for next layer, thus need mapping from next level matrix
   assert(A.Ac != NULL); 
@@ -61,13 +62,13 @@ int ComputeRestriction_laik_ref(const SparseMatrix &A, const Laik_Blob *rf)
 #endif
   for (local_int_t i = 0; i < nc; ++i)
   {
-    local_int_t j = map_l2a(A.mapping, f2c[i], false);
-    rcv[map_l2a(mapping_rc_blob, i, false)] = rfv[j] - Axfv[j]; 
+    local_int_t j = map_l2a_x(A.mapping, f2c[i], false);
+    rcv[map_l2a_x(mapping_rc_blob, i, false)] = rfv[j] - Axfv[j]; 
   }
   
   return 0;
 }
-
+#else
 /*!
   Routine to compute the coarse residual vector.
 
@@ -95,3 +96,4 @@ int ComputeRestriction_ref(const SparseMatrix & A, const Vector & rf) {
 
   return 0;
 }
+#endif

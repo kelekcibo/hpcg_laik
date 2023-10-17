@@ -12,6 +12,9 @@
     Includes
 */
     #include "laik_x_vector.hpp"
+// forw. decl.
+struct Local2Allocation_map_x;
+typedef Local2Allocation_map_x L2A_map;
 /*
     Includes -END
 */
@@ -29,7 +32,7 @@
  */
 void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
 {
-    pt_data *data = (pt_data *)laik_partitioner_data(p->partitioner);
+    partition_d *data = (partition_d *)laik_partitioner_data(p->partitioner);
     Laik_Space *x_space = p->space;
 
     // printf("data->size=%d\tspace->size=%ld\n", data->size, laik_space_size(x_space));
@@ -125,7 +128,7 @@ void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams 
  *
  * @see L2A_map 
  */
-allocation_int_t map_l2a(L2A_map *mapping, local_int_t local_index, bool halo)
+allocation_int_t map_l2a_x(L2A_map *mapping, local_int_t local_index, bool halo)
 {
     global_int_t global_index;
 
@@ -149,15 +152,15 @@ allocation_int_t map_l2a(L2A_map *mapping, local_int_t local_index, bool halo)
 /**
  * @brief Populate an Laik_Blob and start with the partitioning such that every process has only access to local values.
  *
+ * @param A SparseMatrix
  * @return populated blob
  */
-Laik_Blob *init_blob(const SparseMatrix &A, bool exchangeHalo)
+Laik_Blob *init_blob(const SparseMatrix &A)
 {
     Laik_Blob *blob = (Laik_Blob *)malloc(sizeof(Laik_Blob));
 
     blob->values = laik_new_data(A.space, laik_Double);
     blob->localLength = A.localNumberOfRows;
-    blob->exchange = exchangeHalo;
 
     // Start with partitioning containing only access to local elements
     laik_switchto_partitioning(blob->values, A.local, LAIK_DF_None, LAIK_RO_None);
@@ -165,16 +168,17 @@ Laik_Blob *init_blob(const SparseMatrix &A, bool exchangeHalo)
     return blob;
 }
 
-void init_partitionings(SparseMatrix &A, pt_data *local, pt_data *ext)
+/**
+ * @brief Initialize partitionings needed to partition the Laik vectors.
+ *
+ * This partitionings are needed to partition the x vectors and to be able to exchange values via LAIK
+ *
+ * @param A SparseMatrix
+ * @param local partitioning
+ * @param ext partitioning
+ */
+void init_partitionings(SparseMatrix &A, partition_d *local, partition_d *ext)
 {
-    // For the case, if repartitioning is enabled. We do not need a new space
-    if (A.space == NULL)
-    {
-        A.space = laik_new_space_1d(hpcg_instance, A.totalNumberOfRows);
-        if (A.localNumberOfRows == 8192)
-            printf("new_space should not be done");
-    }
-
     Laik_Partitioner *x_localPR = laik_new_partitioner("x_localPR", partitioner_alg_for_x_vector, (void *)local, LAIK_PF_None);
     Laik_Partitioner *x_extPR = laik_new_partitioner("x_extPR", partitioner_alg_for_x_vector, (void *)ext, LAIK_PF_None);
 
@@ -212,7 +216,7 @@ void ZeroLaikVector(Laik_Blob *x, L2A_map *mapping)
     laik_get_map_1d(x->values, 0, (void **)&base, &count);
 
     for (uint64_t i = 0; i < x->localLength; i++)
-        base[map_l2a(mapping, i, false)] = 0;
+        base[map_l2a_x(mapping, i, false)] = 0;
 
     return;
 }
@@ -231,7 +235,7 @@ void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value, L2A_map
 
     double *vv;
     laik_get_map_1d(v->values, 0, (void **)&vv, 0);
-    vv[map_l2a(mapping, index, false)] *= value;
+    vv[map_l2a_x(mapping, index, false)] *= value;
     return;
 }
 
@@ -253,7 +257,10 @@ void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y, L2A_map *mapping)
     laik_get_map_1d(y->values, 0, (void **)&yv, 0);
 
     for (uint64_t i = 0; i < x->localLength; i++)
-        yv[map_l2a(mapping, i, false)] = xv[map_l2a(mapping, i, false)];
+    {
+        allocation_int_t j = map_l2a_x(mapping, i, false);
+        yv[j] = xv[j];
+    }
 
     return;
 }
@@ -276,8 +283,10 @@ void fillRandomLaikVector(Laik_Blob *x, L2A_map *mapping)
 
     laik_get_map_1d(x->values, 0, (void **)&xv, &count);
 
+    // TODO. Hardcoded values for now to test it with the original application
     for (uint64_t i = 0; i < x->localLength; i++)
-        xv[map_l2a(mapping, i, false)] = rand() / (double)(RAND_MAX) + 1.0;
+        // xv[map_l2a_x(mapping, i, false)] = rand() / (double)(RAND_MAX) + 1.0;
+        xv[map_l2a_x(mapping, i, false)] = i / (double)(RAND_MAX) + 1.0;
 
     return;
 }
@@ -302,7 +311,7 @@ void CopyVectorToLaikVector(Vector &v, Laik_Blob *x, L2A_map *mapping)
     const double *vv = v.values;
 
     for (uint64_t i = 0; i < x->localLength; i++)
-        xv[map_l2a(mapping, i, false)] = vv[i];
+        xv[map_l2a_x(mapping, i, false)] = vv[i];
 
     return;
 }
@@ -325,7 +334,7 @@ void CopyLaikVectorToVector(const Laik_Blob *x, Vector &v, L2A_map *mapping)
     double *vv = v.values;
 
     for (uint64_t i = 0; i < x->localLength; i++)
-        vv[i] = xv[map_l2a(mapping, i, false)];
+        vv[i] = xv[map_l2a_x(mapping, i, false)];
 
     return;
 }
@@ -379,8 +388,6 @@ void free_L2A_map(L2A_map *mapping)
 void DeleteLaikVector(Laik_Blob *x)
 {
     x->localLength = 0;
-    x->exchange = 0;
-
     laik_free(x->values);
     x->values = NULL;
 }

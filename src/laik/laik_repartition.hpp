@@ -14,7 +14,6 @@
 /*
     Includes
 */
-#include "laik/hpcg_laik.hpp"
 #include <vector>
 
 // forw. decl
@@ -23,6 +22,7 @@ struct SparseMatrix_STRUCT;
 typedef struct SparseMatrix_STRUCT SparseMatrix;
 // forw. decl
 
+#include "laik/hpcg_laik.hpp"
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
 #include "Geometry.hpp"
@@ -31,9 +31,18 @@ typedef struct SparseMatrix_STRUCT SparseMatrix;
     Includes -END
 */
 
+/*
+    Needed functions/variables for shrink/expand feature
+*/
+#ifdef REPARTITION
 extern HPCG_Params hpcg_params;
 
-extern void re_setup_problem(SparseMatrix &A);
+extern allocation_int_t map_l2a_A(SparseMatrix &A, local_int_t localIndex);
+extern void init_SPM_partitionings(SparseMatrix &A);
+extern void repartition_SparseMatrix(SparseMatrix &A);
 extern void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list);
-
+#endif
+/*
+    Needed functions/variables for shrink/expand feature -END
+*/
 #endif // LAIK_REPARTITION_HPP

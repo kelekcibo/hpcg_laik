@@ -34,6 +34,7 @@
 #define TICK() t0 = mytimer()       //!< record current time in 't0'
 #define TOCK(t) t += mytimer() - t0 //!< store time difference in 't' using time in 't0'
 
+#ifndef HPCG_NO_LAIK
 /*!
   Routine to compute an approximate solution to Ax = b
 
@@ -172,7 +173,7 @@ int CG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 
   return 0;
 }
-
+#else
 /*!
   Routine to compute an approximate solution to Ax = b
 
@@ -308,3 +309,4 @@ int CG(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   times[0] += mytimer() - t_begin; // Total time. All done...
   return 0;
 }
+#endif

@@ -23,23 +23,34 @@
 
 #include <cassert>
 
+#ifndef HPCG_NO_LAIK
+// Forw. Decl.
+struct Laik_Blob;
+void DeleteLaikVector(Laik_Blob *x);
+// Forw. Decl.
 #include "laik/hpcg_laik.hpp"
+#endif
+
 #include "Vector.hpp"
 
-struct Laik_Blob;
 
 struct MGData_STRUCT {
   int numberOfPresmootherSteps; // Call ComputeSYMGS this many times prior to coarsening
   int numberOfPostsmootherSteps; // Call ComputeSYMGS this many times after coarsening
   local_int_t * f2cOperator; //!< 1D array containing the fine operator local IDs that will be injected into coarse space.
 
+#ifndef HPCG_NO_LAIK
   Laik_Blob *rc_blob;  // coarse grid residual vector
   Laik_Blob *xc_blob;  // coarse grid solution vector
   Laik_Blob *Axf_blob; // fine grid residual vector
+  #ifdef REPARTITION
+  Laik_Data *f2cOperator_d;
+  #endif
+#else
   Vector *rc;  // coarse grid residual vector
   Vector *xc;  // coarse grid solution vector
   Vector *Axf; // fine grid residual vector
-
+#endif // HPCG_NO_LAIK
   /*!
    This is for storing optimized data structres created in OptimizeProblem and
    used inside optimized ComputeSPMV().
@@ -48,6 +59,7 @@ struct MGData_STRUCT {
 };
 typedef struct MGData_STRUCT MGData;
 
+#ifndef HPCG_NO_LAIK
 /*!
  Constructor for the data structure of CG vectors.
 
@@ -65,7 +77,7 @@ inline void InitializeMGData_laik(local_int_t *f2cOperator, Laik_Blob *rc, Laik_
   data.Axf_blob = Axf;
   return;
 }
-
+#else
 /*!
  Constructor for the data structure of CG vectors.
 
@@ -82,7 +94,7 @@ inline void InitializeMGData(local_int_t * f2cOperator, Vector * rc, Vector * xc
   data.Axf = Axf;
   return;
 }
-
+#endif // HPCG_NO_LAIK
 /*!
  Destructor for the CG vectors data.
 
@@ -90,7 +102,20 @@ inline void InitializeMGData(local_int_t * f2cOperator, Vector * rc, Vector * xc
  */
 inline void DeleteMGData(MGData & data) {
 
-  delete [] data.f2cOperator;
+
+#ifndef HPCG_NO_LAIK
+
+  #ifdef REPARTITION
+    if (data.f2cOperator_d) { laik_free(data.f2cOperator_d); };
+  #else
+    delete[] data.f2cOperator;
+  #endif
+
+  DeleteLaikVector(data.Axf_blob);
+  DeleteLaikVector(data.rc_blob);
+  DeleteLaikVector(data.xc_blob);
+#else
+  delete[] data.f2cOperator;
 
   DeleteVector(*data.Axf);
   DeleteVector(*data.rc);
@@ -98,7 +123,7 @@ inline void DeleteMGData(MGData & data) {
   delete data.Axf;
   delete data.rc;
   delete data.xc;
-  
+#endif
   return;
 }
 

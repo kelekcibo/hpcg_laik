@@ -14,11 +14,11 @@
 /*
     Defs
 */
-#ifndef REPARTITION
-#define REPARTITION
+#ifndef REPARTITION // Delete me, if no repartitioning should happen
+// #define REPARTITION // To enable shrink/expand feature.
 #endif
 
-typedef long long allocation_int_t;
+typedef long long allocation_int_t; // Index to the allocation buffer
 /*
     Defs -END
 */
@@ -45,7 +45,7 @@ extern "C"
 /*
     Important global variables
 */
-// should be initialized at the very beginning of the program. No use without init.
+// Laik context
 extern Laik_Instance *hpcg_instance;
 extern Laik_Group *world;
 /*

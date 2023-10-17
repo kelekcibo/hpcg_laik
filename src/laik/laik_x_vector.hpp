@@ -23,6 +23,7 @@ struct SparseMatrix_STRUCT;
 typedef struct SparseMatrix_STRUCT SparseMatrix;
 // forw. decl
 
+#include "laik/hpcg_laik.hpp"
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
 #include "Geometry.hpp"
@@ -35,7 +36,12 @@ typedef struct SparseMatrix_STRUCT SparseMatrix;
     Structs
 */
 /**
- * @brief Struct (data) needed for the partitioner algorithms
+ * @brief Struct (data) needed for the partitioner algorithm.
+ *
+ * if halo == true:
+ *      This data is needed if a process needs to access external values.
+ * else:
+ *      This data is needed when a process should access only local values
  *
  * @param size                  size of vector x
  * @param elementsToSend        local index to vector x of elements to be sent (converting to global later)
@@ -48,7 +54,7 @@ typedef struct SparseMatrix_STRUCT SparseMatrix;
  * @param halo                  x will be partioned such that indices to external values are owned by other procs as well
  * @param offset                offset to allocation buffer of partitioning with local values
  */
-typedef struct partitioner_data
+struct partition_data
 {
     local_int_t size;                                  /* size of vector x */
     local_int_t *elementsToSend;                       /* local index to vector x of elements to be sent (converting to global later) */
@@ -60,7 +66,8 @@ typedef struct partitioner_data
     std::vector<global_int_t> *localToGlobalMap;       /* local-to-global mapping */
     bool halo;                                         /* x will be partioned such that indices to external values are owned by other procs as well */
     int offset;                                        /* offset to allocation buffer of partitioning */
-} pt_data;
+};
+typedef partition_data partition_d;
 
 /**
  * @brief Making use of the lex_layout, we need following mapping of indices:
@@ -69,28 +76,35 @@ typedef struct partitioner_data
  *
  * As LAIK allocates a buffer under the hood according to the lex layout, we need to specify a mapping for the corresponding
  * indices within that buffer.
+ * 
+ * This mapping is for Laik Vectors
  *
- * // change to Local2Allocation_map
  */
-struct L2A_map 
+struct Local2Allocation_map_x
 {
-    long long offset_ext; /* Offset into allocation buffer with external values */
-    long long offset;     /* Offset into allocation buffer without external values */
+    allocation_int_t offset_ext; /* Offset into allocation buffer with external values */
+    allocation_int_t offset;     /* Offset into allocation buffer without external values */
 
     /* Mapping from Local to Global Indices */
     std::map<local_int_t, global_int_t> localToExternalMap; /* External global indices */
     std::vector<global_int_t> localToGlobalMap;             /* Owned global indices */
     local_int_t localNumberOfRows;                          /* Border between owned and external indices */
 };
+typedef Local2Allocation_map_x L2A_map;
 
+/**
+ * @brief Laik Vector
+ * 
+ * @param name for debugging
+ * @param values LAIK container holding the data
+ * @param localLength of the data
+ */
 struct Laik_Blob
 {
     char *name; // name of the vector /* Debug
 
     Laik_Data *values;
     mutable local_int_t localLength;
-
-    bool exchange; /* This blob will exchange values if true */
 
 #ifdef REPARTITION
     /*
@@ -112,9 +126,9 @@ struct Laik_Blob
     Functions needed to exchange values via LAIK 
 */
 extern void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams *p);
-extern void init_partitionings(SparseMatrix &A, pt_data *local, pt_data *ext);
-extern Laik_Blob *init_blob(const SparseMatrix &A, bool exchangeHalo);
-extern allocation_int_t map_l2a(L2A_map *mapping, local_int_t local_index, bool halo);
+extern void init_partitionings(SparseMatrix &A, partition_d *local, partition_d *ext);
+extern Laik_Blob *init_blob(const SparseMatrix &A);
+extern allocation_int_t map_l2a_x(L2A_map *mapping, local_int_t local_index, bool halo);
 /*
     Functions needed to exchange values via LAIK -END
 */

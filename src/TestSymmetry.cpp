@@ -39,6 +39,7 @@ using std::endl;
 #include "SparseMatrix.hpp"
 #include "TestSymmetry.hpp"
 
+#ifndef HPCG_NO_MPI
 /*!
   Tests symmetry-preserving properties of the sparse matrix vector multiply and multi-grid routines.
 
@@ -63,9 +64,9 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
   local_int_t nrow = A.localNumberOfRows;
   // local_int_t ncol = A.localNumberOfColumns;
 
-  Laik_Blob * x_ncol = init_blob(A, true);
-  Laik_Blob * y_ncol = init_blob(A, true);
-  Laik_Blob * z_ncol = init_blob(A, true);
+  Laik_Blob * x_ncol = init_blob(A);
+  Laik_Blob * y_ncol = init_blob(A);
+  Laik_Blob * z_ncol = init_blob(A);
 
   double t4 = 0.0; // Needed for dot-product call, otherwise unused
   testsymmetry_data.count_fail = 0;
@@ -162,7 +163,7 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
 
   return 0;
 }
-
+#else
 /*!
   Tests symmetry-preserving properties of the sparse matrix vector multiply and multi-grid routines.
 
@@ -286,3 +287,4 @@ int TestSymmetry(SparseMatrix &A, Vector &b, Vector &xexact, TestSymmetryData &t
 
   return 0;
 }
+#endif

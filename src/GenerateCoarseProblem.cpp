@@ -92,82 +92,39 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
     zuc = Af.geom->partz_nz[1]/2; // Coarsen nz for the upper block in the z processor dimension
   }
 
-  if(Af.Ac != NULL)
-  {
-    Geometry * old_geom_Ac = Af.Ac->geom;
-    // Need this variables for generateGeometry, before we delete them
-    assert(old_geom_Ac != NULL);
-
-    // TEST AFTERWARDS
-    // global_int_t old_gnx = old_geom_Ac->gnx;
-    // global_int_t old_gny = old_geom_Ac->gny;
-    // global_int_t old_gnz = old_geom_Ac->gnz;
-
-    DeleteGeometry(*old_geom_Ac); /* Delete old geom (was not deleted in DeleteMatrix_repartition())*/
-
-    // should be the same problem size
-    // assert(old_gnx == geomc->gnx);
-    // assert(old_gny == geomc->gny);
-    // assert(old_gnz == geomc->gnz);
-  }
-
   GenerateGeometry(Af.geom->size, Af.geom->rank, Af.geom->numThreads, Af.geom->pz, zlc, zuc, nxc, nyc, nzc, Af.geom->npx, Af.geom->npy, Af.geom->npz, geomc);
 
+  SparseMatrix *Ac = new SparseMatrix;
+  InitializeSparseMatrix(*Ac, geomc);
+  GenerateProblem(*Ac, 0, 0, 0);
+  SetupHalo(*Ac);
 
-  if(Af.Ac != NULL)
-  {
-    // This is for repartitioning.
-    assert(Af.Ac != NULL);
-    assert(Af.mgData != NULL);
-    assert(Af.mgData->Axf_blob != NULL); /* Means other blobs are also != NULL */
+  MGData *mgData = new MGData;
 
-    Af.Ac->geom = geomc; /* Only new geom will be set, other variables are assigned in generateProblem and SetupHalo */
+#ifndef HPCG_NO_LAIK
+  Laik_Blob *rc_blob = init_blob(*Ac);
+  rc_blob->name = "MG_Data rc";
+  Laik_Blob *xc_blob = init_blob(*Ac);
+  rc_blob->name = "MG_Data xc";
+  Laik_Blob *Axf_blob = init_blob(Af);
+  Axf_blob->name = "MG_Data Axf";
 
-    GenerateProblem(*Af.Ac, 0, 0, 0); // "Main level" Maitrx
+  InitializeMGData_laik(f2cOperator, rc_blob, xc_blob, Axf_blob, *mgData);
+  // mgData->f2cOperator_d = laik_new_data(Af.space, laik_UInt64);
+  // laik_switchto_partitioning(mgData->f2cOperator_d, Af.partitioning_1d, LAIK_DF_None, LAIK_RO_None);
+#else
+  Vector *rc = new Vector;
+  Vector *xc = new Vector;
+  Vector *Axf = new Vector;
+  InitializeVector(*rc, Ac->localNumberOfRows);
+  InitializeVector(*xc, Ac->localNumberOfColumns);
+  InitializeVector(*Axf, Af.localNumberOfColumns);
 
-    // save pointer to old partitionings, since they need to be freed after call to re_switch_LaikVectors
-    assert(Af.Ac->old_local == NULL);
-    assert(Af.Ac->old_ext == NULL);
-    Af.Ac->old_local = Af.Ac->local;
-    Af.Ac->old_ext = Af.Ac->ext;
+  InitializeMGData(f2cOperator, rc, xc, Axf, *mgData);
+#endif
 
-    SetupHalo(*Af.Ac);
-
-    // This means we are repartitioning the world. Need to update f2cOperator of current mg Data
-    // is this correct?
-    Af.mgData->f2cOperator = f2cOperator;
-  }
-  else
-  {
-    assert(Af.mgData == NULL); /* Af.Ac == NULL means mgData == NULL */
-
-    SparseMatrix *Ac = new SparseMatrix;
-    InitializeSparseMatrix(*Ac, geomc);
-    GenerateProblem(*Ac, 0, 0, 0);
-    SetupHalo(*Ac);
-
-    // This if is for the case if repartition is enabled. Do not need to init the vectors again
-    Laik_Blob *rc_blob = init_blob(*Ac, false);
-    rc_blob->name = "MG_Data rc";
-    Laik_Blob *xc_blob = init_blob(*Ac, true);
-    rc_blob->name = "MG_Data xc";
-    Laik_Blob *Axf_blob = init_blob(Af, true);
-    Axf_blob->name = "MG_Data Axf";
-
-    Vector *rc = new Vector;
-    Vector *xc = new Vector;
-    Vector *Axf = new Vector;
-    InitializeVector(*rc, Ac->localNumberOfRows);
-    InitializeVector(*xc, Ac->localNumberOfColumns);
-    InitializeVector(*Axf, Af.localNumberOfColumns);
-
-    MGData *mgData = new MGData;
-    InitializeMGData_laik(f2cOperator, rc_blob, xc_blob, Axf_blob, *mgData);
-    InitializeMGData(f2cOperator, rc, xc, Axf, *mgData);
-    Af.mgData = mgData;
-
-    Af.Ac = Ac;
-  }
+  Af.mgData = mgData;
+  Af.Ac = Ac;
 
   return;
 }

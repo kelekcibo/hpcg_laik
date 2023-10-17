@@ -73,9 +73,9 @@ int ComputeSPMV_laik_ref(const SparseMatrix &A, Laik_Blob *x, Laik_Blob *y)
     const int cur_nnz = A.nonzerosInRow[i];
 
     for (int j=0; j< cur_nnz; j++)
-        sum += cur_vals[j] * xv[map_l2a(A.mapping, cur_inds[j], true)];
+        sum += cur_vals[j] * xv[map_l2a_x(A.mapping, cur_inds[j], true)];
 
-    yv[map_l2a(A.mapping, i, false)] = sum;
+    yv[map_l2a_x(A.mapping, i, false)] = sum;
   }
 
   laik_switchto_partitioning(x->values, A.local, LAIK_DF_None, LAIK_RO_None);

@@ -18,9 +18,6 @@
  HPCG routine
  */
 
-struct SparseMatrix_STRUCT;
-typedef struct SparseMatrix_STRUCT SparseMatrix;
-
 #include <cassert>
 #include <iostream>
 
@@ -31,6 +28,7 @@ typedef struct SparseMatrix_STRUCT SparseMatrix;
 #include "ComputeRestriction_ref.hpp"
 #include "ComputeProlongation_ref.hpp"
 
+#ifndef HPCG_NO_LAIK
 /*!
 
   @param[in] A the known system matrix
@@ -87,7 +85,7 @@ int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x
   }
   return 0;
 }
-
+#else
 /*!
 
   @param[in] A the known system matrix
@@ -139,3 +137,4 @@ int ComputeMG_ref(const SparseMatrix &A, const Vector &r, Vector &x)
   }
   return 0;
 }
+#endif

@@ -25,10 +25,15 @@
 #include <cassert>
 #include <map>
 
-struct L2A_map;
+#ifndef HPCG_NO_LAIK
+// forw. decl.
+struct Local2Allocation_map_x;
+typedef Local2Allocation_map_x L2A_map;
 void free_L2A_map(L2A_map *mapping);
-
+// forw. decl.
 #include "laik/hpcg_laik.hpp"
+#endif
+
 #include "Geometry.hpp"
 #include "Vector.hpp"
 #include "MGData.hpp"
@@ -41,8 +46,6 @@ typedef std::map< global_int_t, local_int_t > GlobalToLocalMap;
 #include <unordered_map>
 using GlobalToLocalMap = std::unordered_map< global_int_t, local_int_t >;
 #endif
-
-struct L2A_map;
 
 struct SparseMatrix_STRUCT {
   char  * title; //!< name of the sparse matrix
@@ -81,7 +84,7 @@ struct SparseMatrix_STRUCT {
   local_int_t * sendLength; //!< lenghts of messages sent to neighboring processes
   double * sendBuffer; //!< send buffer for non-blocking sends
 
-  // #ifdef USE_LAIK
+#ifndef HPCG_NO_LAIK
   // ############### Data needed to create partitionings and Laik_Data container
   std::map<local_int_t, global_int_t> localToExternalMap; /* Needed for LAIK (@see L2A_map)*/
   L2A_map * mapping;
@@ -89,15 +92,28 @@ struct SparseMatrix_STRUCT {
   Laik_Partitioning * ext;
   Laik_Partitioning * local;
 
-  #ifdef REPARTITION
-    // For Repartition.
-    Laik_Partitioning * old_ext;
-    Laik_Partitioning * old_local;
-    bool repartition_me; /* Tell the app, that a reseize should happen. We want to test it during the call to TestCG */
-#endif // REPARTITION
+#ifdef REPARTITION
 
-  // #endif // USE_LAIK
-#endif
+    bool repartition_me; /* Tell the app, that a reseize should happen. We want to test it during the call to CG_REFin CG Reference Timing Phase */
+
+    int64_t offset_; // @see L2A_map. Same applies for allocation buffers of A
+
+    // 2D-Space needed for 2D-Data
+    Laik_Space *space2d; 
+
+    // Partitionings for ressources below
+    Laik_Partitioning * partitioning_1d;
+    Laik_Partitioning * partitioning_2d;
+
+    // Ressources of this matrix, which will be partitioned
+    Laik_Data * nonzerosInRow_d;    //!< The number of nonzeros in a row will always be 27 or fewer
+    Laik_Data * mtxIndG_d;          //!< matrix indices as global values
+    Laik_Data * matrixValues_d;     //!< values of matrix entries
+    Laik_Data * matrixDiagonal_d;   //!< values of matrix diagonal entries
+
+#endif // REPARTITION
+#endif // HPCG_NO_LAIK
+#endif // HPCG_NO_MPI
 };
 typedef struct SparseMatrix_STRUCT SparseMatrix;
 
@@ -137,18 +153,25 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
   A.sendLength = 0;
   A.sendBuffer = 0;
   
-  // ## Laik specific
+  #ifndef HPCG_NO_LAIK
   A.mapping = 0;
   A.space = 0;
   A.ext = 0;
   A.local = 0;
-
-  #ifdef REPARTITION
-    A.old_local = 0;
-    A.old_ext = 0;
-    A.repartition_me = false;
-  #endif
-#endif
+  
+    #ifdef REPARTITION
+      A.repartition_me = false;
+      A.offset_ = -1;
+      A.space2d = 0;
+      A.partitioning_1d = 0;
+      A.partitioning_2d = 0;
+      A.nonzerosInRow_d = 0;
+      A.mtxIndG_d = 0;
+      A.matrixValues_d = 0;
+      A.matrixDiagonal_d = 0;
+    #endif // REPARTITION
+  #endif // HPCG_NO_LAIK
+#endif // HPCG_NO_MPI
   A.mgData = 0; // Fine-to-coarse grid transfer initially not defined.
   A.Ac =0;
   return;
@@ -211,91 +234,34 @@ inline void DeleteMatrix(SparseMatrix & A) {
   if (A.receiveLength)            delete [] A.receiveLength;
   if (A.sendLength)            delete [] A.sendLength;
   if (A.sendBuffer)            delete [] A.sendBuffer;
-#endif
+
+  #ifndef HPCG_NO_LAIK
+    // Delete LAIK specific data
+    A.globalToLocalMap.clear();
+    if (A.mapping) free_L2A_map(A.mapping);
+    if (A.space) { laik_free_space(A.space); A.space = 0; }
+    if (A.local) { laik_free_partitioning(A.local); A.local = 0; };
+    if (A.ext) { laik_free_partitioning(A.ext); A.ext = 0; };
+
+    #ifdef REPARTITION
+      if (A.space2d) { laik_free_space(A.space2d); A.space2d = 0; }
+      if (A.partitioning_1d) { laik_free_partitioning(A.partitioning_1d); A.partitioning_1d = 0; };
+      if (A.partitioning_2d) { laik_free_partitioning(A.partitioning_2d); A.partitioning_2d = 0; };
+      if (A.mtxIndG_d) { laik_free(A.mtxIndG_d); };
+      if (A.matrixValues_d) { laik_free(A.matrixValues_d); };
+      if (A.nonzerosInRow_d) { laik_free(A.nonzerosInRow_d); };
+      if (A.matrixDiagonal_d) { laik_free(A.matrixDiagonal_d); };
+    #endif // REPARTITION
+  #endif // HPCG_NO_LAIK
+#endif // HPCG_NO_MPI
 
   if (A.geom!=0) { DeleteGeometry(*A.geom); delete A.geom; A.geom = 0;}
   if (A.Ac!=0) { DeleteMatrix(*A.Ac); delete A.Ac; A.Ac = 0;} // Delete coarse matrix
   if (A.mgData!=0) { DeleteMGData(*A.mgData); delete A.mgData; A.mgData = 0;} // Delete MG data
+
   return;
 }
 
-#ifdef REPARTITION
-/*!
-  Deallocates the members of the data structure of the known system matrix provided they are not 0.
-
-  For REPARTITIONING.
-
-  Delete values which will be updated during repartitioning
-
-  Geometry needs to be deleted seperately.
-
-  @param[in] A the known system matrix
-  @param[in] exiting tells if MGData and Geom will be deleted as well
-
- */
-inline void DeleteMatrix_repartition(SparseMatrix &A, bool exiting)
-{
-
-#ifndef HPCG_CONTIGUOUS_ARRAYS
-if(!exiting)
-{
-  for (local_int_t i = 0; i < A.localNumberOfRows; ++i)
-  {
-    delete[] A.matrixValues[i];
-    delete[] A.mtxIndG[i];
-    delete[] A.mtxIndL[i];
-  }
-}
-#else
-if(!exiting)
-{
-  delete[] A.matrixValues[0];
-  delete[] A.mtxIndG[0];
-  delete[] A.mtxIndL[0];
-}
-#endif
-  if (A.title)                  delete [] A.title;
-  if (A.nonzerosInRow)             delete [] A.nonzerosInRow;
-  if (A.mtxIndG) delete [] A.mtxIndG;
-  if (A.mtxIndL) delete [] A.mtxIndL;
-  if (A.matrixValues) delete [] A.matrixValues;
-  if (A.matrixDiagonal)           delete [] A.matrixDiagonal;
-
-#ifndef HPCG_NO_MPI
-  if (A.elementsToSend)       delete [] A.elementsToSend;
-  if (A.neighbors)              delete [] A.neighbors;
-  if (A.receiveLength)            delete [] A.receiveLength;
-  if (A.sendLength)            delete [] A.sendLength;
-  if (A.sendBuffer)            delete [] A.sendBuffer;
   
-  /* Will also be updated */
-  // A.localToExternalMap.clear(); These two are deleted in free_L2A_map
-  // A.localToGlobalMap.clear();
-  if(!exiting)
-    A.globalToLocalMap.clear();
-#endif
-
-  /* We do not free the space, since all LAIK Data containers are associated with that space. Partitionings will be deleted after a switch to */
-  if (A.mapping) free_L2A_map(A.mapping);
-
-  if (A.Ac != 0)  { DeleteMatrix_repartition(*A.Ac, exiting); }
-
-  // Procs will delete this information as well after the last switch to.
-  if(exiting)
-  {
-    if (A.mgData) { DeleteMGData(*A.mgData); delete A.mgData; A.mgData = 0; }
-    if (A.geom) { DeleteGeometry(*A.geom); delete A.geom; A.geom = 0; }
-    if (A.space) { laik_free_space(A.space); A.space = 0; }
-    if (A.local) { laik_free_partitioning(A.local); A.local = 0; };
-    if (A.ext) { laik_free_partitioning(A.ext); A.ext = 0; };
-    if (A.old_ext) { laik_free_partitioning(A.old_ext); A.old_ext = 0; };
-    if (A.old_local) { laik_free_partitioning(A.old_local); A.old_local = 0; };
-    
-    delete A.Ac; A.Ac = 0;
-  }
-
-  return;
-}
-#endif // REPARTITION
 
 #endif // SPARSEMATRIX_HPP
