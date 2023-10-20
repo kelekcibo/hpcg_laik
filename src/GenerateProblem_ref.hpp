@@ -15,13 +15,13 @@
 #ifndef GENERATEPROBLEM_REF_HPP
 #define GENERATEPROBLEM_REF_HPP
 
+#include "laik/hpcg_laik.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
 void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact);
 
 #ifndef HPCG_NO_LAIK
-#include "laik/hpcg_laik.hpp"
 #ifdef REPARTITION
 void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vector *xexact);
 #endif // HPCG_NO_LAIK

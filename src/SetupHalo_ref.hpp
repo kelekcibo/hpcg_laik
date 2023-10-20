@@ -19,4 +19,10 @@
 
 void SetupHalo_ref(SparseMatrix & A);
 
+#ifndef HPCG_NO_LAIK
+#ifdef REPARTITION
+void SetupHalo_repartition_ref(SparseMatrix &A);
+#endif
+#endif
+
 #endif // SETUPHALO_REF_HPP

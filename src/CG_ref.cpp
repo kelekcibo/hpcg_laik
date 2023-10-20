@@ -150,8 +150,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
           /* Vectors in MG_data will be recursively handled in re_switch_LaikVectors */
           list.push_back(b);
           list.push_back(x);
-          assert(x->name == "x_l");
-          list.push_back(x->xexact_l_ptr);
+          list.push_back(A.ptr_to_xexact); /* x_exact is out of scope but we need to switch this vector as well*/
           list.push_back(r);
           list.push_back(z);
           list.push_back(p);
@@ -167,6 +166,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
           {
             DeleteMatrix(A);
             DeleteCGData(data);
+            DeleteLaikVector(A.ptr_to_xexact);
             DeleteLaikVector(x);
             DeleteLaikVector(b);
             laik_free_partitioning(old_local);
@@ -174,6 +174,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
             laik_free_partitioning(old_partitioning_1d);
             laik_free_partitioning(old_partitioning_2d);
 
+            HPCG_Finalize();
             laik_finalize(hpcg_instance);
             exit(0);
           }

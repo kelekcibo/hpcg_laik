@@ -96,9 +96,10 @@ struct SparseMatrix_STRUCT {
 
     bool repartition_me; /* Tell the app, that a reseize should happen. We want to test it during the call to CG_REFin CG Reference Timing Phase */
 
-    int64_t offset_; // @see L2A_map. Same applies for allocation buffers of A
-
-    // 2D-Space needed for 2D-Data
+    uint64_t * mapping_; // @see L2A_map. Same applies for allocation buffers of A
+    int offset_;
+    
+    // Special space for 2D arrays implemented as 1D array
     Laik_Space *space2d; 
 
     // Partitionings for ressources below
@@ -110,6 +111,15 @@ struct SparseMatrix_STRUCT {
     Laik_Data * mtxIndG_d;          //!< matrix indices as global values
     Laik_Data * matrixValues_d;     //!< values of matrix entries
     Laik_Data * matrixDiagonal_d;   //!< values of matrix diagonal entries
+
+    /*
+      This variable is only for x_l
+      He will store the pointer to xexact_l
+      We need to re-switch this vector as well
+      But when reseizing, xexact_l is out of scope
+      Quick solution is this here
+    */
+    Laik_Blob * ptr_to_xexact = 0;
 
 #endif // REPARTITION
 #endif // HPCG_NO_LAIK
@@ -161,7 +171,8 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
   
     #ifdef REPARTITION
       A.repartition_me = false;
-      A.offset_ = -1;
+      A.mapping_ = 0;
+      A.offset_ = 0;
       A.space2d = 0;
       A.partitioning_1d = 0;
       A.partitioning_2d = 0;
@@ -169,6 +180,7 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
       A.mtxIndG_d = 0;
       A.matrixValues_d = 0;
       A.matrixDiagonal_d = 0;
+      A.ptr_to_xexact = 0;
     #endif // REPARTITION
   #endif // HPCG_NO_LAIK
 #endif // HPCG_NO_MPI
@@ -244,6 +256,7 @@ inline void DeleteMatrix(SparseMatrix & A) {
     if (A.ext) { laik_free_partitioning(A.ext); A.ext = 0; };
 
     #ifdef REPARTITION
+      if (A.mapping_) {  delete [] A.mapping_; A.mapping_ = 0;};
       if (A.space2d) { laik_free_space(A.space2d); A.space2d = 0; }
       if (A.partitioning_1d) { laik_free_partitioning(A.partitioning_1d); A.partitioning_1d = 0; };
       if (A.partitioning_2d) { laik_free_partitioning(A.partitioning_2d); A.partitioning_2d = 0; };

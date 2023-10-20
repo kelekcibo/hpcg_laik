@@ -43,6 +43,14 @@
 
 void GenerateCoarseProblem(const SparseMatrix & Af) {
 
+  // Extract Matrix pieces
+#ifndef HPCG_NO_LAIK
+#ifdef REPARTITION
+  GenerateCoarseProblem_repartition_ref(Af);
+  return;
+#endif
+#endif
+
   // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
   // below may result in global range values.
   global_int_t nxf = Af.geom->nx;
@@ -128,3 +136,100 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
 
   return;
 }
+
+#ifndef HPCG_NO_LAIK
+#ifdef REPARTITION
+void CheckProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact);
+
+void GenerateCoarseProblem_repartition_ref(const SparseMatrix &Af)
+{
+  // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
+  // below may result in global range values.
+  global_int_t nxf = Af.geom->nx;
+  global_int_t nyf = Af.geom->ny;
+  global_int_t nzf = Af.geom->nz;
+
+  local_int_t nxc, nyc, nzc; // Coarse nx, ny, nz
+  assert(nxf % 2 == 0);
+  assert(nyf % 2 == 0);
+  assert(nzf % 2 == 0); // Need fine grid dimensions to be divisible by 2
+  nxc = nxf / 2;
+  nyc = nyf / 2;
+  nzc = nzf / 2;
+
+  Laik_Data * f2cOperator_d = laik_new_data(Af.space, laik_UInt64);
+  laik_switchto_partitioning(f2cOperator_d, Af.partitioning_1d, LAIK_DF_None, LAIK_RO_None);
+
+  local_int_t *f2cOperator;
+  laik_get_map_1d(f2cOperator_d, 0, (void **)&f2cOperator, 0);
+
+  local_int_t localNumberOfRows = nxc * nyc * nzc; // This is the size of our subblock
+  // If this assert fails, it most likely means that the local_int_t is set to int and should be set to long long
+  assert(localNumberOfRows > 0); // Throw an exception of the number of rows is less than zero (can happen if "int" overflows)
+  // Use a parallel loop to do initial assignment:
+  // distributes the physical placement of arrays of pointers across the memory system
+#ifndef HPCG_NO_OPENMP
+#pragma omp parallel for
+#endif
+  for (local_int_t i = 0; i < localNumberOfRows; ++i)
+  {
+    f2cOperator[map_l2a_A(Af, i)] = 0;
+  }
+
+  // TODO:  This triply nested loop could be flattened or use nested parallelism
+#ifndef HPCG_NO_OPENMP
+#pragma omp parallel for
+#endif
+  for (local_int_t izc = 0; izc < nzc; ++izc)
+  {
+    local_int_t izf = 2 * izc;
+    for (local_int_t iyc = 0; iyc < nyc; ++iyc)
+    {
+      local_int_t iyf = 2 * iyc;
+      for (local_int_t ixc = 0; ixc < nxc; ++ixc)
+      {
+        local_int_t ixf = 2 * ixc;
+        local_int_t currentCoarseRow = izc * nxc * nyc + iyc * nxc + ixc;
+        local_int_t currentFineRow = izf * nxf * nyf + iyf * nxf + ixf;
+        f2cOperator[map_l2a_A(Af, currentCoarseRow)] = currentFineRow;
+      } // end iy loop
+    }   // end even iz if statement
+  }     // end iz loop
+
+  // Construct the geometry and linear system
+  Geometry *geomc = new Geometry;
+  local_int_t zlc = 0; // Coarsen nz for the lower block in the z processor dimension
+  local_int_t zuc = 0; // Coarsen nz for the upper block in the z processor dimension
+  int pz = Af.geom->pz;
+  if (pz > 0)
+  {
+    zlc = Af.geom->partz_nz[0] / 2; // Coarsen nz for the lower block in the z processor dimension
+    zuc = Af.geom->partz_nz[1] / 2; // Coarsen nz for the upper block in the z processor dimension
+  }
+
+  GenerateGeometry(Af.geom->size, Af.geom->rank, Af.geom->numThreads, Af.geom->pz, zlc, zuc, nxc, nyc, nzc, Af.geom->npx, Af.geom->npy, Af.geom->npz, geomc);
+
+  SparseMatrix *Ac = new SparseMatrix;
+  InitializeSparseMatrix(*Ac, geomc);
+  GenerateProblem(*Ac, 0, 0, 0);
+  SetupHalo(*Ac);
+
+  MGData *mgData = new MGData;
+
+  Laik_Blob *rc_blob = init_blob(*Ac);
+  rc_blob->name = "MG_Data rc";
+  Laik_Blob *xc_blob = init_blob(*Ac);
+  rc_blob->name = "MG_Data xc";
+  Laik_Blob *Axf_blob = init_blob(Af);
+  Axf_blob->name = "MG_Data Axf";
+
+  InitializeMGData_repartition(f2cOperator_d, rc_blob, xc_blob, Axf_blob, *mgData);
+
+
+  Af.mgData = mgData;
+  Af.Ac = Ac;
+
+  return;
+}
+#endif // HPCG_NO_LAIK
+#endif // REPARTITION

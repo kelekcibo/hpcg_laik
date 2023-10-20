@@ -146,16 +146,13 @@ int main(int argc, char *argv[])
 
 #ifndef HPCG_NO_LAIK
   if (doIO)
-    printf("######## HPCG LAIK v1.1 ########\n#\n# New Features\n#\t-Expanding/Shrinking the group of processes\n#\n\n");
+    HPCG_fout << "######## HPCG LAIK v1.1 ########\n#\n# New Features\n#\t-Expanding/Shrinking the group of processes\n#\n\n";
 #endif // HPCG_NO_LAIK
 
   // Construct the geometry and linear system
  
   Geometry *geom = new Geometry;
   GenerateGeometry(size, rank, params.numThreads, params.pz, params.zl, params.zu, nx, ny, nz, params.npx, params.npy, params.npz, geom);
-
-  // print_HPCG_PARAMS(params, rank == 0);
-  // exit_hpcg_run("PARAMS");
 
   ierr = CheckAspectRatio(0.125, geom->npx, geom->npy, geom->npz, "process grid", rank == 0);
   if (ierr)
@@ -177,7 +174,6 @@ int main(int argc, char *argv[])
   Vector b, x, xexact;
 
   GenerateProblem(A, &b, &x, &xexact);
-
   SetupHalo(A);
 
 #ifndef HPCG_NO_LAIK
@@ -188,13 +184,14 @@ int main(int argc, char *argv[])
   x_l->name = "x_l";
   Laik_Blob *xexact_l = init_blob(A);
   xexact_l->name = "xexact_l";
+  
 
   CopyVectorToLaikVector(b, b_l, A.mapping);
   CopyVectorToLaikVector(x, x_l, A.mapping);
   CopyVectorToLaikVector(xexact, xexact_l, A.mapping);
 
 #ifdef REPARTITION
-  x_l->xexact_l_ptr = xexact_l; /* See @Laik_Blob */
+  A.ptr_to_xexact = xexact_l; /* See @Laik_Blob */
 #endif
 
 #endif // HPCG_NO_LAIK
@@ -249,7 +246,6 @@ int main(int argc, char *argv[])
   FillRandomVector(x_overlap);
 #endif // HPCG_NO_LAIK
 
-  
   int numberOfCalls = 10;
   if (quickPath) numberOfCalls = 1; // QuickPath means we do on one call of each block of repetitive code
   double t_begin = mytimer();
@@ -263,7 +259,7 @@ int main(int argc, char *argv[])
     if (ierr) HPCG_fout << "Error in call to SpMV: " << ierr << ".\n" << endl;
 
 #ifndef HPCG_NO_LAIK
-    ierr = ComputeMG_laik_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
+    // ierr = ComputeMG_laik_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
 #else
     ierr = ComputeMG_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
 #endif
@@ -274,6 +270,10 @@ int main(int argc, char *argv[])
   if (rank == 0)
     HPCG_fout << "Total SpMV+MG timing phase execution time in main (sec) = " << mytimer() - t1 << endl;
 #endif
+
+printResultLaikVector(b_computed, A.mapping);
+
+// exit_hpcg_run("First Phase!");
 
   ///////////////////////////////
   // Reference CG Timing Phase //

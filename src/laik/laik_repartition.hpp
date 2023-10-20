@@ -36,8 +36,9 @@ typedef struct SparseMatrix_STRUCT SparseMatrix;
 */
 #ifdef REPARTITION
 extern HPCG_Params hpcg_params;
+const local_int_t numberOfNonzerosPerRow = 27; // We are approximating a 27-point finite element/volume/difference 3D stencil
 
-extern allocation_int_t map_l2a_A(SparseMatrix &A, local_int_t localIndex);
+extern allocation_int_t map_l2a_A(const SparseMatrix &A, local_int_t localIndex);
 extern void init_SPM_partitionings(SparseMatrix &A);
 extern void repartition_SparseMatrix(SparseMatrix &A);
 extern void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list);

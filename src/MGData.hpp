@@ -77,6 +77,18 @@ inline void InitializeMGData_laik(local_int_t *f2cOperator, Laik_Blob *rc, Laik_
   data.Axf_blob = Axf;
   return;
 }
+
+#ifdef REPARTITION
+inline void InitializeMGData_repartition(Laik_Data *f2cOperator_d, Laik_Blob *rc, Laik_Blob *xc, Laik_Blob *Axf, MGData &data)
+{
+  data.numberOfPresmootherSteps = 1;
+  data.numberOfPostsmootherSteps = 1;
+  data.f2cOperator_d = f2cOperator_d; // Space for injection operator
+  data.rc_blob = rc;
+  data.xc_blob = xc;
+  data.Axf_blob = Axf;
+}
+#endif
 #else
 /*!
  Constructor for the data structure of CG vectors.

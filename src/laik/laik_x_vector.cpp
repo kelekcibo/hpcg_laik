@@ -57,9 +57,6 @@ void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams 
         if (data->offset == -1 && rank == proc)
             data->offset = i;
 
-        // if(i== 0)
-        //     printf("Global row 0 belongs to proc %d\n", ComputeRankOfMatrixRow(*data->geom, 0));
-
         // a += std::to_string(ComputeRankOfMatrixRow(*data->geom, i)) + ", ";
     }
 
@@ -166,6 +163,41 @@ Laik_Blob *init_blob(const SparseMatrix &A)
     laik_switchto_partitioning(blob->values, A.local, LAIK_DF_None, LAIK_RO_None);
 
     return blob;
+}
+
+/**
+ * @brief Initialize partition_d data needed to partition the Laik vectors.
+ *
+ * Needs to be called before init_partitionings()
+ *
+ * @param A SparseMatrix
+ * @param local partitioning data
+ * @param ext partitioning data
+ */
+void init_partition_data(SparseMatrix &A, partition_d *local, partition_d *ext)
+{
+    ext->size = A.totalNumberOfRows;
+    ext->geom = A.geom;
+    ext->numberOfNeighbours = A.numberOfSendNeighbors;
+    ext->neighbors = A.neighbors;
+    ext->localToGlobalMap = &A.localToGlobalMap;
+    ext->elementsToSend = A.elementsToSend;
+    ext->receiveLength = A.receiveLength;
+    ext->halo = true;
+    ext->offset = -1;
+
+    local->halo = false;
+    local->geom = ext->geom;
+    local->size = ext->size;
+    local->offset = -1;
+    /* These values are not needed for the 2nd partitioning */
+    local->neighbors = NULL;
+    local->localToGlobalMap = NULL;
+    local->elementsToSend = NULL;
+    local->receiveLength = NULL;
+    local->numberOfNeighbours = -1;
+
+    return;
 }
 
 /**

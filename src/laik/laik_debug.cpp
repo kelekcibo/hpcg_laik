@@ -145,9 +145,6 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
               << "\nLocal # of nonzeros " << spm->localNumberOfNonzeros
               << std::endl;
 
-    // HPCG_fout << "NumberOfExternalValues: " << (spm->localNumberOfColumns - spm->localNumberOfRows)
-    //           << std::endl;
-
     // HPCG_fout << "\n##################### Mapping of rows #####################\n\n";
 
     // // Global to local mapping:
@@ -163,20 +160,6 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
     // for (int c = 0; c < spm->globalToLocalMap.size(); c++)
     // {
     //   HPCG_fout << c << "\t\t" << spm->globalToLocalMap[c] << std::endl;
-    // }
-
-    // // Non zero indexes
-    // HPCG_fout << "\n\n##################### Local subblock in matrix #####################\n\n";
-    // for (uint64_t row_i = 0; row_i < spm->localNumberOfRows && row_i < 8; row_i++)
-    // {
-    //   HPCG_fout << "Row " << row_i << " (" << (int)spm->nonzerosInRow[row_i] << " non zeros) mtxIndL" << std::endl
-    //             << std::endl;
-
-    //   for (uint64_t nz_column_j = 0; nz_column_j < spm->nonzerosInRow[row_i]; nz_column_j++)
-    //   {
-    //     HPCG_fout << "Index (" << row_i << "," << spm->mtxIndL[row_i][nz_column_j] << ") = " << spm->matrixValues[row_i][nz_column_j] << std::endl;
-    //   }
-    //   HPCG_fout << std::endl;
     // }
 
     if (spm->geom->rank != 0)
@@ -197,9 +180,6 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
                   << "\nLocal # of nonzeros " << spm->localNumberOfNonzeros
                   << std::endl;
 
-        // std::cout << "NumberOfExternalValues: " << (spm->localNumberOfColumns - spm->localNumberOfRows)
-        //           << std::endl;
-
         // std::cout << "\n##################### Mapping of rows #####################\n\n";
 
         // // Global to local mapping:
@@ -210,6 +190,8 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
         //     std::cout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
         // }
     }
+
+    return;
 }
 
 /**

@@ -52,6 +52,14 @@ using std::endl;
 void GenerateProblem_ref(SparseMatrix &A, Vector *b, Vector *x, Vector *xexact)
 {
 
+#ifndef HPCG_NO_LAIK
+#ifdef REPARTITION 
+    // If LAIK is used and repartitioning is enabled
+    GenerateProblem_repartition_ref(A, b, x, xexact);
+    return;
+#endif
+#endif
+
     // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
     // below may result in global range values.
     global_int_t nx = A.geom->nx;
@@ -286,7 +294,10 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
 
     global_int_t totalNumberOfRows = gnx * gny * gnz; // Total number of grid points in mesh
 
-// If this assert fails, it most likely means that the global_int_t is set to int and should be set to long long
+    A.totalNumberOfRows = totalNumberOfRows;
+    A.localNumberOfRows = localNumberOfRows;
+
+    // If this assert fails, it most likely means that the global_int_t is set to int and should be set to long long
     assert(totalNumberOfRows > 0); // Throw an exception of the number of rows is less than zero (can happen if int overflow)
 
     init_SPM_partitionings(A);
@@ -294,20 +305,15 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
     char *nonzerosInRow;
     laik_get_map_1d(A.nonzerosInRow_d, 0, (void **)&nonzerosInRow, 0);
 
-    uint64_t *mtxIndG;
-    uint64_t ysize_indG; uint64_t ystride_indG; uint64_t xsize_indG;
-    laik_get_map_2d(A.mtxIndG_d, 0, (void **)&mtxIndG, &ysize_indG, &ystride_indG, &xsize_indG);
-
-    double *matrixValues;
-    uint64_t ysize_Val; uint64_t ystride_Val; uint64_t xsize_Val;
-    laik_get_map_2d(A.matrixValues_d, 0, (void **)&matrixValues, &ysize_Val, &ystride_Val, &xsize_Val);
-
     double *matrixDiagonal;
-    uint64_t ysize_dia; uint64_t ystride_dia; uint64_t xsize_dia;
-    laik_get_map_2d(A.matrixDiagonal_d, 0, (void **)&matrixDiagonal, &ysize_dia, &ystride_dia, &xsize_dia);
-    assert(ysize_dia == ysize_indG);
-    assert(ysize_indG == ysize_Val);
+    laik_get_map_1d(A.matrixDiagonal_d, 0, (void **)&matrixDiagonal, 0);
 
+    uint64_t *mtxIndG;
+    laik_get_map_1d(A.mtxIndG_d, 0, (void **)&mtxIndG, 0);
+    
+    double *matrixValues;
+    laik_get_map_1d(A.matrixValues_d, 0, (void **)&matrixValues, 0);
+   
     // Allocate arrays that are of length localNumberOfRows
     local_int_t **mtxIndL = new local_int_t *[localNumberOfRows];
 
@@ -334,8 +340,21 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
 #pragma omp parallel for
 #endif
     for (local_int_t i = 0; i < localNumberOfRows; ++i)
+    {
         mtxIndL[i] = 0;
+        matrixDiagonal[map_l2a_A(A, i)] = 0;
+    }
 
+    for (local_int_t i = 0; i < localNumberOfRows; i++)
+    {
+        for (local_int_t j = 0; j < numberOfNonzerosPerRow; j++)
+        {
+            mtxIndG[map_l2a_A(A, i) * numberOfNonzerosPerRow + j] = 0;
+            matrixValues[map_l2a_A(A, i) * numberOfNonzerosPerRow + j] = 0;
+        }
+        
+    }
+    
 #ifndef HPCG_CONTIGUOUS_ARRAYS
     // Now allocate the arrays pointed to
     for (local_int_t i = 0; i < localNumberOfRows; ++i)
@@ -347,7 +366,6 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
     for (local_int_t i = 1; i < localNumberOfRows; ++i)
         mtxIndL[i] = mtxIndL[0] + i * numberOfNonzerosPerRow;
 #endif
-
     local_int_t localNumberOfNonzeros = 0;
     // TODO:  This triply nested loop could be flattened or use nested parallelism
 #ifndef HPCG_NO_OPENMP
@@ -382,8 +400,8 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
                   */
                  
                 char numberOfNonzerosInRow = 0;
-                uint64_t currentValuePointer_index = 0;  // matrixValues[currentLocalRow];   // Index to current value in current row
-                global_int_t currentIndexPointerG_index = 0;  // mtxIndG[currentLocalRow]; // Pointer to current index in current row
+                uint64_t currentValuePointer_index = 0;   // Index to current value in current row
+                global_int_t currentIndexPointerG_index = 0;  // Index to current index in current row
                 for (int sz = -1; sz <= 1; sz++)
                 {
                     if (giz + sz > -1 && giz + sz < gnz)
@@ -399,16 +417,15 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
                                         global_int_t curcol = currentGlobalRow + sz * gnx * gny + sy * gnx + sx;
                                         if (curcol == currentGlobalRow)
                                         {
-                                            // matrixDiagonal[currentLocalRow] = currentValuePointer;
-                                            // *currentValuePointer++ = 26.0;
-                                            matrixDiagonal[currentLocalRow] = matrixValues[currentValuePointer_index * ystride_Val + currentLocalRow];
-                                            // *currentValuePointer++ = 26.0;
+                                            matrixDiagonal[map_l2a_A(A, currentLocalRow)] = matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index];  // matrixDiagonal[currentLocalRow] = currentValuePointer;
+                                            matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + ++currentValuePointer_index] = 26.0;                                         // *currentValuePointer++ = 26.0;
                                         }
                                         else
                                         {
-                                            // *currentValuePointer++ = -1.0;
+                                            matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + ++currentValuePointer_index] = -1.0; // *currentValuePointer++ = -1.0;
                                         }
-                                        // *currentIndexPointerG++ = curcol;
+                                        // printf("Value: %.2f, ", matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + (currentValuePointer_index - 1)]);
+                                        mtxIndG[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + ++currentIndexPointerG_index] = curcol; // *currentIndexPointerG++ = curcol;
                                         numberOfNonzerosInRow++;
                                     } // end x bounds test
                                 }     // end sx loop
@@ -416,7 +433,7 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
                         }             // end sy loop
                     }                 // end z bounds test
                 }                     // end sz loop
-                nonzerosInRow[currentLocalRow] = numberOfNonzerosInRow;
+                nonzerosInRow[map_l2a_A(A, currentLocalRow)] = numberOfNonzerosInRow;
 #ifndef HPCG_NO_OPENMP
 #pragma omp critical
 #endif
@@ -434,7 +451,6 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
     HPCG_fout << "Process " << A.geom->rank << " of " << A.geom->size << " has " << localNumberOfRows << " rows." << endl
               << "Process " << A.geom->rank << " of " << A.geom->size << " has " << localNumberOfNonzeros << " nonzeros." << endl;
 #endif
-
     global_int_t totalNumberOfNonzeros = 0;
 #ifndef HPCG_NO_MPI
     // Use reduce function to sum all nonzeros
@@ -453,7 +469,6 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
     assert(totalNumberOfNonzeros > 0); // Throw an exception of the number of nonzeros is less than zero (can happen if int overflow)
 
     A.title = 0;
-    A.totalNumberOfRows = totalNumberOfRows;
     A.totalNumberOfNonzeros = totalNumberOfNonzeros;
     A.localNumberOfRows = localNumberOfRows;
     A.localNumberOfColumns = localNumberOfRows;

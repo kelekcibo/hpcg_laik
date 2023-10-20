@@ -101,21 +101,10 @@ typedef Local2Allocation_map_x L2A_map;
  */
 struct Laik_Blob
 {
-    char *name; // name of the vector /* Debug
+    const char *name; // name of the vector /* Debug
 
     Laik_Data *values;
     mutable local_int_t localLength;
-
-#ifdef REPARTITION
-    /*
-        This variable is only for x_l
-        He will store the pointer to xexact_l
-        We need to re-switch this vector as well
-        But when reseizing, xexact_l is out of scope
-        Quick solution is this here.
-    */
-    Laik_Blob *xexact_l_ptr;
-#endif
 };
 
 /*
@@ -126,6 +115,7 @@ struct Laik_Blob
     Functions needed to exchange values via LAIK 
 */
 extern void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams *p);
+extern void init_partition_data(SparseMatrix &A, partition_d *local, partition_d *ext);
 extern void init_partitionings(SparseMatrix &A, partition_d *local, partition_d *ext);
 extern Laik_Blob *init_blob(const SparseMatrix &A);
 extern allocation_int_t map_l2a_x(L2A_map *mapping, local_int_t local_index, bool halo);

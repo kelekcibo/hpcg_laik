@@ -39,8 +39,8 @@
  * For now, following data will be distributed:
  *  - nonzerosInRow (1d)
  *  - MGData.f2cOperator (1d)
+ *  - matrixDiagonal (1d)
  *  - matrixValues (2d)
- *  - matrixDiagonal (2d)
  *  - mtxIndG (2d)
  *
  */
@@ -52,9 +52,11 @@ void partitioner_1d_members_of_A(Laik_RangeReceiver *r, Laik_PartitionerParams *
 
     assert(A->totalNumberOfRows == laik_space_size(A_space));
 
-    /* Update localNumberOfNonzeros. This variable is not very important */
-    global_int_t localNumberOfNonzeros = 0;
+    /* Calculate mapping. Needed to map local to allocation indices */
+    uint64_t * mapping_ = A->mapping_;
+    uint64_t localIndex = 0;
 
+    int localNumbRows = 0;
     Laik_Range range;
     for (long long i = 0; i < A->totalNumberOfRows; i++)
     {
@@ -64,39 +66,37 @@ void partitioner_1d_members_of_A(Laik_RangeReceiver *r, Laik_PartitionerParams *
         laik_range_init_1d(&range, A_space, i, i + 1);
         laik_append_range(r, proc, &range, 1, 0);
 
-        /* Updating localNumberOfNonzeros */
-        if (proc == rank)
-            localNumberOfNonzeros++;
-        
+        if(proc == rank)
+            localNumbRows++;
+
         /* Calculating the offset into the allocation buffer due to lex_layout needs to be done once for all LAIK containers in A */
-      if (A->offset_ == -1 && proc == rank)
+        if (A->offset_ == -1 && proc == rank)
             A->offset_ = i;
 
+        if (A->offset_ != -1 && proc == rank)
+            mapping_[localIndex++] = i - A->offset_; // GlobalIndex - Offset = Allocation Index;
     }
-
-    A->localNumberOfNonzeros = localNumberOfNonzeros;
 }
 
 /**
- * @brief Partitioner algorithm for 1d members of a SparseMatrix.
+ * @brief Partitioner algorithm for 2d members of a SparseMatrix. 
+ *
+ * 2d members of SparseMatrix A are realized by 1d array. 
  *
  * The data which needs to be distributed/partitioned will be "splitted" here,
  *
  * For now, following data will be distributed:
  *  - nonzerosInRow (1d)
  *  - MGData.f2cOperator (1d)
+ *  - matrixDiagonal (1d)
  *  - matrixValues (2d)
- *  - matrixDiagonal (2d)
  *  - mtxIndG (2d)
  *
  */
 void partitioner_2d_members_of_A(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
 {
     SparseMatrix *A = (SparseMatrix *)laik_partitioner_data(p->partitioner);
-    Laik_Space *A_space2d = p->space;
-
-    local_int_t numberOfNonzerosPerRow = 27; // We are approximating a 27-point finite element/volume/difference 3D stencil
-    assert((A->totalNumberOfRows * numberOfNonzerosPerRow) == laik_space_size(A_space2d));
+    Laik_Space * space2d = p->space;
 
     Laik_Range range;
     for (long long i = 0; i < A->totalNumberOfRows; i++)
@@ -104,7 +104,7 @@ void partitioner_2d_members_of_A(Laik_RangeReceiver *r, Laik_PartitionerParams *
         // assign every process its global part
         int proc = ComputeRankOfMatrixRow(*(A->geom), i);
 
-        laik_range_init_2d(&range, A_space2d, i, i+1, 0, numberOfNonzerosPerRow);
+        laik_range_init_1d(&range, space2d, i * numberOfNonzerosPerRow, i * numberOfNonzerosPerRow + numberOfNonzerosPerRow); // we are flattening the 2D array
         laik_append_range(r, proc, &range, 1, 0);
     }
 }
@@ -127,6 +127,8 @@ void update_Geometry(SparseMatrix &A);
 void update_coarse_Geometry(SparseMatrix &Af);
 void update_partitionings_x(SparseMatrix &A);
 void update_partitionings_A(SparseMatrix &A);
+void update_Local_Values(SparseMatrix &A);
+
 /*
     Forw. Decl. of helper functions for repartition_SparseMatrix -END
 */
@@ -172,6 +174,9 @@ void repartition_SparseMatrix(SparseMatrix &A)
         update_partitionings_A(A);
         curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
     }
+
+    update_Local_Values(A); 
+
 }
 
 /**
@@ -226,14 +231,17 @@ void init_SPM_partitionings(SparseMatrix &A)
     if (A.space2d)
         exit_hpcg_run("Something's wrong. Value should be NULL.");
 
+    A.mapping_ = new uint64_t[A.localNumberOfRows];
+    A.offset_ = -1;
+
+    
     A.space = laik_new_space_1d(hpcg_instance, A.totalNumberOfRows);
-    local_int_t numberOfNonzerosPerRow = 27; // We are approximating a 27-point finite element/volume/difference 3D stencil
-    A.space2d = laik_new_space_2d(hpcg_instance, A.totalNumberOfRows, numberOfNonzerosPerRow);
+    A.space2d = laik_new_space_1d(hpcg_instance, A.totalNumberOfRows * numberOfNonzerosPerRow);
 
     A.nonzerosInRow_d = laik_new_data(A.space, laik_Char);
+    A.matrixDiagonal_d = laik_new_data(A.space, laik_Double);
     A.mtxIndG_d = laik_new_data(A.space2d, laik_UInt64);
     A.matrixValues_d = laik_new_data(A.space2d, laik_Double);
-    A.matrixDiagonal_d = laik_new_data(A.space2d, laik_UInt64); // matrixDiagonal_d stores pointers
 
     Laik_Partitioner *partitioner_1d = laik_new_partitioner("partitioner_1d_members_of_A", partitioner_1d_members_of_A, (void *)&A, LAIK_PF_None);
     Laik_Partitioner *partitioner_2d = laik_new_partitioner("partitioner_2d_members_of_A", partitioner_2d_members_of_A, (void *)&A, LAIK_PF_None);
@@ -243,9 +251,9 @@ void init_SPM_partitionings(SparseMatrix &A)
 
     // Split data
     laik_switchto_partitioning(A.nonzerosInRow_d, A.partitioning_1d, LAIK_DF_None, LAIK_RO_None);
+    laik_switchto_partitioning(A.matrixDiagonal_d, A.partitioning_1d, LAIK_DF_None, LAIK_RO_None);
     laik_switchto_partitioning(A.mtxIndG_d, A.partitioning_2d, LAIK_DF_None, LAIK_RO_None);
     laik_switchto_partitioning(A.matrixValues_d, A.partitioning_2d, LAIK_DF_None, LAIK_RO_None);
-    laik_switchto_partitioning(A.matrixDiagonal_d, A.partitioning_2d, LAIK_DF_None, LAIK_RO_None);
 }
 
 /**
@@ -261,9 +269,12 @@ void init_SPM_partitionings(SparseMatrix &A)
  *
  * @see L2A_map
  */
-allocation_int_t map_l2a_A(SparseMatrix &A, local_int_t localIndex)
+allocation_int_t map_l2a_A(const SparseMatrix &A, local_int_t localIndex)
 {
-    return A.localToGlobalMap[localIndex] - A.offset_;
+    if(localIndex < 0 || localIndex >= A.localNumberOfRows)
+        exit_hpcg_run("LocalIndex not mapped to Allocation Index; Fatal Error.");
+
+    return A.mapping_[localIndex];
 }
 
 /*
@@ -533,11 +544,30 @@ void update_partitionings_A(SparseMatrix &A)
     A.partitioning_2d = laik_new_partitioning(partitioner_2d, world, A.space2d, NULL);
 
     // Split data
-    laik_switchto_partitioning(A.nonzerosInRow_d, A.partitioning_1d, LAIK_DF_None, LAIK_RO_None);
-    laik_switchto_partitioning(A.mgData->f2cOperator_d, A.partitioning_1d, LAIK_DF_None, LAIK_RO_None);
-    laik_switchto_partitioning(A.mtxIndG_d, A.partitioning_2d, LAIK_DF_None, LAIK_RO_None);
-    laik_switchto_partitioning(A.matrixValues_d, A.partitioning_2d, LAIK_DF_None, LAIK_RO_None);
-    laik_switchto_partitioning(A.matrixDiagonal_d, A.partitioning_2d, LAIK_DF_None, LAIK_RO_None);
+    laik_switchto_partitioning(A.nonzerosInRow_d, A.partitioning_1d, LAIK_DF_Preserve, LAIK_RO_None);
+    laik_switchto_partitioning(A.mgData->f2cOperator_d, A.partitioning_1d, LAIK_DF_Preserve, LAIK_RO_None);
+    laik_switchto_partitioning(A.matrixDiagonal_d, A.partitioning_1d, LAIK_DF_Preserve, LAIK_RO_None);
+    laik_switchto_partitioning(A.mtxIndG_d, A.partitioning_2d, LAIK_DF_Preserve, LAIK_RO_None);
+    laik_switchto_partitioning(A.matrixValues_d, A.partitioning_2d, LAIK_DF_Preserve, LAIK_RO_None);
+}
+
+/**
+ * @brief Local values of the SparseMatrix need to be updated after repartitioning
+ *
+ * @param A SparseMatrix
+ */
+void update_Local_Values(SparseMatrix &A)
+{
+    char *nonzerosInRow;
+    laik_get_map_1d(A.nonzerosInRow_d, 0, (void **)&nonzerosInRow, 0);
+
+    local_int_t localNumberOfNonZeros = 0;
+    for (local_int_t i = 0; i < A.localNumberOfRows; i++)
+        localNumberOfNonZeros += nonzerosInRow[map_l2a_A(A, i)];
+
+    A.localNumberOfNonzeros = localNumberOfNonZeros;
+
+    return;
 }
 
 /*
