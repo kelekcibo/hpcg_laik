@@ -75,6 +75,14 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
 
   // First load vectors with random values
   fillRandomLaikVector(x_ncol, A.mapping);
+
+  // printResultLaikVector(x_ncol, A.mapping);
+
+  // while (1)
+  // {
+  //   ;
+  // }
+  
   fillRandomLaikVector(y_ncol, A.mapping);
 
   double xNorm2, yNorm2;
@@ -156,11 +164,10 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
     if (A.geom->rank == 0)
       HPCG_fout << "SpMV call [" << i << "] Residual [" << residual << "]" << endl;
   }
-  
-  // free(x_ncol); // TODO create function to delete an Laik_Blob
-  // free(y_ncol);
-  // free(z_ncol);
 
+  DeleteLaikVector(x_ncol);
+  DeleteLaikVector(y_ncol);
+  DeleteLaikVector(z_ncol);
   return 0;
 }
 #else

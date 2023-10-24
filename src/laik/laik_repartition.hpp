@@ -42,6 +42,7 @@ extern allocation_int_t map_l2a_A(const SparseMatrix &A, local_int_t localIndex)
 extern void init_SPM_partitionings(SparseMatrix &A);
 extern void repartition_SparseMatrix(SparseMatrix &A);
 extern void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list);
+extern void replaceMatrixValues(SparseMatrix &A);
 #endif
 /*
     Needed functions/variables for shrink/expand feature -END

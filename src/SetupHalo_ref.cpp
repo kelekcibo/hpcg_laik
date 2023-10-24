@@ -179,7 +179,6 @@ void SetupHalo_ref(SparseMatrix & A) {
   A.sendLength = sendLength;
   A.sendBuffer = sendBuffer;
 
-
 #ifndef HPCG_NO_LAIK
   // ########## Data for partitioning algorithm
   partition_d *pt_data_local = (partition_d *)malloc(sizeof(partition_d));
@@ -241,10 +240,10 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
   local_int_t **mtxIndL = A.mtxIndL;
 
 
-  char *nonzerosInRow;
+  char * nonzerosInRow;
   laik_get_map_1d(A.nonzerosInRow_d, 0, (void **) &nonzerosInRow, 0);
 
-  global_int_t *mtxIndG;
+  global_int_t * mtxIndG;
   laik_get_map_1d(A.mtxIndG_d, 0, (void **)&mtxIndG, 0);
 
 
@@ -259,12 +258,16 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
   std::map<global_int_t, local_int_t> externalToLocalMap;
 
   // TODO: With proper critical and atomic regions, this loop could be threaded, but not attempting it at this time
+  // std::string structure{""};
+
   for (local_int_t i = 0; i < localNumberOfRows; i++)
   {
     global_int_t currentGlobalRow = A.localToGlobalMap[i];
+    // structure += "currentGlobalRow (" + std::to_string(currentGlobalRow) + "\t";
     for (int j = 0; j < nonzerosInRow[map_l2a_A(A, i)]; j++)
     {
       global_int_t curIndex = mtxIndG[map_l2a_A(A, i) * numberOfNonzerosPerRow + j];
+      // structure += std::to_string(curIndex) + " ";
       int rankIdOfColumnEntry = ComputeRankOfMatrixRow(*(A.geom), curIndex);
 #ifdef HPCG_DETAILED_DEBUG
       // HPCG_fout << "rank, row , col, globalToLocalMap[col] = " << A.geom->rank << " " << currentGlobalRow << " "
@@ -276,7 +279,10 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
         sendList[rankIdOfColumnEntry].insert(currentGlobalRow); // Matrix symmetry means we know the neighbor process wants my value
       }
     }
+    // structure += "\n";
   }
+
+  // HPCG_fout << structure;
 
   // Count number of matrix entries to send and receive
   local_int_t totalToBeSent = 0;
@@ -382,8 +388,6 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
 
   A.mapping = map_data;
   // ########## Data to calculate mapping
-
-  // A.space = laik_new_space_1d(hpcg_instance, A.totalNumberOfRows); // Do not need this if REPARTITION is enabled as it is done in GenerateProblem
 
   init_partitionings(A, pt_data_local, pt_data_ext);
 

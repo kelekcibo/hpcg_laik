@@ -27,6 +27,41 @@
 #include "ComputeRestriction_ref.hpp"
 
 #ifndef HPCG_NO_MPI
+
+#ifndef HPCG_NO_LAIK
+#ifdef REPARTITION
+int ComputeRestriction_laik_repartition_ref(const SparseMatrix &A, const Laik_Blob *rf)
+{
+  double *rfv;
+  double *rcv;
+  double *Axfv;
+
+  laik_get_map_1d(rf->values, 0, (void **)&rfv, 0);
+  laik_get_map_1d(A.mgData->rc_blob->values, 0, (void **)&rcv, 0);
+  laik_get_map_1d(A.mgData->Axf_blob->values, 0, (void **)&Axfv, 0);
+
+  local_int_t * f2c;
+  laik_get_map_1d(A.mgData->f2cOperator_d, 0, (void **)&f2c, 0);
+
+  local_int_t nc = A.mgData->rc_blob->localLength;
+
+  // rc vector is for next layer, thus need mapping from next level matrix
+  assert(A.Ac != NULL);
+  L2A_map *mapping_rc_blob = A.Ac->mapping;
+
+#ifndef HPCG_NO_OPENMP
+#pragma omp parallel for
+#endif
+  for (local_int_t i = 0; i < nc; ++i)
+  {
+    local_int_t j = map_l2a_x(A.mapping, f2c[map_l2a_A(A, i)], false);
+    rcv[map_l2a_x(mapping_rc_blob, i, false)] = rfv[j] - Axfv[j];
+  }
+
+  return 0;
+}
+#endif // REPARTITION
+#endif // HPCG_NO_LAIK
 /*!
   Routine to compute the coarse residual vector.
 
@@ -41,6 +76,12 @@
 */
 int ComputeRestriction_laik_ref(const SparseMatrix &A, const Laik_Blob *rf)
 {
+
+#ifndef HPCG_NO_LAIK
+#ifdef REPARTITION
+  return ComputeRestriction_laik_repartition_ref(A, rf);
+#endif
+#endif
 
   double *rfv;
   double *rcv;
@@ -65,7 +106,7 @@ int ComputeRestriction_laik_ref(const SparseMatrix &A, const Laik_Blob *rf)
     local_int_t j = map_l2a_x(A.mapping, f2c[i], false);
     rcv[map_l2a_x(mapping_rc_blob, i, false)] = rfv[j] - Axfv[j]; 
   }
-  
+
   return 0;
 }
 #else

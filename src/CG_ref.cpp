@@ -30,7 +30,6 @@
 #include "ComputeDotProduct_ref.hpp"
 #include "ComputeWAXPBY_ref.hpp"
 
-
 // Use TICK and TOCK to time a code section in MATLAB-like fashion
 #define TICK()  t0 = mytimer() //!< record current time in 't0'
 #define TOCK(t) t += mytimer() - t0 //!< store time difference in 't' using time in 't0'
@@ -104,7 +103,9 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     HPCG_fout << "Initial Residual = " << normr << std::endl;
 #endif
 
-
+  // Record initial residual for convergence testing
+  normr0 = normr;
+  
   for (int k = 1; k <= max_iter && normr / normr0 > tolerance; k++)
   {
     #ifdef REPARTITION
@@ -188,7 +189,16 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     else
       ComputeWAXPBY_laik_ref(nrow, 1.0, r, 0.0, r, z, A.mapping); // copy r to z (no preconditioning)
     TOCK(t5);                                     // Preconditioner apply time
-    
+
+    /* DEBUG */
+    // printResultLaikVector(z, A.mapping);
+    // while (1)
+    // {
+    //   ;
+    // }
+    /* DEBUG */ // MG RICHTIG ??
+
+
     if (k == 1)
     {
       CopyLaikVectorToLaikVector(z, p, A.mapping);

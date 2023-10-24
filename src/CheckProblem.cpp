@@ -217,8 +217,8 @@ void CheckProblem_repartition(SparseMatrix &A, Vector *b, Vector *x, Vector *xex
         HPCG_fout << " rank, globalRow, localRow = " << A.geom->rank << " " << currentGlobalRow << " " << A.globalToLocalMap.find(currentGlobalRow)->second << endl;
 #endif
         char numberOfNonzerosInRow = 0;
-        uint64_t currentValuePointer_index = 0; // Index to current value in current row
-        global_int_t currentIndexPointerG_index = 0;  // Index to current index in current row
+        uint64_t currentValuePointer_index = -1; // Index to current value in current row
+        global_int_t currentIndexPointerG_index = -1;  // Index to current index in current row
         for (int sz = -1; sz <= 1; sz++)
         {
           if (giz + sz > -1 && giz + sz < gnz)
@@ -234,8 +234,8 @@ void CheckProblem_repartition(SparseMatrix &A, Vector *b, Vector *x, Vector *xex
                     global_int_t curcol = currentGlobalRow + sz * gnx * gny + sy * gnx + sx;
                     if (curcol == currentGlobalRow)
                     {
-                      assert(matrixDiagonal[map_l2a_A(A, currentLocalRow)] == matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index]);
                       assert(matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + ++currentValuePointer_index] == 26.0);
+                      assert(matrixDiagonal[map_l2a_A(A, currentLocalRow)] == matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index]);
                     }
                     else
                     {

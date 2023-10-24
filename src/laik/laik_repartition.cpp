@@ -238,7 +238,7 @@ void init_SPM_partitionings(SparseMatrix &A)
     A.space = laik_new_space_1d(hpcg_instance, A.totalNumberOfRows);
     A.space2d = laik_new_space_1d(hpcg_instance, A.totalNumberOfRows * numberOfNonzerosPerRow);
 
-    A.nonzerosInRow_d = laik_new_data(A.space, laik_Char);
+    A.nonzerosInRow_d = laik_new_data(A.space, laik_UChar);
     A.matrixDiagonal_d = laik_new_data(A.space, laik_Double);
     A.mtxIndG_d = laik_new_data(A.space2d, laik_UInt64);
     A.matrixValues_d = laik_new_data(A.space2d, laik_Double);
@@ -276,6 +276,80 @@ allocation_int_t map_l2a_A(const SparseMatrix &A, local_int_t localIndex)
 
     return A.mapping_[localIndex];
 }
+ 
+ 
+/**
+ * @brief Replace specified diagonal values of the matrix after calling "ReplaceMatrixDiagonal(A, exaggeratedDiagA)".
+ * 
+ * This is needed in the case of enabling repartition, because the Laik data container does not store the pointer to matrixValues.
+ * So, we need to update the diagonal values in matrixValues as well.
+ * 
+ *  @param[inout] A The system matrix.
+ */
+void replaceMatrixValues(SparseMatrix &A)
+{
+    // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
+    // below may result in global range values.
+    global_int_t nx = A.geom->nx;
+    global_int_t ny = A.geom->ny;
+    global_int_t nz = A.geom->nz;
+    global_int_t gnx = A.geom->gnx;
+    global_int_t gny = A.geom->gny;
+    global_int_t gnz = A.geom->gnz;
+    global_int_t gix0 = A.geom->gix0;
+    global_int_t giy0 = A.geom->giy0;
+    global_int_t giz0 = A.geom->giz0;
+
+    double *matrixDiagonal;
+    laik_get_map_1d(A.matrixDiagonal_d, 0, (void **)&matrixDiagonal, 0);
+
+    double *matrixValues;
+    laik_get_map_1d(A.matrixValues_d, 0, (void **)&matrixValues, 0);
+
+    for (local_int_t iz = 0; iz < nz; iz++)
+    {
+        global_int_t giz = giz0 + iz;
+        for (local_int_t iy = 0; iy < ny; iy++)
+        {
+            global_int_t giy = giy0 + iy;
+            for (local_int_t ix = 0; ix < nx; ix++)
+            {
+                global_int_t gix = gix0 + ix;
+                local_int_t currentLocalRow = iz * nx * ny + iy * nx + ix;
+                global_int_t currentGlobalRow = giz * gnx * gny + giy * gnx + gix;
+                uint64_t currentValuePointer_index = -1;  // Index to current value in current row
+                for (int sz = -1; sz <= 1; sz++)
+                {
+                    if (giz + sz > -1 && giz + sz < gnz)
+                    {
+                        for (int sy = -1; sy <= 1; sy++)
+                        {
+                            if (giy + sy > -1 && giy + sy < gny)
+                            {
+                                for (int sx = -1; sx <= 1; sx++)
+                                {
+                                    if (gix + sx > -1 && gix + sx < gnx)
+                                    {
+                                        global_int_t curcol = currentGlobalRow + sz * gnx * gny + sy * gnx + sx;
+                                        currentValuePointer_index++;
+                                        
+                                        if (curcol == currentGlobalRow)
+                                        {
+                                            matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index] = matrixDiagonal[map_l2a_A(A, currentLocalRow)]; 
+                                        }
+                                       
+                                    } // end x bounds test
+                                }     // end sx loop
+                            }         // end y bounds test
+                        }             // end sy loop
+                    }                 // end z bounds test
+                }                     // end sz loop
+            } // end ix loop
+        }     // end iy loop
+    }         // end iz loop
+    return;
+}
+
 
 /*
     Needed functions/variables for shrink/expand feature -END

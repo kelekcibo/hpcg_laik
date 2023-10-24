@@ -299,6 +299,8 @@ void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y, L2A_map *mapping)
 
 /**
  * @brief Fill the input vector with pseudo-random values.
+ * 
+ *  // TODO. Hardcoded values for now to test it with the original application
  *
  * @param[inout] x contains input vector
  *
@@ -318,9 +320,10 @@ void fillRandomLaikVector(Laik_Blob *x, L2A_map *mapping)
     // TODO. Hardcoded values for now to test it with the original application
     for (uint64_t i = 0; i < x->localLength; i++)
         // xv[map_l2a_x(mapping, i, false)] = rand() / (double)(RAND_MAX) + 1.0;
-        xv[map_l2a_x(mapping, i, false)] = i / (double)(RAND_MAX) + 1.0;
-
-    return;
+        // xv[map_l2a_x(mapping, i, false)] = i / (double)(RAND_MAX) + 1.0;
+        xv[map_l2a_x(mapping, i, false)] = i + 1.0;
+   
+        return;
 }
 
 /**

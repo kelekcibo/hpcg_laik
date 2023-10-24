@@ -26,12 +26,17 @@
 #include <map>
 
 #ifndef HPCG_NO_LAIK
+#include "laik/hpcg_laik.hpp"
+
 // forw. decl.
 struct Local2Allocation_map_x;
 typedef Local2Allocation_map_x L2A_map;
 void free_L2A_map(L2A_map *mapping);
+#ifdef REPARTITION
+allocation_int_t map_l2a_A(const SparseMatrix &A, local_int_t localIndex);
+void replaceMatrixValues(SparseMatrix &A);
+#endif
 // forw. decl.
-#include "laik/hpcg_laik.hpp"
 #endif
 
 #include "Geometry.hpp"
@@ -40,7 +45,7 @@ void free_L2A_map(L2A_map *mapping);
 #if __cplusplus < 201103L
 // for C++03
 #include <map>
-typedef std::map< global_int_t, local_int_t > GlobalToLocalMap;
+    typedef std::map<global_int_t, local_int_t> GlobalToLocalMap;
 #else
 // for C++11 or greater
 #include <unordered_map>
@@ -196,6 +201,18 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
   @param[inout] diagonal  Vector of diagonal values (must be allocated before call to this function).
  */
 inline void CopyMatrixDiagonal(SparseMatrix & A, Vector & diagonal) {
+
+#ifndef HPCG_NO_LAIK
+#ifdef REPARTITION
+    double *matrixDiagonal;
+    laik_get_map_1d(A.matrixDiagonal_d, 0, (void **)&matrixDiagonal, 0);
+    double *dia_v = diagonal.values;
+    assert(A.localNumberOfRows == diagonal.localLength);
+    for (local_int_t i=0; i<A.localNumberOfRows; ++i) dia_v[i] = matrixDiagonal[map_l2a_A(A, i)];
+  return;
+#endif
+#endif
+
     double ** curDiagA = A.matrixDiagonal;
     double * dv = diagonal.values;
     assert(A.localNumberOfRows==diagonal.localLength);
@@ -209,12 +226,28 @@ inline void CopyMatrixDiagonal(SparseMatrix & A, Vector & diagonal) {
   @param[in] diagonal  Vector of diagonal values that will replace existing matrix diagonal values.
  */
 inline void ReplaceMatrixDiagonal(SparseMatrix & A, Vector & diagonal) {
+
+#ifndef HPCG_NO_LAIK
+#ifdef REPARTITION
+    double *matrixDiagonal;
+    laik_get_map_1d(A.matrixDiagonal_d, 0, (void **)&matrixDiagonal, 0);
+    double *dia_v = diagonal.values;
+    assert(A.localNumberOfRows == diagonal.localLength);
+    for (local_int_t i=0; i<A.localNumberOfRows; ++i) matrixDiagonal[map_l2a_A(A, i)] = dia_v[i];
+
+    replaceMatrixValues(A);
+    
+    return;
+#endif
+#endif
+
     double ** curDiagA = A.matrixDiagonal;
     double * dv = diagonal.values;
     assert(A.localNumberOfRows==diagonal.localLength);
     for (local_int_t i=0; i<A.localNumberOfRows; ++i) *(curDiagA[i]) = dv[i];
   return;
 }
+
 /*!
   Deallocates the members of the data structure of the known system matrix provided they are not 0.
 

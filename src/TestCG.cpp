@@ -35,6 +35,7 @@ using std::endl;
 #include "hpcg.hpp"
 #include "TestCG.hpp"
 #include "CG.hpp"
+#include "CG_ref.hpp"
 #include "Vector.hpp"
 
 #ifndef HPCG_NO_LAIK
@@ -67,6 +68,12 @@ int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestC
   CopyVector(origDiagA, exaggeratedDiagA);
   CopyLaikVectorToVector(b, origB, A.mapping);
 
+
+
+  // TEST ALL VECTORS IF THE SAME PRINT OUT ALL VECTORS AND SCALED VECTORS WITH REPARTITIONING
+  // Matrix values are not the same after exaggerating
+
+
   // Modify the matrix diagonal to greatly exaggerate diagonal values.
   // CG should converge in about 10 iterations for this problem, regardless of problem size
   for (local_int_t i = 0; i < A.localNumberOfRows; ++i)
@@ -84,8 +91,9 @@ int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestC
       ScaleLaikVectorValue(b, i, 1.0e6, A.mapping);
     }
   }
-  ReplaceMatrixDiagonal(A, exaggeratedDiagA);
 
+  ReplaceMatrixDiagonal(A, exaggeratedDiagA);
+  
   int niters = 0;
   double normr = 0.0;
   double normr0 = 0.0;
@@ -104,7 +112,7 @@ int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestC
     for (int i = 0; i < numberOfCgCalls; ++i)
     {
       ZeroLaikVector(x, A.mapping); // Zero out x
-      int ierr = CG_laik(A, data, b, x, maxIters, tolerance, niters, normr, normr0, &times[0], k == 1);
+      int ierr = CG_laik(A, data, b, x, maxIters, tolerance, niters, normr, normr0, &times[0], k == 1); // true);
       if (ierr)
         HPCG_fout << "Error in call to CG: " << ierr << ".\n"
                   << endl;
@@ -136,6 +144,7 @@ int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestC
   DeleteVector(origDiagA);
   DeleteVector(exaggeratedDiagA);
   DeleteVector(origB);
+
   testcg_data.normr = normr;
 
   return 0;

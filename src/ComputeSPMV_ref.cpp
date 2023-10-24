@@ -42,7 +42,6 @@ int ComputeSPMV_laik_repartition_ref(const SparseMatrix &A, Laik_Blob *x, Laik_B
   assert(x->localLength == A.localNumberOfRows); // Test vector lengths
   assert(y->localLength == A.localNumberOfRows);
   assert(A.mapping->localNumberOfRows == x->localLength);
-  // exit_hpcg_run("printResultLaikVector");
 
   laik_switchto_partitioning(x->values, A.ext, LAIK_DF_Preserve, LAIK_RO_None);
 
@@ -58,6 +57,8 @@ int ComputeSPMV_laik_repartition_ref(const SparseMatrix &A, Laik_Blob *x, Laik_B
   const double * matrixValues;
   laik_get_map_1d(A.matrixValues_d, 0, (void **)&matrixValues, 0);
 
+  // std::string debug{""};
+
 #ifndef HPCG_NO_OPENMP
   #pragma omp parallel for
 #endif
@@ -66,12 +67,26 @@ int ComputeSPMV_laik_repartition_ref(const SparseMatrix &A, Laik_Blob *x, Laik_B
     const local_int_t * const cur_inds = A.mtxIndL[i];
     const int cur_nnz = nonzerosInRow[map_l2a_A(A, i)];
 
-    for (int j=0; j< cur_nnz; j++)
+    // debug += "Current Local Row (" + std::to_string(i) + ") "
+    //         + "cur_nnz (" + std::to_string(cur_nnz) + ") ";
+
+    // debug += "\nUsed Matrix values: ";
+
+    for (int j = 0; j < cur_nnz; j++)
+    {
       sum += matrixValues[map_l2a_A(A, i) * numberOfNonzerosPerRow + j] * xv[map_l2a_x(A.mapping, cur_inds[j], true)];
+      // debug += std::to_string(matrixValues[map_l2a_A(A, i) * numberOfNonzerosPerRow + j]) + ", ";
+    }
 
     yv[map_l2a_x(A.mapping, i, false)] = sum;
+    // debug += "\n";
   }
 
+    // HPCG_fout << debug;
+    // while (1)
+    // {
+    //   ;
+    // }
   laik_switchto_partitioning(x->values, A.local, LAIK_DF_None, LAIK_RO_None);
   
   return 0;
@@ -114,7 +129,7 @@ int ComputeSPMV_laik_ref(const SparseMatrix &A, Laik_Blob *x, Laik_Blob *y)
   laik_get_map_1d(x->values, 0, (void **)&xv, 0);
   laik_get_map_1d(y->values, 0, (void **)&yv, 0);
   const local_int_t nrow = A.localNumberOfRows;
-  
+
 #ifndef HPCG_NO_OPENMP
   #pragma omp parallel for
 #endif
@@ -125,7 +140,7 @@ int ComputeSPMV_laik_ref(const SparseMatrix &A, Laik_Blob *x, Laik_Blob *y)
     const int cur_nnz = A.nonzerosInRow[i];
 
     for (int j=0; j< cur_nnz; j++)
-        sum += cur_vals[j] * xv[map_l2a_x(A.mapping, cur_inds[j], true)];
+      sum += cur_vals[j] * xv[map_l2a_x(A.mapping, cur_inds[j], true)];
 
     yv[map_l2a_x(A.mapping, i, false)] = sum;
   }

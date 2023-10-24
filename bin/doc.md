@@ -117,16 +117,27 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
 * New Approach
   * Partitioner algorithm for matrix A, so there is no need to call setup functions again
     * Analysing which data of A needs to be distributed
+  * Code for repartitioning within CG_REF.cpp adjusted
+    * But code for new joining procs not done yet. See step 14
 
 ## 12 Adjusting setup and other functions
 
 * Usage of LAIK Containers in the matrix A results in changes of code which uses data of the matrix, as we need to get base ptr
 * Due to the lex_layout, we need a mapping here as well
   * Same approach as in step 3
+* Discussion of how to implement the member matrixValues and mtxIndG
+  * Original HPCG code uses 2D array
+  * LAIK 1D container instead of 2D container (flattening the 2D arrays)
 
 ## 13 Disceprancies in the result
 
 * After implementing step 11 and 12, there were disceprancies in the result
+* In SPMV_ref with repartitioning feature
+  * "Off by one" mistake during initialization of matrixValues, matrixDiagonal and mtxIndG
+* After call into TestCG, again discrepancies
+  * Functions replacing matrix diagonal with exxaggerated diagonal was the origin of this discrepancy
+    * The data in matrixValues was different than in the original application
+    * This means, we were accessing wrong values in the LAIK version
 
 ## 14 Code for new joining processes
 

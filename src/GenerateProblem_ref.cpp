@@ -392,16 +392,9 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
 #ifdef HPCG_DETAILED_DEBUG
                 // HPCG_fout << " rank, globalRow, localRow = " << A.geom->rank << " " << currentGlobalRow << " " << A.globalToLocalMap[currentGlobalRow] << endl;
 #endif
-
-                /*
-                          for (uint64_t i = 0; i < y; i++)
-                              for (uint64_t j = 0; j < x; j++)
-                                  base[i * yStride + j] = myid;
-                  */
-                 
                 char numberOfNonzerosInRow = 0;
-                uint64_t currentValuePointer_index = 0;   // Index to current value in current row
-                global_int_t currentIndexPointerG_index = 0;  // Index to current index in current row
+                uint64_t currentValuePointer_index = -1;   // Index to current value in current row
+                global_int_t currentIndexPointerG_index = -1;  // Index to current index in current row
                 for (int sz = -1; sz <= 1; sz++)
                 {
                     if (giz + sz > -1 && giz + sz < gnz)
@@ -417,14 +410,13 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
                                         global_int_t curcol = currentGlobalRow + sz * gnx * gny + sy * gnx + sx;
                                         if (curcol == currentGlobalRow)
                                         {
-                                            matrixDiagonal[map_l2a_A(A, currentLocalRow)] = matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index];  // matrixDiagonal[currentLocalRow] = currentValuePointer;
-                                            matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + ++currentValuePointer_index] = 26.0;                                         // *currentValuePointer++ = 26.0;
+                                            matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + ++currentValuePointer_index] = 26.0;                                              // *currentValuePointer++ = 26.0;
+                                            matrixDiagonal[map_l2a_A(A, currentLocalRow)] = matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index]; // matrixDiagonal[currentLocalRow] = currentValuePointer;
                                         }
                                         else
                                         {
                                             matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + ++currentValuePointer_index] = -1.0; // *currentValuePointer++ = -1.0;
                                         }
-                                        // printf("Value: %.2f, ", matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + (currentValuePointer_index - 1)]);
                                         mtxIndG[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + ++currentIndexPointerG_index] = curcol; // *currentIndexPointerG++ = curcol;
                                         numberOfNonzerosInRow++;
                                     } // end x bounds test

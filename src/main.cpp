@@ -23,8 +23,6 @@
 
 // #####################
 
-// #define HPCG_DETAILED_DEBUG
-// #define HPCG_DEBUG
 
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
@@ -247,6 +245,7 @@ int main(int argc, char *argv[])
 #endif // HPCG_NO_LAIK
 
   int numberOfCalls = 10;
+
   if (quickPath) numberOfCalls = 1; // QuickPath means we do on one call of each block of repetitive code
   double t_begin = mytimer();
   for (int i = 0; i < numberOfCalls; ++i)
@@ -259,7 +258,7 @@ int main(int argc, char *argv[])
     if (ierr) HPCG_fout << "Error in call to SpMV: " << ierr << ".\n" << endl;
 
 #ifndef HPCG_NO_LAIK
-    // ierr = ComputeMG_laik_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
+    ierr = ComputeMG_laik_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
 #else
     ierr = ComputeMG_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
 #endif
@@ -270,10 +269,6 @@ int main(int argc, char *argv[])
   if (rank == 0)
     HPCG_fout << "Total SpMV+MG timing phase execution time in main (sec) = " << mytimer() - t1 << endl;
 #endif
-
-printResultLaikVector(b_computed, A.mapping);
-
-// exit_hpcg_run("First Phase!");
 
   ///////////////////////////////
   // Reference CG Timing Phase //
@@ -300,17 +295,15 @@ printResultLaikVector(b_computed, A.mapping);
 #ifndef HPCG_NO_LAIK
     ZeroLaikVector(x_l, A.mapping);
 #ifdef REPARTITION
-    if (i == 0)
-      A.repartition_me = true; /* Repartitioning is only done in Reference CG Timing Phase */
+    // if (i == 0)
+      // A.repartition_me = true; /* Repartitioning is only done in Reference CG Timing Phase */
 #endif // REPARTITION
 
     ierr = CG_laik_ref(A, data, b_l, x_l, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
-
 #ifdef REPARTITION
-    if (i == 0)
-      A.repartition_me = false; /* Repartitioning is only done in Reference CG Timing Phase */
+    // if (i == 0)
+      // A.repartition_me = false; /* Repartitioning is only done in Reference CG Timing Phase */
 #endif // REPARTITION
-
 #else
     ZeroVector(x);
     ierr = CG_ref(A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
@@ -319,6 +312,7 @@ printResultLaikVector(b_computed, A.mapping);
     if (ierr) ++err_count; // count the number of errors in CG
     totalNiters_ref += niters;
   }
+
   if (rank == 0 && err_count) HPCG_fout << err_count << " error(s) in call(s) to reference CG." << endl;
   double refTolerance = normr / normr0;
 
@@ -414,10 +408,13 @@ printResultLaikVector(b_computed, A.mapping);
   double local_opt_worst_time = opt_worst_time;
 #ifndef HPCG_NO_LAIK
   laik_allreduce(&local_opt_worst_time, &opt_worst_time, 1, laik_Double, LAIK_RO_Max);
+  // MPI_Allreduce(&local_opt_worst_time, &opt_worst_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
 #else
   MPI_Allreduce(&local_opt_worst_time, &opt_worst_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 #endif // HPCG_NO_LAIK
 #endif // HPCG_NO_MPI
+
 
   if (rank == 0 && err_count) HPCG_fout << err_count << " error(s) in call(s) to optimized CG." << endl;
   if (tolerance_failures)
@@ -451,8 +448,11 @@ printResultLaikVector(b_computed, A.mapping);
   double optTolerance = 0.0; // Force optMaxIters iterations
   TestNormsData testnorms_data;
   testnorms_data.samples = numberOfCgSets;
+
+
+
   testnorms_data.values = new double[numberOfCgSets];
- 
+
   for (int i = 0; i < numberOfCgSets; ++i)
   {
 

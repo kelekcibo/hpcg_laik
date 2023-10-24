@@ -41,7 +41,7 @@
 */
 int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x)
 {
-  assert(x->localLength == A.localNumberOfRows); // Make sure x contain space for halo values
+  assert(x->localLength == A.localNumberOfRows);
   assert(x->localLength == A.mapping->localNumberOfRows);
   assert(x->localLength == r->localLength);
 
@@ -56,7 +56,6 @@ int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x
     if (ierr != 0)
       return ierr;
     ierr = ComputeSPMV_laik_ref(A, x, A.mgData->Axf_blob);
-
     if (ierr != 0)
       return ierr;
     // Perform restriction operation using simple injection
@@ -64,7 +63,6 @@ int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x
     if (ierr != 0)
       return ierr;
     ierr = ComputeMG_laik_ref(*A.Ac, A.mgData->rc_blob, A.mgData->xc_blob);
-
     if (ierr != 0)
       return ierr;
     ierr = ComputeProlongation_laik_ref(A, x);
