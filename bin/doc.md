@@ -149,7 +149,11 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
   * Using wrong data type (laik_UInt64) was the reason for the seg fault
     * changing to to laik_Int32 fixed the problem
 * Almost the same results
-  * a
+  * Reason: f2c container is local to every own proc. So this is not a global variable.
+  * After reinitializing f2cOperator during repartitioning fixed the discrepancy and we get the same results
+  * Test Case
+    * mpirun -np 2; 16 16 16
+    * Shrinking from two to one process
 
 ## 15 Code for new joining processes
 

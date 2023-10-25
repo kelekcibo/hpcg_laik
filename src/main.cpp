@@ -314,7 +314,7 @@ int main(int argc, char *argv[])
     if (ierr) ++err_count; // count the number of errors in CG
     totalNiters_ref += niters;
   }
-  exit_hpcg_run("SHRINKING FEATURE!");
+  // exit_hpcg_run("SHRINKING FEATURE!");
 
   if (rank == 0 && err_count) HPCG_fout << err_count << " error(s) in call(s) to reference CG." << endl;
   double refTolerance = normr / normr0;
@@ -456,6 +456,9 @@ int main(int argc, char *argv[])
 
   testnorms_data.values = new double[numberOfCgSets];
 
+  printf("%d runs\n", numberOfCgSets);
+
+  numberOfCgSets = 0;
   for (int i = 0; i < numberOfCgSets; ++i)
   {
 
@@ -493,8 +496,9 @@ int main(int argc, char *argv[])
   ReportResults(A, numberOfMgLevels, numberOfCgSets, refMaxIters, optMaxIters, &times[0], testcg_data, testsymmetry_data, testnorms_data, global_failure, quickPath);
 
   // Clean up
-  DeleteMatrix(A); // This delete will recursively delete all coarse grid data
+  // DeleteMatrix(A); // This delete will recursively delete all coarse grid data
   DeleteCGData(data);
+
   DeleteVector(x);
   DeleteVector(b);
   DeleteVector(xexact);
@@ -508,7 +512,7 @@ int main(int argc, char *argv[])
 #endif
 
   delete[] testnorms_data.values;
-  
+
   HPCG_Finalize();
 
   // Finish up
@@ -517,6 +521,7 @@ int main(int argc, char *argv[])
 #else
   MPI_Finalize();
 #endif
-
+  printf("Ending program\n");
+  exit_hpcg_run("Ending program");
   return 0;
 }

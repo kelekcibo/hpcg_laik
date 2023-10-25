@@ -43,9 +43,6 @@ struct MGData_STRUCT {
   Laik_Blob *rc_blob;  // coarse grid residual vector
   Laik_Blob *xc_blob;  // coarse grid solution vector
   Laik_Blob *Axf_blob; // fine grid residual vector
-  #ifdef REPARTITION
-  Laik_Data *f2cOperator_d;
-  #endif
 #else
   Vector *rc;  // coarse grid residual vector
   Vector *xc;  // coarse grid solution vector
@@ -77,18 +74,6 @@ inline void InitializeMGData_laik(local_int_t *f2cOperator, Laik_Blob *rc, Laik_
   data.Axf_blob = Axf;
   return;
 }
-
-#ifdef REPARTITION
-inline void InitializeMGData_repartition(Laik_Data *f2cOperator_d, Laik_Blob *rc, Laik_Blob *xc, Laik_Blob *Axf, MGData &data)
-{
-  data.numberOfPresmootherSteps = 1;
-  data.numberOfPostsmootherSteps = 1;
-  data.f2cOperator_d = f2cOperator_d; // Space for injection operator
-  data.rc_blob = rc;
-  data.xc_blob = xc;
-  data.Axf_blob = Axf;
-}
-#endif
 #else
 /*!
  Constructor for the data structure of CG vectors.
@@ -114,21 +99,13 @@ inline void InitializeMGData(local_int_t * f2cOperator, Vector * rc, Vector * xc
  */
 inline void DeleteMGData(MGData & data) {
 
+  delete[] data.f2cOperator;
 
 #ifndef HPCG_NO_LAIK
-
-  #ifdef REPARTITION
-    if (data.f2cOperator_d) { laik_free(data.f2cOperator_d); };
-  #else
-    delete[] data.f2cOperator;
-  #endif
-
   DeleteLaikVector(data.Axf_blob);
   DeleteLaikVector(data.rc_blob);
   DeleteLaikVector(data.xc_blob);
 #else
-  delete[] data.f2cOperator;
-
   DeleteVector(*data.Axf);
   DeleteVector(*data.rc);
   DeleteVector(*data.xc);

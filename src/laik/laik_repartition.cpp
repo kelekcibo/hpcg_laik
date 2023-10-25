@@ -121,13 +121,13 @@ HPCG_Params hpcg_params;
 /*
     Forw. Decl. of helper functions for repartition_SparseMatrix
 */
-void update_Maps(SparseMatrix &A);
+void delete_mtxIndL(SparseMatrix &A);
 void update_Geometry(SparseMatrix &A);
 void update_coarse_Geometry(SparseMatrix &Af);
-void update_partitionings_x(SparseMatrix &A);
+void update_Maps(SparseMatrix &A);
 void update_partitionings_A(SparseMatrix &A);
+void update_partitionings_x(SparseMatrix &A);
 void update_Local_Values(SparseMatrix &A);
-void delete_mtxIndL(SparseMatrix &A);
 
 /*
     Forw. Decl. of helper functions for repartition_SparseMatrix -END
@@ -147,9 +147,6 @@ void delete_mtxIndL(SparseMatrix &A);
  */
 void repartition_SparseMatrix(SparseMatrix &A)
 {
-
-
-
     int numberOfMgLevels = 4; // Number of levels including first
  
     // Delete old mtxIndL of the SparseMatrices (This is done here, because we need the old localNumberOfRows)
@@ -171,46 +168,11 @@ void repartition_SparseMatrix(SparseMatrix &A)
         }
     }
 
-
-    /* Debug */
-//     printf("DEBUGING START\n");
-//     if (A.totalNumberOfRows == 8192 && A.geom->rank != 0)
-//     {
-//         std::string debug{"LAIK "};
-
-//         debug += std::to_string(A.geom->rank) + "\tPrinting f2c values\n";
-//         local_int_t *f2c;
-//         laik_get_map_1d(A.mgData->f2cOperator_d, 0, (void **)&f2c, 0);
-//         uint64_t count = 0;
-
-//         for (size_t currentCoarseRow = 0; currentCoarseRow < 512; currentCoarseRow++)
-//         {
-//             count++;
-//             // debug += "f2c[" + std::to_string(map_l2a_A(A, currentCoarseRow)) + "] = " + std::to_string(f2c[map_l2a_A(A, currentCoarseRow)]) + "\n";
-//             // printf("f2c[%ld (AI:%lld) (GI: %lld)] = %d\n", currentCoarseRow, map_l2a_A(A, currentCoarseRow), map_l2a_A(A, currentCoarseRow) + A.offset_, f2c[map_l2a_A(A, currentCoarseRow)]);
-//             printf("f2c[%ld (AI:%lld) (GI: %lld)] = %d\n", currentCoarseRow, map_l2a_A(A, currentCoarseRow), map_l2a_A(A, currentCoarseRow) + A.offset_, f2c[map_l2a_A(A, currentCoarseRow)]);
-
-//             // printf("AI:%lld\n",map_l2a_A(A, currentCoarseRow));
-//         }
-
-//         debug += "\n I was " + std::to_string(count) + " times in the loop\n";
-
-//         debug += "DONE DEBUGGING #########\n";
-//         std::cout << debug;
-//     }
-
-//     /* Debug */
-
-
-// while (1)
-//     ;
-
-
-update_Geometry(A);
-// Update update_Geometry of the SparseMatrices
-curLevelMatrix = &A;
-for (int level = 1; level < numberOfMgLevels; ++level)
-{
+    // Update update_Geometry of the SparseMatrices
+    update_Geometry(A);
+    curLevelMatrix = &A;
+    for (int level = 1; level < numberOfMgLevels; ++level)
+    {
     update_coarse_Geometry(*curLevelMatrix);
     curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
     }
@@ -246,13 +208,12 @@ for (int level = 1; level < numberOfMgLevels; ++level)
         curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
     }
 
-
     if(A.geom->rank < 0)
     {
         // Procs which will be removed need the old localNumberOfRows again as when we free old ressources
-    curLevelMatrix = &A;
-    for (int level = 0; level < numberOfMgLevels; ++level)
-    {
+        curLevelMatrix = &A;
+        for (int level = 0; level < numberOfMgLevels; ++level)
+        {
         curLevelMatrix->localNumberOfRows = old_localNumberOfRows[level];
         curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
         }
@@ -571,7 +532,9 @@ void update_Geometry(SparseMatrix &A)
 /**
  * @brief Geometry of coarse need to be updated as well
  *
- * @param[in] Af Current Level Matrix Layer 
+ * Additionaly, update f2cOperator in MGData 
+ * 
+ * @param[inout] Af Current Level Matrix Layer 
  */
 void update_coarse_Geometry(SparseMatrix &Af)
 {
@@ -584,6 +547,47 @@ void update_coarse_Geometry(SparseMatrix &Af)
     local_int_t nxc, nyc, nzc; // Coarse nx, ny, nz
     assert(nxf % 2 == 0); assert(nyf % 2 == 0); assert(nzf % 2 == 0); // Need fine grid dimensions to be divisible by 2
     nxc = nxf / 2; nyc = nyf / 2; nzc = nzf / 2;
+
+    // Update f2cOperator
+    // Removed procs do not need this update
+    if (Af.geom->rank >= 0)
+    {
+        local_int_t *f2cOperator = new local_int_t[Af.localNumberOfRows];
+        local_int_t localNumberOfRows = nxc * nyc * nzc; // This is the size of our subblock
+
+#ifndef HPCG_NO_OPENMP
+#pragma omp parallel for
+#endif
+        for (local_int_t i = 0; i < localNumberOfRows; ++i)
+        {
+            f2cOperator[i] = 0;
+        }
+
+        // TODO:  This triply nested loop could be flattened or use nested parallelism
+#ifndef HPCG_NO_OPENMP
+#pragma omp parallel for
+#endif
+        for (local_int_t izc = 0; izc < nzc; ++izc)
+        {
+            local_int_t izf = 2 * izc;
+            for (local_int_t iyc = 0; iyc < nyc; ++iyc)
+            {
+                local_int_t iyf = 2 * iyc;
+                for (local_int_t ixc = 0; ixc < nxc; ++ixc)
+                {
+                    local_int_t ixf = 2 * ixc;
+                    local_int_t currentCoarseRow = izc * nxc * nyc + iyc * nxc + ixc;
+                    local_int_t currentFineRow = izf * nxf * nyf + iyf * nxf + ixf;
+                    f2cOperator[currentCoarseRow] = currentFineRow;
+                } // end iy loop
+            }     // end even iz if statement
+        }         // end iz loop
+
+        // Delete old f2cOperator
+        delete[] Af.mgData->f2cOperator;
+        // Assign new f2cOperator
+        Af.mgData->f2cOperator= f2cOperator;
+    }
 
     // Construct the geometry and linear system
     Geometry *geomc = new Geometry;
@@ -745,45 +749,6 @@ void update_partitionings_A(SparseMatrix &A)
     laik_switchto_partitioning(A.matrixDiagonal_d, new_partitioning_1d, LAIK_DF_Preserve, LAIK_RO_None);
     laik_switchto_partitioning(A.mtxIndG_d, new_partitioning_2d, LAIK_DF_Preserve, LAIK_RO_None);
     laik_switchto_partitioning(A.matrixValues_d, new_partitioning_2d, LAIK_DF_Preserve, LAIK_RO_None);
-
-    // Last coarse matrix does not have mgData
-    if(A.mgData != NULL)
-    {
-
-        laik_switchto_partitioning(A.mgData->f2cOperator_d, new_partitioning_1d, LAIK_DF_Preserve, LAIK_RO_None);
-
-        // /* Debug */
-        // if (A.totalNumberOfRows == 8192 && A.geom->rank == 0)
-        // {
-        //     printf("DEBUGING START\n");
-        //     std::string debug{"LAIK "};
-
-        //     debug += std::to_string(A.geom->rank) + "\tPrinting f2c values\n";
-        //     local_int_t *f2c;
-        //     laik_get_map_1d(A.mgData->f2cOperator_d, 0, (void **)&f2c, 0);
-        //     uint64_t count = 0;
-
-        //     for (size_t currentCoarseRow = 0; currentCoarseRow < 1024; currentCoarseRow++)
-        //     {
-        //         count++;
-        //         // debug += "f2c[" + std::to_string(map_l2a_A(A, currentCoarseRow)) + "] = " + std::to_string(f2c[map_l2a_A(A, currentCoarseRow)]) + "\n";
-        //         // printf("f2c[%ld (AI:%lld) (GI: %lld)] = %d\n", currentCoarseRow, map_l2a_A(A, currentCoarseRow), map_l2a_A(A, currentCoarseRow) + A.offset_, f2c[map_l2a_A(A, currentCoarseRow)]);
-        //         printf("f2c[%ld (AI:%lld) (GI: %lld)] = %d\n", currentCoarseRow, map_l2a_A(A, currentCoarseRow), map_l2a_A(A, currentCoarseRow) + A.offset_, f2c[map_l2a_A(A, currentCoarseRow)]);
-
-        //         // printf("AI:%lld\n",map_l2a_A(A, currentCoarseRow));
-        //     }
-
-        //     debug += "\n I was " + std::to_string(count) + " times in the loop\n";
-
-        //     debug += "DONE DEBUGGING #########\n";
-        //     std::cout << debug;
-        // }
-
-        // /* Debug */
-    }
-
-    // while (1)
-    //     ;
 
     laik_free_partitioning(A.partitioning_1d);
     laik_free_partitioning(A.partitioning_2d);
