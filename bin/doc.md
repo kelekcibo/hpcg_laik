@@ -118,7 +118,7 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
   * Partitioner algorithm for matrix A, so there is no need to call setup functions again
     * Analysing which data of A needs to be distributed
   * Code for repartitioning within CG_REF.cpp adjusted
-    * But code for new joining procs not done yet. See step 14
+    * But code for new joining procs not done yet. See step 15
 
 ## 12 Adjusting setup and other functions
 
@@ -138,7 +138,19 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
   * Functions replacing matrix diagonal with exxaggerated diagonal was the origin of this discrepancy
     * The data in matrixValues was different than in the original application
     * This means, we were accessing wrong values in the LAIK version
+    * Pointers are stored in the original application, but in LAIK we do not store pointers in matrixDiagonal
+    * Assigning new values in matrixValues as well fixed the issue
 
-## 14 Code for new joining processes
+## 14 Disceprancies in the result with shrinking
+
+* Test case: 2 procs shrinking to 1 proc
+* Seg fault
+  * Issue with f2c container
+  * Using wrong data type (laik_UInt64) was the reason for the seg fault
+    * changing to to laik_Int32 fixed the problem
+* Almost the same results
+  * a
+
+## 15 Code for new joining processes
 
 * Differ between phases

@@ -139,8 +139,6 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
 
 #ifndef HPCG_NO_LAIK
 #ifdef REPARTITION
-void CheckProblem(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact);
-
 void GenerateCoarseProblem_repartition_ref(const SparseMatrix &Af)
 {
   // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
@@ -157,7 +155,7 @@ void GenerateCoarseProblem_repartition_ref(const SparseMatrix &Af)
   nyc = nyf / 2;
   nzc = nzf / 2;
 
-  Laik_Data * f2cOperator_d = laik_new_data(Af.space, laik_UInt64);
+  Laik_Data * f2cOperator_d = laik_new_data(Af.space, laik_Int32);
   laik_switchto_partitioning(f2cOperator_d, Af.partitioning_1d, LAIK_DF_None, LAIK_RO_None);
 
   local_int_t *f2cOperator;
@@ -195,7 +193,7 @@ void GenerateCoarseProblem_repartition_ref(const SparseMatrix &Af)
       } // end iy loop
     }   // end even iz if statement
   }     // end iz loop
-
+  
   // Construct the geometry and linear system
   Geometry *geomc = new Geometry;
   local_int_t zlc = 0; // Coarsen nz for the lower block in the z processor dimension

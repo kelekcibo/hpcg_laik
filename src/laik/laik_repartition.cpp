@@ -56,18 +56,17 @@ void partitioner_1d_members_of_A(Laik_RangeReceiver *r, Laik_PartitionerParams *
     uint64_t * mapping_ = A->mapping_;
     uint64_t localIndex = 0;
 
-    int localNumbRows = 0;
     Laik_Range range;
     for (long long i = 0; i < A->totalNumberOfRows; i++)
     {
         // assign every process its global part
         int proc = ComputeRankOfMatrixRow(*(A->geom), i);
 
+        if(A->repartitioned)
+            assert(proc == 0);
+
         laik_range_init_1d(&range, A_space, i, i + 1);
         laik_append_range(r, proc, &range, 1, 0);
-
-        if(proc == rank)
-            localNumbRows++;
 
         /* Calculating the offset into the allocation buffer due to lex_layout needs to be done once for all LAIK containers in A */
         if (A->offset_ == -1 && proc == rank)
@@ -128,6 +127,7 @@ void update_coarse_Geometry(SparseMatrix &Af);
 void update_partitionings_x(SparseMatrix &A);
 void update_partitionings_A(SparseMatrix &A);
 void update_Local_Values(SparseMatrix &A);
+void delete_mtxIndL(SparseMatrix &A);
 
 /*
     Forw. Decl. of helper functions for repartition_SparseMatrix -END
@@ -148,35 +148,117 @@ void update_Local_Values(SparseMatrix &A);
 void repartition_SparseMatrix(SparseMatrix &A)
 {
 
-    update_Geometry(A);
-    update_Maps(A); // TODO check if the update is correct 
+
 
     int numberOfMgLevels = 4; // Number of levels including first
-    SparseMatrix *curLevelMatrix = &A;
-    for (int level = 1; level < numberOfMgLevels; ++level)
+ 
+    // Delete old mtxIndL of the SparseMatrices (This is done here, because we need the old localNumberOfRows)
+    SparseMatrix * curLevelMatrix = &A;
+    // for (int level = 0; level < numberOfMgLevels; ++level)
+    // {
+    //     delete_mtxIndL(A); // double free fix that ? or garbage collecting
+    //     curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
+    // }
+
+    // Procs which will be removed need the old localNumberOfRows again as when we free old ressources
+    local_int_t old_localNumberOfRows[numberOfMgLevels];
+    if(laik_myid(world) < 0)
     {
-        update_coarse_Geometry(*curLevelMatrix);
+        for (int level = 0; level < numberOfMgLevels; ++level)
+        {
+            old_localNumberOfRows[level] = curLevelMatrix->localNumberOfRows;
+            curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
+        }
+    }
+
+
+    /* Debug */
+//     printf("DEBUGING START\n");
+//     if (A.totalNumberOfRows == 8192 && A.geom->rank != 0)
+//     {
+//         std::string debug{"LAIK "};
+
+//         debug += std::to_string(A.geom->rank) + "\tPrinting f2c values\n";
+//         local_int_t *f2c;
+//         laik_get_map_1d(A.mgData->f2cOperator_d, 0, (void **)&f2c, 0);
+//         uint64_t count = 0;
+
+//         for (size_t currentCoarseRow = 0; currentCoarseRow < 512; currentCoarseRow++)
+//         {
+//             count++;
+//             // debug += "f2c[" + std::to_string(map_l2a_A(A, currentCoarseRow)) + "] = " + std::to_string(f2c[map_l2a_A(A, currentCoarseRow)]) + "\n";
+//             // printf("f2c[%ld (AI:%lld) (GI: %lld)] = %d\n", currentCoarseRow, map_l2a_A(A, currentCoarseRow), map_l2a_A(A, currentCoarseRow) + A.offset_, f2c[map_l2a_A(A, currentCoarseRow)]);
+//             printf("f2c[%ld (AI:%lld) (GI: %lld)] = %d\n", currentCoarseRow, map_l2a_A(A, currentCoarseRow), map_l2a_A(A, currentCoarseRow) + A.offset_, f2c[map_l2a_A(A, currentCoarseRow)]);
+
+//             // printf("AI:%lld\n",map_l2a_A(A, currentCoarseRow));
+//         }
+
+//         debug += "\n I was " + std::to_string(count) + " times in the loop\n";
+
+//         debug += "DONE DEBUGGING #########\n";
+//         std::cout << debug;
+//     }
+
+//     /* Debug */
+
+
+// while (1)
+//     ;
+
+
+update_Geometry(A);
+// Update update_Geometry of the SparseMatrices
+curLevelMatrix = &A;
+for (int level = 1; level < numberOfMgLevels; ++level)
+{
+    update_coarse_Geometry(*curLevelMatrix);
+    curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
+    }
+
+    // Update maps of the SparseMatrices
+    curLevelMatrix = &A;
+    for (int level = 0; level < numberOfMgLevels; ++level)
+    {
+        update_Maps(*curLevelMatrix);
         curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
     }
 
+    // Update partitionings of the SparseMatrices
+    curLevelMatrix = &A;
+    for (int level = 0; level < numberOfMgLevels; ++level)
+    {
+        update_partitionings_A(*curLevelMatrix);
+        curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
+    }
+    
     // Update partitionings of the x vector
     curLevelMatrix = &A;
     for (int level = 0; level < numberOfMgLevels; ++level)
     {
-        update_partitionings_x(A);
+        update_partitionings_x(*curLevelMatrix);
         curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
     }
 
-    // Update partitionings of the SparseMatrix
     curLevelMatrix = &A;
     for (int level = 0; level < numberOfMgLevels; ++level)
     {
-        update_partitionings_A(A);
+        update_Local_Values(*curLevelMatrix);
         curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
     }
 
-    update_Local_Values(A); 
 
+    if(A.geom->rank < 0)
+    {
+        // Procs which will be removed need the old localNumberOfRows again as when we free old ressources
+    curLevelMatrix = &A;
+    for (int level = 0; level < numberOfMgLevels; ++level)
+    {
+        curLevelMatrix->localNumberOfRows = old_localNumberOfRows[level];
+        curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
+        }
+    }
+
+    return ;
 }
 
 /**
@@ -373,6 +455,9 @@ void update_Maps(SparseMatrix &A)
     // Removed procs do not need this upate
     if(A.geom->rank < 0)
         return;
+    
+    A.localToGlobalMap.clear();
+    A.globalToLocalMap.clear();
 
     // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
     // below may result in global range values.
@@ -513,18 +598,40 @@ void update_coarse_Geometry(SparseMatrix &Af)
     }
 
     // TEST AFTERWARDS
-    // global_int_t old_gnx = Af.Ac->geom->gnx;
-    // global_int_t old_gny = Af.Ac->geom->gny;
-    // global_int_t old_gnz = Af.Ac->geom->gnz;
+    global_int_t old_gnx = Af.Ac->geom->gnx;
+    global_int_t old_gny = Af.Ac->geom->gny;
+    global_int_t old_gnz = Af.Ac->geom->gnz;
 
     DeleteGeometry(*Af.Ac->geom);
     GenerateGeometry(Af.geom->size, Af.geom->rank, Af.geom->numThreads, Af.geom->pz, zlc, zuc, nxc, nyc, nzc, Af.geom->npx, Af.geom->npy, Af.geom->npz, geomc);
     Af.Ac->geom = geomc;
+    Af.Ac->localNumberOfRows = nxc * nyc * nzc;
 
     // should be the same problem size
-    // assert(old_gnx == geomc->gnx);
-    // assert(old_gny == geomc->gny);
-    // assert(old_gnz == geomc->gnz);
+    assert(old_gnx == geomc->gnx);
+    assert(old_gny == geomc->gny);
+    assert(old_gnz == geomc->gnz);
+    return;
+}
+
+/**
+ * @brief Need to delete old mtxIndL as it will be re-init'ed in SetupHalo(A).
+ *
+ * We need the old size of localNumberOfRows,thus, we call this function before every other function in repartition_SparseMatrix(A)
+ *
+ * @param A SparseMatrix
+ */
+void delete_mtxIndL(SparseMatrix &A)
+{
+#ifndef HPCG_CONTIGUOUS_ARRAYS
+    for (local_int_t i = 0; i < A.localNumberOfRows; ++i)
+        delete[] A.mtxIndL[i];
+
+    // if (A.mtxIndL) delete[] A.mtxIndL;
+
+#else
+    delete[] A.mtxIndL[0];
+#endif
     return;
 }
 
@@ -535,38 +642,26 @@ void update_coarse_Geometry(SparseMatrix &Af)
  */
 void re_init_mtxIndL(SparseMatrix &A)
 {
-    local_int_t localNumberOfRows = A.localNumberOfRows;
-
-#ifndef HPCG_CONTIGUOUS_ARRAYS
-    for (local_int_t i = 0; i < localNumberOfRows; ++i)
-    {
-        delete[] A.matrixValues[i];
-        delete[] A.mtxIndG[i];
-        delete[] A.mtxIndL[i];
-    }
-#else
-    delete[] A.matrixValues[0];
-    delete[] A.mtxIndG[0];
-    delete[] A.mtxIndL[0];
-#endif
 
     local_int_t **mtxIndL = new local_int_t *[A.localNumberOfRows];
 
-    for (local_int_t i = 0; i < localNumberOfRows; ++i)
+    for (local_int_t i = 0; i < A.localNumberOfRows; ++i)
         mtxIndL[i] = 0;
 
-
-    local_int_t numberOfNonzerosPerRow = 27;
 #ifndef HPCG_CONTIGUOUS_ARRAYS
     // Now allocate the arrays pointed to
-    for (local_int_t i = 0; i < localNumberOfRows; ++i)
-        mtxIndL[i] = new local_int_t[numberOfNonzerosPerRow];
+    for (local_int_t i = 0; i < A.localNumberOfRows; ++i)
+      mtxIndL[i] = new local_int_t[numberOfNonzerosPerRow];
 #else
     // Now allocate the arrays pointed to
     mtxIndL[0] = new local_int_t[localNumberOfRows * numberOfNonzerosPerRow];
     for (local_int_t i = 1; i < localNumberOfRows; ++i)
         mtxIndL[i] = mtxIndL[0] + i * numberOfNonzerosPerRow;
 #endif
+
+    A.mtxIndL= mtxIndL;
+    
+    return;
 }
 
 /**
@@ -579,7 +674,6 @@ void update_partitionings_x(SparseMatrix &A)
     // removed procs only need "local" partitioning
     if(A.geom->rank < 0)
     {
-
         partition_d *pt_local = (partition_d *)malloc(sizeof(partition_d));
 
         pt_local->halo = false;
@@ -590,8 +684,10 @@ void update_partitionings_x(SparseMatrix &A)
 
         Laik_Partitioner *x_localPR = laik_new_partitioner("x_localPR_temporary", partitioner_alg_for_x_vector, (void *)pt_local, LAIK_PF_None);
 
+        A.ext = NULL; // Partitioning is deleted later
         A.local = laik_new_partitioning(x_localPR, world, A.space, NULL);
 
+      
         return;
     }
 
@@ -599,30 +695,101 @@ void update_partitionings_x(SparseMatrix &A)
     // As mtxIndL is recalculated:
     re_init_mtxIndL(A);
 
-    SetupHalo(A);
+    // clear old variables
+    free_L2A_map(A.mapping);
+    // TODO other vars
 
+
+    SetupHalo(A);
+ 
     return;
 }
 
 /**
- * @brief Partitionings for the SparseMatrix need to be updated after repartitioning
+ * @brief Partitionings for the SparseMatrix need to be updated after repartitioning.
+ * 
+ * Old ressources will be freed in the end
  *
  * @param A SparseMatrix
  */
 void update_partitionings_A(SparseMatrix &A)
 {
-    Laik_Partitioner *partitioner_1d = laik_new_partitioner("partitioner_1d_members_of_A", partitioner_1d_members_of_A, (void *)&A, LAIK_PF_None);
-    Laik_Partitioner *partitioner_2d = laik_new_partitioner("partitioner_2d_members_of_A", partitioner_2d_members_of_A, (void *)&A, LAIK_PF_None);
 
-    A.partitioning_1d = laik_new_partitioning(partitioner_1d, world, A.space, NULL);
-    A.partitioning_2d = laik_new_partitioning(partitioner_2d, world, A.space2d, NULL);
+    // Removed procs do not need to recalculate this
+    if (A.geom->rank >= 0)
+    {
+        if (A.mapping_) delete[] A.mapping_;
+        A.mapping_ = new uint64_t[A.localNumberOfRows];
+        A.offset_ = -1;
+    }
+    A.repartitioned = true;
+
+    Laik_Partitioner * partitioner_1d = laik_new_partitioner("partitioner_1d_members_of_A", partitioner_1d_members_of_A, (void *)&A, LAIK_PF_None);
+    Laik_Partitioner * partitioner_2d = laik_new_partitioner("partitioner_2d_members_of_A", partitioner_2d_members_of_A, (void *)&A, LAIK_PF_None);
+
+    Laik_Partitioning * new_partitioning_1d = laik_new_partitioning(partitioner_1d, world, A.space, NULL);
+    Laik_Partitioning * new_partitioning_2d = laik_new_partitioning(partitioner_2d, world, A.space2d, NULL);
+
+    /* Debug */
+    if (A.geom->rank >= 0)
+    {
+        for (size_t i = 0; i < A.localNumberOfRows; i++)
+        {
+            assert(map_l2a_A(A, i) <= A.totalNumberOfRows);
+        }
+        
+    }
 
     // Split data
-    laik_switchto_partitioning(A.nonzerosInRow_d, A.partitioning_1d, LAIK_DF_Preserve, LAIK_RO_None);
-    laik_switchto_partitioning(A.mgData->f2cOperator_d, A.partitioning_1d, LAIK_DF_Preserve, LAIK_RO_None);
-    laik_switchto_partitioning(A.matrixDiagonal_d, A.partitioning_1d, LAIK_DF_Preserve, LAIK_RO_None);
-    laik_switchto_partitioning(A.mtxIndG_d, A.partitioning_2d, LAIK_DF_Preserve, LAIK_RO_None);
-    laik_switchto_partitioning(A.matrixValues_d, A.partitioning_2d, LAIK_DF_Preserve, LAIK_RO_None);
+    laik_switchto_partitioning(A.nonzerosInRow_d, new_partitioning_1d, LAIK_DF_Preserve, LAIK_RO_None);
+    laik_switchto_partitioning(A.matrixDiagonal_d, new_partitioning_1d, LAIK_DF_Preserve, LAIK_RO_None);
+    laik_switchto_partitioning(A.mtxIndG_d, new_partitioning_2d, LAIK_DF_Preserve, LAIK_RO_None);
+    laik_switchto_partitioning(A.matrixValues_d, new_partitioning_2d, LAIK_DF_Preserve, LAIK_RO_None);
+
+    // Last coarse matrix does not have mgData
+    if(A.mgData != NULL)
+    {
+
+        laik_switchto_partitioning(A.mgData->f2cOperator_d, new_partitioning_1d, LAIK_DF_Preserve, LAIK_RO_None);
+
+        // /* Debug */
+        // if (A.totalNumberOfRows == 8192 && A.geom->rank == 0)
+        // {
+        //     printf("DEBUGING START\n");
+        //     std::string debug{"LAIK "};
+
+        //     debug += std::to_string(A.geom->rank) + "\tPrinting f2c values\n";
+        //     local_int_t *f2c;
+        //     laik_get_map_1d(A.mgData->f2cOperator_d, 0, (void **)&f2c, 0);
+        //     uint64_t count = 0;
+
+        //     for (size_t currentCoarseRow = 0; currentCoarseRow < 1024; currentCoarseRow++)
+        //     {
+        //         count++;
+        //         // debug += "f2c[" + std::to_string(map_l2a_A(A, currentCoarseRow)) + "] = " + std::to_string(f2c[map_l2a_A(A, currentCoarseRow)]) + "\n";
+        //         // printf("f2c[%ld (AI:%lld) (GI: %lld)] = %d\n", currentCoarseRow, map_l2a_A(A, currentCoarseRow), map_l2a_A(A, currentCoarseRow) + A.offset_, f2c[map_l2a_A(A, currentCoarseRow)]);
+        //         printf("f2c[%ld (AI:%lld) (GI: %lld)] = %d\n", currentCoarseRow, map_l2a_A(A, currentCoarseRow), map_l2a_A(A, currentCoarseRow) + A.offset_, f2c[map_l2a_A(A, currentCoarseRow)]);
+
+        //         // printf("AI:%lld\n",map_l2a_A(A, currentCoarseRow));
+        //     }
+
+        //     debug += "\n I was " + std::to_string(count) + " times in the loop\n";
+
+        //     debug += "DONE DEBUGGING #########\n";
+        //     std::cout << debug;
+        // }
+
+        // /* Debug */
+    }
+
+    // while (1)
+    //     ;
+
+    laik_free_partitioning(A.partitioning_1d);
+    laik_free_partitioning(A.partitioning_2d);
+
+    A.partitioning_1d = new_partitioning_1d;
+    A.partitioning_2d = new_partitioning_2d; 
 }
 
 /**
@@ -632,6 +799,10 @@ void update_partitionings_A(SparseMatrix &A)
  */
 void update_Local_Values(SparseMatrix &A)
 {
+    // Removed procs do not need this upate
+    if (A.geom->rank < 0)
+        return;
+        
     char *nonzerosInRow;
     laik_get_map_1d(A.nonzerosInRow_d, 0, (void **)&nonzerosInRow, 0);
 

@@ -174,6 +174,8 @@ int main(int argc, char *argv[])
   GenerateProblem(A, &b, &x, &xexact);
   SetupHalo(A);
 
+  // printSPM(&A, 0);
+
 #ifndef HPCG_NO_LAIK
 
   Laik_Blob *b_l = init_blob(A);
@@ -258,7 +260,7 @@ int main(int argc, char *argv[])
     if (ierr) HPCG_fout << "Error in call to SpMV: " << ierr << ".\n" << endl;
 
 #ifndef HPCG_NO_LAIK
-    ierr = ComputeMG_laik_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
+    ierr = ComputeMG_laik_ref(A, b_computed, x_overlap, 0); // b_computed = Minv*y_overlap
 #else
     ierr = ComputeMG_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
 #endif
@@ -295,14 +297,14 @@ int main(int argc, char *argv[])
 #ifndef HPCG_NO_LAIK
     ZeroLaikVector(x_l, A.mapping);
 #ifdef REPARTITION
-    // if (i == 0)
-      // A.repartition_me = true; /* Repartitioning is only done in Reference CG Timing Phase */
+    if (i == 0)
+      A.repartition_me = true; /* Repartitioning is only done in Reference CG Timing Phase */
 #endif // REPARTITION
 
     ierr = CG_laik_ref(A, data, b_l, x_l, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
 #ifdef REPARTITION
-    // if (i == 0)
-      // A.repartition_me = false; /* Repartitioning is only done in Reference CG Timing Phase */
+    if (i == 0)
+      A.repartition_me = false; /* Repartitioning is only done in Reference CG Timing Phase */
 #endif // REPARTITION
 #else
     ZeroVector(x);
@@ -312,6 +314,7 @@ int main(int argc, char *argv[])
     if (ierr) ++err_count; // count the number of errors in CG
     totalNiters_ref += niters;
   }
+  exit_hpcg_run("SHRINKING FEATURE!");
 
   if (rank == 0 && err_count) HPCG_fout << err_count << " error(s) in call(s) to reference CG." << endl;
   double refTolerance = normr / normr0;

@@ -239,13 +239,12 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
   local_int_t localNumberOfRows = A.localNumberOfRows;
   local_int_t **mtxIndL = A.mtxIndL;
 
-
+    
   char * nonzerosInRow;
   laik_get_map_1d(A.nonzerosInRow_d, 0, (void **) &nonzerosInRow, 0);
 
   global_int_t * mtxIndG;
   laik_get_map_1d(A.mtxIndG_d, 0, (void **)&mtxIndG, 0);
-
 
   // Scan global IDs of the nonzeros in the matrix.  Determine if the column ID matches a row ID.  If not:
   // 1) We call the ComputeRankOfMatrixRow function, which tells us the rank of the processor owning the row ID.
@@ -281,6 +280,7 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
     }
     // structure += "\n";
   }
+
 
   // HPCG_fout << structure;
 
@@ -345,6 +345,8 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
     {
       global_int_t curIndex = mtxIndG[map_l2a_A(A, i) * numberOfNonzerosPerRow + j];
       int rankIdOfColumnEntry = ComputeRankOfMatrixRow(*(A.geom), curIndex);
+       
+  
       if (A.geom->rank == rankIdOfColumnEntry)
       { // My column index, so convert to local index
         mtxIndL[i][j] = A.globalToLocalMap[curIndex];

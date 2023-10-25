@@ -36,7 +36,7 @@
 
 #ifndef HPCG_NO_LAIK
 #ifdef REPARTITION
-int ComputeSPMV_laik_repartition_ref(const SparseMatrix &A, Laik_Blob *x, Laik_Blob *y)
+int ComputeSPMV_laik_repartition_ref(const SparseMatrix &A, Laik_Blob *x, Laik_Blob *y, int k)
 {
 
   assert(x->localLength == A.localNumberOfRows); // Test vector lengths
@@ -44,6 +44,7 @@ int ComputeSPMV_laik_repartition_ref(const SparseMatrix &A, Laik_Blob *x, Laik_B
   assert(A.mapping->localNumberOfRows == x->localLength);
 
   laik_switchto_partitioning(x->values, A.ext, LAIK_DF_Preserve, LAIK_RO_None);
+
 
   double * xv;
   double * yv;
@@ -57,6 +58,7 @@ int ComputeSPMV_laik_repartition_ref(const SparseMatrix &A, Laik_Blob *x, Laik_B
   const double * matrixValues;
   laik_get_map_1d(A.matrixValues_d, 0, (void **)&matrixValues, 0);
 
+
   // std::string debug{""};
 
 #ifndef HPCG_NO_OPENMP
@@ -66,6 +68,7 @@ int ComputeSPMV_laik_repartition_ref(const SparseMatrix &A, Laik_Blob *x, Laik_B
     double sum = 0.0;
     const local_int_t * const cur_inds = A.mtxIndL[i];
     const int cur_nnz = nonzerosInRow[map_l2a_A(A, i)];
+
 
     // debug += "Current Local Row (" + std::to_string(i) + ") "
     //         + "cur_nnz (" + std::to_string(cur_nnz) + ") ";
@@ -79,6 +82,8 @@ int ComputeSPMV_laik_repartition_ref(const SparseMatrix &A, Laik_Blob *x, Laik_B
     }
 
     yv[map_l2a_x(A.mapping, i, false)] = sum;
+
+
     // debug += "\n";
   }
 
@@ -88,7 +93,7 @@ int ComputeSPMV_laik_repartition_ref(const SparseMatrix &A, Laik_Blob *x, Laik_B
     //   ;
     // }
   laik_switchto_partitioning(x->values, A.local, LAIK_DF_None, LAIK_RO_None);
-  
+
   return 0;
 }
 #endif // HPCG_NO_LAIK
@@ -114,7 +119,7 @@ int ComputeSPMV_laik_ref(const SparseMatrix &A, Laik_Blob *x, Laik_Blob *y)
 {
 #ifndef HPCG_NO_LAIK
 #ifdef REPARTITION
-  return ComputeSPMV_laik_repartition_ref(A, x, y);
+  return ComputeSPMV_laik_repartition_ref(A, x, y, 13);
 #endif
 #endif
 

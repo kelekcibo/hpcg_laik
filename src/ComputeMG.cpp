@@ -37,7 +37,7 @@ int ComputeMG_laik(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *x)
 
   // This line and the next two lines should be removed and your version of ComputeSYMGS should be used.
   A.isMgOptimized = false;
-  return ComputeMG_laik_ref(A, r, x);
+  return ComputeMG_laik_ref(A, r, x, 0);
 }
 #else
 /*!

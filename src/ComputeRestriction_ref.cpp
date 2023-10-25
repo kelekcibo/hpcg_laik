@@ -30,7 +30,7 @@
 
 #ifndef HPCG_NO_LAIK
 #ifdef REPARTITION
-int ComputeRestriction_laik_repartition_ref(const SparseMatrix &A, const Laik_Blob *rf)
+int ComputeRestriction_laik_repartition_ref(const SparseMatrix &A, const Laik_Blob *rf,int k)
 {
   double *rfv;
   double *rcv;
@@ -41,9 +41,11 @@ int ComputeRestriction_laik_repartition_ref(const SparseMatrix &A, const Laik_Bl
   laik_get_map_1d(A.mgData->Axf_blob->values, 0, (void **)&Axfv, 0);
 
   local_int_t * f2c;
-  laik_get_map_1d(A.mgData->f2cOperator_d, 0, (void **)&f2c, 0);
+  uint64_t count;
+  laik_get_map_1d(A.mgData->f2cOperator_d, 0, (void **)&f2c, &count);
 
   local_int_t nc = A.mgData->rc_blob->localLength;
+
 
   // rc vector is for next layer, thus need mapping from next level matrix
   assert(A.Ac != NULL);
@@ -54,7 +56,18 @@ int ComputeRestriction_laik_repartition_ref(const SparseMatrix &A, const Laik_Bl
 #endif
   for (local_int_t i = 0; i < nc; ++i)
   {
-    local_int_t j = map_l2a_x(A.mapping, f2c[map_l2a_A(A, i)], false);
+    if (A.repartitioned)
+    {
+      // printf("map_l2a_A(A, i) = %d\n", f2c[map_l2a_A(A, i)]);
+    }
+
+    allocation_int_t j = map_l2a_x(A.mapping, f2c[map_l2a_A(A, i)], false);
+
+    if (A.repartitioned)
+    {
+      // printf("j = %d\n", j);
+    }
+
     rcv[map_l2a_x(mapping_rc_blob, i, false)] = rfv[j] - Axfv[j];
   }
 
@@ -74,12 +87,12 @@ int ComputeRestriction_laik_repartition_ref(const SparseMatrix &A, const Laik_Bl
 
   @return Returns zero on success and a non-zero value otherwise.
 */
-int ComputeRestriction_laik_ref(const SparseMatrix &A, const Laik_Blob *rf)
+int ComputeRestriction_laik_ref(const SparseMatrix &A, const Laik_Blob *rf, int k)
 {
 
 #ifndef HPCG_NO_LAIK
 #ifdef REPARTITION
-  return ComputeRestriction_laik_repartition_ref(A, rf);
+  return ComputeRestriction_laik_repartition_ref(A, rf, k);
 #endif
 #endif
 

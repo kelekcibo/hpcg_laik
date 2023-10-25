@@ -189,6 +189,8 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
 
     if (spm->geom->rank != 0)
     {
+        std::cout << "\n##################### My RANK (" << spm->geom->rank << ") #####################\n\n";
+
         // Global data
         std::cout << "\n##################### Global stats #####################\n\n";
 
@@ -207,13 +209,15 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
 
         // std::cout << "\n##################### Mapping of rows #####################\n\n";
 
-        // // Global to local mapping:
-        // std::cout << "\nLocal-to-global Map\n";
-        // std::cout << "Local\tGlobal\n";
-        // for (int c = 0; c < spm->localToGlobalMap.size(); c++)
-        // {
-        //     std::cout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
-        // }
+        // Local to Global mapping:
+        std::cout << "\nLocal-to-global Map\n";
+        std::cout << "Local\tGlobal\n";
+        for (int c = 0; c < spm->localToGlobalMap.size(); c++)
+        {
+            std::cout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
+        }
+
+        std::cout << "\n##################### My RANK (" << spm->geom->rank << ") END #####################\n\n";
     }
 
     return;
@@ -236,8 +240,6 @@ void printSPM_val(SparseMatrix &A)
     global_int_t gix0 = A.geom->gix0;
     global_int_t giy0 = A.geom->giy0;
     global_int_t giz0 = A.geom->giz0;
-
-    const local_int_t nrow = A.localNumberOfRows;
 
     const char *nonzerosInRow;
     laik_get_map_1d(A.nonzerosInRow_d, 0, (void **)&nonzerosInRow, 0);
