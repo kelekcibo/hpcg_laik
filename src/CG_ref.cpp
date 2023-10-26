@@ -117,6 +117,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
       {
         A.repartition_me = false; // do not repartition the matrix anymore
 
+        uint32_t old_size = laik_size(world);
         // Repartitioning / Resizing of current world (group of proccesses)
 
         // allow resize of world and get new world
@@ -183,9 +184,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 
         A.repartitioned = true;
 
-#ifdef HPCG_DEBUG
-        HPCG_fout << "Repartitioning done"<< std::endl;
-#endif
+        HPCG_fout << "REPARTIONING: world size changed from " << old_size << " to " << laik_size(world) << std::endl;
       }
 #endif // REPARTITION
 
