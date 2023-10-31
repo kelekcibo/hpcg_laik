@@ -302,6 +302,19 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
 
     init_SPM_partitionings(A);
 
+#ifndef HPCG_NO_LAIK
+#ifdef REPARTITION
+    // Need this to know, if this proc is a new joining or old initial process.
+    if (laik_phase(hpcg_instance) != 0)
+    {
+        update_Maps(A);
+        update_Values(A);
+        re_init_mtxIndL(A);
+        return;
+    }
+#endif
+#endif
+
     char *nonzerosInRow;
     laik_get_map_1d(A.nonzerosInRow_d, 0, (void **)&nonzerosInRow, 0);
 

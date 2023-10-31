@@ -33,9 +33,10 @@ std::map<std::pair<int, Laik_Type *>, Laik_Data *> data_objects;
  * @param n size of send-/recvbuffer
  * @param data_type of bytes in sendBuf
  * @param ro_type reduction operation after Allreduce / Broadcast
- * @param partitioner partitioner algorithm (to implement Broadcast and Allreduce)
+ * @param partitioner partitioner algorithm used for the first partitioning
+ * @param partitioner2 partitioner algorithm used for the second partitioning
  */
-void laik_helper(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data_type, Laik_ReductionOperation ro_type, Laik_Partitioner *partitioner)
+void laik_helper(const void * sendBuf, void * recvBuf, uint64_t n, Laik_Type * data_type, Laik_ReductionOperation ro_type, Laik_Partitioner * partitioner, Laik_Partitioner * partitioner2)
 {
 
     // Definition and initialization of laik-specific data (Reuse of laik-specific data, if used more than once)
@@ -82,9 +83,8 @@ void laik_helper(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data
         std::memcpy((void *)base, sendBuf, count * sizeof(uint64_t));
     }
 
-
     // Broadcast/Allreduce data with ro_type as reduction operation
-    laik_switchto_new_partitioning(data, world, laik_All, LAIK_DF_Preserve, ro_type);
+    laik_switchto_new_partitioning(data, world, partitioner2, LAIK_DF_Preserve, ro_type);
 
     // Store received result in recvBuf
     if (data_type == laik_Int32)
@@ -124,7 +124,7 @@ void laik_helper(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data
  */
 void laik_allreduce(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data_type, Laik_ReductionOperation ro_type)
 {
-    laik_helper(sendBuf, recvBuf, n, data_type, ro_type, laik_All);
+    laik_helper(sendBuf, recvBuf, n, data_type, ro_type, laik_All, laik_All);
     return;
 }
 
@@ -138,7 +138,7 @@ void laik_allreduce(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *d
  */
 void laik_broadcast(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data_type)
 {
-    laik_helper(sendBuf, recvBuf, n, data_type, LAIK_RO_None, laik_Master);
+    laik_helper(sendBuf, recvBuf, n, data_type, LAIK_RO_None, laik_Master, laik_All);
     return;
 }
 
@@ -151,7 +151,25 @@ void laik_barrier()
     int32_t data = 71;
 
     // Synchronize all processes by making use of an All-to-All-Reduction
-    laik_helper((void *)&data, (void *)&data, 1, laik_Int32, LAIK_RO_None, laik_All);
+    laik_helper((void *)&data, (void *)&data, 1, laik_Int32, LAIK_RO_None, laik_All, laik_All);
+    return;
+}
+
+/**
+ * @brief  Broadcast a buffer to certain processes in the world (Broadcast done by root process (rank==0)
+ *
+ * Not in use yet. Using broadcast instead.
+ * 
+ * @param sendBuf send buffer
+ * @param recvBuf receive buffer
+ * @param n size of buffer
+ * @param data_type of the buffer to be broadcasted
+ * @param old_size of the world
+ */
+void laik_partial_broadcast(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data_type, int old_size)
+{
+    Laik_Partitioner * partitioner = laik_new_partitioner("Partial_broadcast", new_joining_procs, (void*)&old_size, LAIK_PF_None);
+    laik_helper(sendBuf, recvBuf, n, data_type, LAIK_RO_None, laik_Master, partitioner);
     return;
 }
 

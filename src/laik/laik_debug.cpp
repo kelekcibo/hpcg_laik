@@ -11,11 +11,11 @@
 /*
     Includes
 */
-#include <iostream>
+
+#include <cstring>
 
 #include "laik_debug.hpp"
 
-using std::to_string;
 /*
     Includes
 */
@@ -170,22 +170,15 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
               << "\nLocal # of nonzeros " << spm->localNumberOfNonzeros
               << std::endl;
 
-    // HPCG_fout << "\n##################### Mapping of rows #####################\n\n";
+    HPCG_fout << "\n##################### Mapping of rows #####################\n\n";
 
-    // // Global to local mapping:
-    // HPCG_fout << "\nLocal-to-global Map\n";
-    // HPCG_fout << "Local\tGlobal\n";
-    // for (int c = 0; c < spm->localToGlobalMap.size(); c++)
-    // {
-    //     HPCG_fout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
-    // }
+    HPCG_fout << "\nLocal-to-global Map\n";
+    HPCG_fout << "Local\tGlobal\n";
+    for (int c = 0; c < spm->localToGlobalMap.size(); c++)
+    {
+        HPCG_fout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
+    }
 
-    // HPCG_fout << "\nGlobal-to-local Map\n";
-    // HPCG_fout << "Global\tlocal\n";
-    // for (int c = 0; c < spm->globalToLocalMap.size(); c++)
-    // {
-    //   HPCG_fout << c << "\t\t" << spm->globalToLocalMap[c] << std::endl;
-    // }
 
     if (spm->geom->rank != 0)
     {
@@ -316,25 +309,26 @@ void printSPM_val(SparseMatrix &A)
 /**
  * @brief Print members of HPCG_Params Struct
  *
- * @param params
- * @param doIO
+ * @param[in] params
+ * @param[in] doIO
  */
 void print_HPCG_PARAMS(HPCG_Params params, bool doIO)
 {
     if (doIO)
     {
         std::string a{"####### PARAM values\n"};
-        a += "npx: " + std::to_string(params.npx) + "\n";
-        a += "npy: " + std::to_string(params.npy) + "\n";
-        a += "npz: " + std::to_string(params.npz) + "\n";
-        a += "numThreads: " + std::to_string(params.numThreads) + "\n";
-        a += "nx: " + std::to_string(params.nx) + "\n";
-        a += "ny: " + std::to_string(params.ny) + "\n";
-        a += "nz: " + std::to_string(params.nz) + "\n";
-        a += "pz: " + std::to_string(params.pz) + "\n";
-        a += "runningTime: " + std::to_string(params.runningTime) + "\n";
-        a += "zl: " + std::to_string(params.zl) + "\n";
-        a += "zu: " + std::to_string(params.zu) + "\n";
+        a += "rank: " + to_string(params.comm_rank) + "\n";
+        a += "npx: " + to_string(params.npx) + "\n";
+        a += "npy: " + to_string(params.npy) + "\n";
+        a += "npz: " + to_string(params.npz) + "\n";
+        a += "numThreads: " + to_string(params.numThreads) + "\n";
+        a += "nx: " + to_string(params.nx) + "\n";
+        a += "ny: " + to_string(params.ny) + "\n";
+        a += "nz: " + to_string(params.nz) + "\n";
+        a += "pz: " + to_string(params.pz) + "\n";
+        a += "runningTime: " + to_string(params.runningTime) + "\n";
+        a += "zl: " + to_string(params.zl) + "\n";
+        a += "zu: " + to_string(params.zu) + "\n";
 
         std::cout << a;
     }
@@ -345,38 +339,39 @@ void print_HPCG_PARAMS(HPCG_Params params, bool doIO)
 /**
  * @brief Print members of geometry struct
  *
- * @param geom
- * @param doIO
+ * @param[in] geom
+ * @param[in] doIO
  */
 void print_GEOMETRY(Geometry *geom, bool doIO)
 {
     if (doIO)
     {
-        std::string a{"####### Geometry values\n"};
+        std::string a{"####### Geometry values\t"};
 
-        a += "gix0: " + std::to_string(geom->gix0) + "\n";
-        a += "giy0: " + std::to_string(geom->giy0) + "\n";
-        a += "giz0: " + std::to_string(geom->giz0) + "\n";
-        a += "gnx: " + std::to_string(geom->gnx) + "\n";
-        a += "gny: " + std::to_string(geom->gny) + "\n";
-        a += "gnz: " + std::to_string(geom->gnz) + "\n";
-        a += "ipx: " + std::to_string(geom->ipx) + "\n";
-        a += "ipy: " + std::to_string(geom->ipy) + "\n";
-        a += "ipz: " + std::to_string(geom->ipz) + "\n";
-        a += "npartz: " + std::to_string(geom->npartz) + "\n";
-        a += "npx: " + std::to_string(geom->npx) + "\n";
-        a += "npy: " + std::to_string(geom->npy) + "\n";
-        a += "npz: " + std::to_string(geom->npz) + "\n";
-        a += "numThreads: " + std::to_string(geom->numThreads) + "\n";
-        a += "nx: " + std::to_string(geom->nx) + "\n";
-        a += "ny: " + std::to_string(geom->ny) + "\n";
-        a += "nz: " + std::to_string(geom->nz) + "\n";
-        a += "pz: " + std::to_string(geom->pz) + "\n";
+        a += "printed by rank " + to_string(geom->rank) + "\n";
+        a += "gix0: " + to_string(geom->gix0) + "\n";
+        a += "giy0: " + to_string(geom->giy0) + "\n";
+        a += "giz0: " + to_string(geom->giz0) + "\n";
+        a += "gnx: " + to_string(geom->gnx) + "\n";
+        a += "gny: " + to_string(geom->gny) + "\n";
+        a += "gnz: " + to_string(geom->gnz) + "\n";
+        a += "ipx: " + to_string(geom->ipx) + "\n";
+        a += "ipy: " + to_string(geom->ipy) + "\n";
+        a += "ipz: " + to_string(geom->ipz) + "\n";
+        a += "npartz: " + to_string(geom->npartz) + "\n";
+        a += "npx: " + to_string(geom->npx) + "\n";
+        a += "npy: " + to_string(geom->npy) + "\n";
+        a += "npz: " + to_string(geom->npz) + "\n";
+        a += "numThreads: " + to_string(geom->numThreads) + "\n";
+        a += "nx: " + to_string(geom->nx) + "\n";
+        a += "ny: " + to_string(geom->ny) + "\n";
+        a += "nz: " + to_string(geom->nz) + "\n";
+        a += "pz: " + to_string(geom->pz) + "\n";
 
         a += "partz_ids: ";
         for (int i = 0; i < geom->npartz; ++i)
         {
-            a += std::to_string(geom->partz_ids[i]);
+            a += to_string(geom->partz_ids[i]);
 
             if (i != geom->npartz - 1)
                 a += ", ";
@@ -387,15 +382,14 @@ void print_GEOMETRY(Geometry *geom, bool doIO)
 
         for (int i = 0; i < geom->npartz; ++i)
         {
-            a += std::to_string(geom->partz_nz[i]);
+            a += to_string(geom->partz_nz[i]);
 
             if (i != geom->npartz - 1)
                 a += ", ";
         }
         a += "\n";
 
-        a += "rank: " + std::to_string(geom->rank) + "\n";
-        a += "size: " + std::to_string(geom->size) + "\n";
+        a += "size: " + to_string(geom->size) + "\n";
 
         std::cout << a;
     }
@@ -408,9 +402,9 @@ void print_LaikBlob(Laik_Blob *x)
         std::string str{"####### Laik_Blob\n"};
 
         std::string str2{x->name};
-        str += "LAIK " + std::to_string(laik_myid(world)) + "\n";
+        str += "LAIK " + to_string(laik_myid(world)) + "\n";
         str += "Vector name: " + str2 + "\n";
-        str += "localLength: " + std::to_string(x->localLength) + "\n#######\n";
+        str += "localLength: " + to_string(x->localLength) + "\n#######\n";
 
         std::cout << str;
     }
@@ -421,15 +415,18 @@ void print_LaikBlob(Laik_Blob *x)
  *
  * Exit the program on all processes
  *
- * @param msg will be printed (No need to add "\\n")
+ * @param msg will be printed by proc with ID 0 (No need to add "\\n")
+ * @param wait tells, if proc should wait instead of exiting
  */
-void exit_hpcg_run(const char *msg)
+void exit_hpcg_run(const char *msg, bool wait)
 {
     if (laik_myid(world) == 0)
-        printf("\n####### %s\n####### Debug DONE -> Exiting #######\n", msg);
-
-    exit(0);
-
+    {
+        if (strcmp(msg, "") != 0) printf("\n\n####### %s\n####### Debug DONE -> Exiting #######\n", msg);
+        else printf("\n\n####### Debug DONE -> Exiting #######\n");
+    }
+    if(wait) while(1) ;
+    laik_finalize(hpcg_instance); exit(0);
     return;
 }
 

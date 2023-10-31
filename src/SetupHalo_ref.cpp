@@ -257,16 +257,13 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
   std::map<global_int_t, local_int_t> externalToLocalMap;
 
   // TODO: With proper critical and atomic regions, this loop could be threaded, but not attempting it at this time
-  // std::string structure{""};
 
   for (local_int_t i = 0; i < localNumberOfRows; i++)
   {
     global_int_t currentGlobalRow = A.localToGlobalMap[i];
-    // structure += "currentGlobalRow (" + std::to_string(currentGlobalRow) + "\t";
     for (int j = 0; j < nonzerosInRow[map_l2a_A(A, i)]; j++)
     {
       global_int_t curIndex = mtxIndG[map_l2a_A(A, i) * numberOfNonzerosPerRow + j];
-      // structure += std::to_string(curIndex) + " ";
       int rankIdOfColumnEntry = ComputeRankOfMatrixRow(*(A.geom), curIndex);
 #ifdef HPCG_DETAILED_DEBUG
       // HPCG_fout << "rank, row , col, globalToLocalMap[col] = " << A.geom->rank << " " << currentGlobalRow << " "
@@ -278,7 +275,6 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
         sendList[rankIdOfColumnEntry].insert(currentGlobalRow); // Matrix symmetry means we know the neighbor process wants my value
       }
     }
-    // structure += "\n";
   }
 
 
@@ -307,6 +303,11 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
     assert(sendList[curNeighbor->first].size() == receiveList[curNeighbor->first].size());
   }
 #endif
+  if (laik_phase(hpcg_instance) > 0 && laik_myid(world) < 2)
+  {
+    printf("OLD PROCS ARE EXITING!\n");
+    exit_hpcg_run("re_switch_LaikVectors", false);
+  }
 
   // Build the arrays and lists needed by the ExchangeHalo function.
   double *sendBuffer = new double[totalToBeSent];
@@ -357,7 +358,7 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
       }
     }
   }
-
+  
   // Store contents in our matrix struct
   A.numberOfExternalValues = externalToLocalMap.size();
   A.localNumberOfColumns = A.localNumberOfRows + A.numberOfExternalValues;
@@ -402,7 +403,7 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
       HPCG_fout << "       rank " << A.geom->rank << " elementsToSend[" << j << "] = " << elementsToSend[j] << endl;
   }
 #endif
-
+  
   return;
 }
 

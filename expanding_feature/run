@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# compile hpcg app
+cd ..
+make
+cd expanding_feature
+
+# delete old result files
+rm -f *.txt
+clear
+
+# run application with 2 initial and add 2 new procs, when calling laik_allow_world_resize()
+./tcp2run -n 2 -s 2 ./../bin/xhpcg

@@ -61,12 +61,6 @@ int ComputeRestriction_laik_ref(const SparseMatrix &A, const Laik_Blob *rf, int 
 #endif
   for (local_int_t i = 0; i < nc; ++i)
   {
-
-    // if (A.repartitioned && k == 13)
-    // {
-    //   printf("f2c[%d]=%d\n", i, f2c[i]);
-    // }
-
     local_int_t j = map_l2a_x(A.mapping, f2c[i], false);
     rcv[map_l2a_x(mapping_rc_blob, i, false)] = rfv[j] - Axfv[j]; 
   }

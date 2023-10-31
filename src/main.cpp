@@ -84,16 +84,29 @@ int main(int argc, char *argv[])
 
   HPCG_Params params;
 
+  // ps -ef | grep xhpcg
+  // killall xhpcg
+  std::cout << "LAIK\tCalling laik_init now\n";
+
 #ifndef HPCG_NO_MPI
   #ifndef HPCG_NO_LAIK
-    hpcg_instance = laik_init(&argc, &argv);
-    world = laik_world(hpcg_instance);
+  hpcg_instance = laik_init(&argc, &argv);
+  world = laik_world(hpcg_instance);
   #else
     MPI_Init(&argc, &argv);
   #endif // HPCG_NO_LAIK
 #endif // HPCG_NO_MPI
 
+  std::cout << "LAIK " << laik_myid(world) << " ("<< laik_size(world) <<")"
+            << "\tI initialized the LAIK INSTANCE! Phase counter: " << laik_phase(hpcg_instance) << "\n";
+
   HPCG_Init(&argc, &argv, params);
+
+#ifndef HPCG_NO_LAIK
+#ifdef REPARTITION
+  std::memcpy(&hpcg_params, &params, sizeof(params));
+#endif
+#endif
 
   // Check if QuickPath option is enabled.
   // If the running time is set to zero, we minimize all paths through the program
@@ -147,8 +160,10 @@ int main(int argc, char *argv[])
     HPCG_fout << "######## HPCG LAIK v1.1 ########\n#\n# New Features\n#\t-Expanding/Shrinking the group of processes\n#\n\n";
 #endif // HPCG_NO_LAIK
 
+  // Use this array for collecting timing information
+  std::vector<double> times(10, 0.0);
+
   // Construct the geometry and linear system
- 
   Geometry *geom = new Geometry;
   GenerateGeometry(size, rank, params.numThreads, params.pz, params.zl, params.zu, nx, ny, nz, params.npx, params.npy, params.npz, geom);
 
@@ -156,25 +171,25 @@ int main(int argc, char *argv[])
   if (ierr)
     return ierr;
 
-  // Use this array for collecting timing information
-  std::vector<double> times(10, 0.0);
 
-  double setup_time = mytimer();
-  SparseMatrix A;
-  InitializeSparseMatrix(A, geom);
+  int iter = 0;
 
 #ifndef HPCG_NO_LAIK
-  #ifdef REPARTITION
-  std::memcpy(&hpcg_params, &params, sizeof(params));
-  #endif
+#ifdef REPARTITION
+    // Need this to know, if this proc is a new joining or old initial process.
+    iter = laik_phase(hpcg_instance);
 #endif
+#endif
+
+  double setup_time = mytimer();
+
+  SparseMatrix A;
+  InitializeSparseMatrix(A, geom);
 
   Vector b, x, xexact;
 
   GenerateProblem(A, &b, &x, &xexact);
   SetupHalo(A);
-
-  // printSPM(&A, 0);
 
 #ifndef HPCG_NO_LAIK
 
@@ -184,11 +199,14 @@ int main(int argc, char *argv[])
   x_l->name = "x_l";
   Laik_Blob *xexact_l = init_blob(A);
   xexact_l->name = "xexact_l";
-  
 
-  CopyVectorToLaikVector(b, b_l, A.mapping);
-  CopyVectorToLaikVector(x, x_l, A.mapping);
-  CopyVectorToLaikVector(xexact, xexact_l, A.mapping);
+  // New procs will switch later
+  if (laik_phase(hpcg_instance) == 0)
+  {
+    CopyVectorToLaikVector(b, b_l, A.mapping);
+    CopyVectorToLaikVector(x, x_l, A.mapping);
+    CopyVectorToLaikVector(xexact, xexact_l, A.mapping);
+  }
 
 #ifdef REPARTITION
   A.ptr_to_xexact = xexact_l; /* See @Laik_Blob */
@@ -196,6 +214,11 @@ int main(int argc, char *argv[])
 
 #endif // HPCG_NO_LAIK
 
+  if (laik_phase(hpcg_instance) > 0)
+  {
+    printf("NEW PROCS ARE EXITING!\n");
+    exit_hpcg_run("", false);
+  }
   int numberOfMgLevels = 4; // Number of levels including first
   SparseMatrix *curLevelMatrix = &A;
   for (int level = 1; level < numberOfMgLevels; ++level)
@@ -223,6 +246,7 @@ int main(int argc, char *argv[])
   CGData data;
   InitializeSparseCGData(A, data);
 
+
   ////////////////////////////////////
   // Reference SpMV+MG Timing Phase //
   ////////////////////////////////////
@@ -247,8 +271,16 @@ int main(int argc, char *argv[])
 #endif // HPCG_NO_LAIK
 
   int numberOfCalls = 10;
-
   if (quickPath) numberOfCalls = 1; // QuickPath means we do on one call of each block of repetitive code
+
+#ifndef HPCG_NO_LAIK
+#ifdef REPARTITION
+  // Need this to know, if this proc is a new joining or old initial process.
+  if(iter != 0)
+    numberOfCalls = 0;
+#endif
+#endif
+
   double t_begin = mytimer();
   for (int i = 0; i < numberOfCalls; ++i)
   {
@@ -266,7 +298,11 @@ int main(int argc, char *argv[])
 #endif
     if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
   }
-  times[8] = (mytimer() - t_begin) / ((double)numberOfCalls); // Total time divided by number of calls.
+
+    if (iter != 0)
+      times[8] = 0;
+    else
+      times[8] = (mytimer() - t_begin) / ((double)numberOfCalls); // Total time divided by number of calls.
 #ifdef HPCG_DEBUG
   if (rank == 0)
     HPCG_fout << "Total SpMV+MG timing phase execution time in main (sec) = " << mytimer() - t1 << endl;
@@ -519,6 +555,6 @@ int main(int argc, char *argv[])
   MPI_Finalize();
 #endif
   printf("Ending program\n");
-  exit_hpcg_run("Ending program");
+  exit_hpcg_run("Ending program", false);
   return 0;
 }

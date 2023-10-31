@@ -66,11 +66,6 @@ int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x
     if (ierr != 0)
       return ierr;
 
-    // if (A.repartitioned && k == 13)
-    // {
-    //   exit_hpcg_run("SEG FAULT");
-    // }
-    
     ierr = ComputeMG_laik_ref(*A.Ac, A.mgData->rc_blob, A.mgData->xc_blob, k);
     if (ierr != 0)
       return ierr;

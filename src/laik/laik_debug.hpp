@@ -14,6 +14,10 @@
 /*
     Includes 
 */
+#include <iostream>
+
+using std::to_string;
+
 #include "laik_x_vector.hpp"
 
 // forw. decl
@@ -42,7 +46,7 @@ extern void printSPM_val(SparseMatrix &A);
 extern void print_HPCG_PARAMS(HPCG_Params params, bool doIO);
 extern void print_GEOMETRY(Geometry *geom, bool doIO);
 extern void print_LaikBlob(Laik_Blob *x);
-extern void exit_hpcg_run(const char *msg);
+extern void exit_hpcg_run(const char *msg, bool wait);
 /*
     Debug functions -END
 */

@@ -36,7 +36,7 @@ void free_L2A_map(L2A_map *mapping);
 allocation_int_t map_l2a_A(const SparseMatrix &A, local_int_t localIndex);
 void replaceMatrixValues(SparseMatrix &A);
 #endif
-void exit_hpcg_run(const char *msg);
+void exit_hpcg_run(const char *msg, bool wait);
 // forw. decl.
 #endif
 

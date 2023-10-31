@@ -112,12 +112,18 @@ int HPCG_Init(int *argc_p, char ***argv_p, HPCG_Params &params)
       iparams[i] = 16;
   }
 
+
+
 // Broadcast values of iparams to all MPI processes
 #ifndef HPCG_NO_MPI
-  if (broadcastParams) 
-    laik_broadcast(iparams, iparams, nparams, laik_Int32);
+#ifndef HPCG_NO_LAIK
+    if (broadcastParams)
+      laik_broadcast(iparams, iparams, nparams, laik_Int32);
+#else
+  if (broadcastParams)
+    MPI_Bcast(iparams, nparams, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
-
+#endif
 
   params.nx = iparams[0];
   params.ny = iparams[1];

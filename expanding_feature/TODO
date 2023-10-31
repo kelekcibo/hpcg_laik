@@ -1,0 +1,7 @@
+# TODO
+
+- write code in main for new joining procs
+    DIffer init calls as well? DO not need some setups and need to  re switch every needed vector
+
+change repartition code such that it has the same order as in main.cpp
+    How everything is init'ed

@@ -158,9 +158,11 @@ Laik_Blob *init_blob(const SparseMatrix &A)
 
     blob->values = laik_new_data(A.space, laik_Double);
     blob->localLength = A.localNumberOfRows;
-
-    // Start with partitioning containing only access to local elements
-    laik_switchto_partitioning(blob->values, A.local, LAIK_DF_None, LAIK_RO_None);
+    
+    // New joining procs will switch later
+    if (laik_phase(hpcg_instance) == 0)
+        // Start with partitioning containing only access to local elements
+        laik_switchto_partitioning(blob->values, A.local, LAIK_DF_None, LAIK_RO_None);
 
     return blob;
 }

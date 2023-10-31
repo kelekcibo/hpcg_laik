@@ -43,6 +43,12 @@ extern void init_SPM_partitionings(SparseMatrix &A);
 extern void repartition_SparseMatrix(SparseMatrix &A);
 extern void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list);
 extern void replaceMatrixValues(SparseMatrix &A);
+extern void new_joining_procs(Laik_RangeReceiver *r, Laik_PartitionerParams *p);
+extern void update_Maps(SparseMatrix &A);
+extern void update_Values(SparseMatrix &A);
+extern void calculate_Mapping(SparseMatrix &A);
+extern void re_init_mtxIndL(SparseMatrix &A);
+
 #endif
 /*
     Needed functions/variables for shrink/expand feature -END
