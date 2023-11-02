@@ -110,7 +110,7 @@ inline void CopyVector(const Vector & v, Vector & w) {
  */
 inline void DeleteVector(Vector & v) {
 
-  delete [] v.values;
+  if(v.values) delete [] v.values;
   v.localLength = 0;
   return;
 }

@@ -302,8 +302,6 @@ void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y, L2A_map *mapping)
 /**
  * @brief Fill the input vector with pseudo-random values.
  * 
- *  // TODO. Hardcoded values for now to test it with the original application
- *
  * @param[inout] x contains input vector
  *
  * @see FillRandomVector in Vector.hpp
@@ -316,16 +314,13 @@ void fillRandomLaikVector(Laik_Blob *x, L2A_map *mapping)
 
     double *xv;
     uint64_t count;
-
     laik_get_map_1d(x->values, 0, (void **)&xv, &count);
-
-    // TODO. Hardcoded values for now to test it with the original application
     for (uint64_t i = 0; i < x->localLength; i++)
-        // xv[map_l2a_x(mapping, i, false)] = rand() / (double)(RAND_MAX) + 1.0;
+        xv[map_l2a_x(mapping, i, false)] = rand() / (double)(RAND_MAX) + 1.0;
         // xv[map_l2a_x(mapping, i, false)] = i / (double)(RAND_MAX) + 1.0;
-        xv[map_l2a_x(mapping, i, false)] = i + 1.0;
-   
-        return;
+        // xv[map_l2a_x(mapping, i, false)] = i + 1.0;
+        // TODO. Hardcoded values for now to test it with the original application
+    return;
 }
 
 /**
@@ -407,14 +402,17 @@ void free_L2A_map(L2A_map *mapping)
         mapping->offset_ext = 0;
 
         if (!mapping->localToExternalMap.empty())
+        {
             mapping->localToExternalMap.clear();
+            // Fixed segfault for now see also in laik_reaprtition:cpp in update_partitionings_x
+            mapping->localToExternalMap[-1] = 144;
+        }
         if (!mapping->localToGlobalMap.empty())
             mapping->localToGlobalMap.clear();
 
         free((void *)mapping);
-
-        mapping = NULL;
     }
+    return;
 }
 
 /**

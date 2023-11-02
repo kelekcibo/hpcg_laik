@@ -78,9 +78,6 @@ void partitioner_1d_members_of_A(Laik_RangeReceiver *r, Laik_PartitionerParams *
 
     assert(A->totalNumberOfRows == laik_space_size(A_space));
 
-
-    bool print = (laik_size(world) == 4) && (laik_size(p->group)) == 2;
-
     Laik_Range range;
     for (long long i = 0; i < A->totalNumberOfRows; i++)
     {
@@ -143,6 +140,8 @@ void update_coarse_Geometry(SparseMatrix &Af);
 void update_partitionings_A(SparseMatrix &A);
 void update_partitionings_x(SparseMatrix &A);
 void broadcast_hpcg_params(void);
+Geometry * calculate_old_geometry(SparseMatrix &A, int old_size);
+Geometry * calculate_old_coarse_geometry(Geometry * old_geometry, int old_size);
 
 /*
     Forw. Decl. of helper functions for repartition_SparseMatrix -END
@@ -195,14 +194,6 @@ void repartition_SparseMatrix(SparseMatrix &A)
     curLevelMatrix = &A;
     for (int level = 0; level < numberOfMgLevels; ++level)
     {
-
-        if (level == 1)
-        {
-            printf("OLD PROCS ARE EXITING!\n");
-            exit_hpcg_run("re_switch_LaikVectors", false);
-        }
-        // Update maps of the SparseMatrices
-        update_Maps(*curLevelMatrix);
         // Update partitionings for the SparseMatrices 
         update_partitionings_A(*curLevelMatrix);
         // Update local/global variables
@@ -213,8 +204,6 @@ void repartition_SparseMatrix(SparseMatrix &A)
         curLevelMatrix = curLevelMatrix->Ac;
 
     }
-
-
 
     if(A.geom->rank < 0)
     {
@@ -238,18 +227,46 @@ void repartition_SparseMatrix(SparseMatrix &A)
  */
 void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
 {
-    exit_hpcg_run("re_switch_LaikVectors", false);
+    int numberOfMgLevels = 4; // Number of levels including first
+
+    // New joining procs have no initial partitiong activated on Laik Data containers.
+    Geometry * old_geometry[numberOfMgLevels];
+    Laik_Partitioning *local_old[numberOfMgLevels];
+    for (int i = 0; i < numberOfMgLevels; i++)
+        local_old[i] = 0;
+
+    Laik_Group * parent = laik_group_parent(world);
+    int old_size = laik_size(parent);
+    if (laik_myid(world) >= old_size)
+    {
+        old_geometry[0] = calculate_old_geometry(A, old_size);
+
+        partition_d pt_local;
+        pt_local.halo = false;
+        pt_local.geom = old_geometry[0];
+        pt_local.size = A.totalNumberOfRows;
+        pt_local.offset = 0; // don't need this
+        /* pt_ext and the rest of the information in pt_data is not needed. */
+
+        Laik_Partitioner *x_localPR = laik_new_partitioner("x_localPR", partitioner_alg_for_x_vector, (void *) &pt_local, LAIK_PF_None);
+
+        // partitionings before joining: empty for own process
+        local_old[0] = laik_new_partitioning(x_localPR, parent, A.space, NULL);
+    }
 
     for (uint32_t i = 0; i < list.size(); i++)
     {
         Laik_Blob *elem = list[i];
         elem->localLength = A.localNumberOfRows; /* Need to update local length, since it could have changed */
 
+         // New joining procs have no initial partitiong activated on Laik Data containers.
+        if (laik_myid(world) >= old_size)
+            laik_set_initial_partitioning(elem->values, local_old[0]);
+
         laik_switchto_partitioning(elem->values, A.local, LAIK_DF_Preserve, LAIK_RO_None);
     }
 
     // MGData has two container with partitioning of next layer matrix and one of the current layer
-    int numberOfMgLevels = 4; // Number of levels excluding last layer matrix (has no MGData)
     SparseMatrix *curLevelMatrix = &A;
     MGData *curMGData;
     for (int level = 1; level < numberOfMgLevels; ++level)
@@ -257,16 +274,52 @@ void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
         // std::cout << "\nCoarse Problem level " << level << std::endl;
         curMGData = curLevelMatrix->mgData;
 
+        // New joining procs have no initial partitiong activated on Laik Data containers.
+        if (laik_myid(world) >= old_size)
+        {
+            // Need geometry with old config. Store current config
+            old_geometry[level] = calculate_old_coarse_geometry(old_geometry[level-1], old_size);
+
+            partition_d pt_local;
+            pt_local.halo = false;
+            pt_local.geom = old_geometry[level];
+            pt_local.size = curLevelMatrix->Ac->totalNumberOfRows;
+            pt_local.offset = 0; // don't need this
+            /* pt_ext and the rest of the information in pt_data is not needed. */
+
+            Laik_Partitioner *x_localPR = laik_new_partitioner("x_localPR", partitioner_alg_for_x_vector, (void *)&pt_local, LAIK_PF_None);
+
+            // partitionings before joining: empty for own process
+            local_old[level] = laik_new_partitioning(x_localPR, parent, curLevelMatrix->Ac->space, NULL);
+
+            laik_set_initial_partitioning(curMGData->Axf_blob->values, local_old[level-1]);
+            laik_set_initial_partitioning(curMGData->rc_blob->values, local_old[level]);
+            laik_set_initial_partitioning(curMGData->xc_blob->values, local_old[level]);
+        }
+
         laik_switchto_partitioning(curMGData->Axf_blob->values, curLevelMatrix->local, LAIK_DF_Preserve, LAIK_RO_None);
         laik_switchto_partitioning(curMGData->rc_blob->values, curLevelMatrix->Ac->local, LAIK_DF_Preserve, LAIK_RO_None);
         laik_switchto_partitioning(curMGData->xc_blob->values, curLevelMatrix->Ac->local, LAIK_DF_Preserve, LAIK_RO_None);
+       
         // Update local lengths as well
         curMGData->Axf_blob->localLength = curLevelMatrix->localNumberOfRows;
         curMGData->xc_blob->localLength = curLevelMatrix->Ac->localNumberOfRows;
         curMGData->rc_blob->localLength = curLevelMatrix->Ac->localNumberOfRows;
-
+        
         curLevelMatrix = curLevelMatrix->Ac; // Next level
     }
+
+    if (laik_myid(world) >= old_size)
+    {
+        // Ddelete old geometries and free old partitionings
+        for (int level = 0; level < numberOfMgLevels; level++)
+        {
+            DeleteGeometry(*(old_geometry[level]));
+            laik_free_partitioning(local_old[level]);
+        }
+    }
+
+    return;    
 }
 
 /**
@@ -299,29 +352,8 @@ void init_SPM_partitionings(SparseMatrix &A)
     Laik_Group *parent = laik_group_parent(world);
     if (laik_phase(hpcg_instance) > 0)
     {
-        Geometry *old_geometry = new Geometry;
-        // // Calculate nx, ny, nz of old world
-        int npx = 0;
-        int npy = 0;
-        int npz = 0;
-        ComputeOptimalShapeXYZ(laik_size(parent), npx, npy, npz);
-        local_int_t old_nx, old_ny, old_nz;
-        old_nx = A.geom->gnx / npx;
-        old_ny = A.geom->gny / npy;
-        old_nz = A.geom->gnz / npz;
-        // Test
-        bool config_1 = A.geom->gnx % npx == 0;
-        bool config_2 = A.geom->gny % npy == 0;
-        bool config_3 = A.geom->gnz % npz == 0;
-        // this tests are not needed, because we are asserting the previous config here...
-        if (!config_1 || !config_2 || !config_3)
-        {
-            // This means, that expanding/shrinking will not work to the demanded size,
-            assert(config_1 == true); // will fail
-            exit_hpcg_run("It is not possible to expand/shrink the world as requested. Try other new sizes!", false);
-        }
-   
-        GenerateGeometry(laik_size(parent), 0, hpcg_params.numThreads, hpcg_params.pz, hpcg_params.zl, hpcg_params.zu, old_nx, old_ny, old_nz, hpcg_params.npx, hpcg_params.npy, hpcg_params.npz, old_geometry);
+        Geometry *old_geometry = calculate_old_geometry(A, laik_size(parent));
+
         A.geom = old_geometry;
 
         Laik_Partitioner *partitioner_1d = laik_new_partitioner("partitioner_1d_members_of_A", partitioner_1d_members_of_A, (void *)&A, LAIK_PF_None);
@@ -764,11 +796,18 @@ void update_partitionings_x(SparseMatrix &A)
 
     // clear old variables
     free_L2A_map(A.mapping);
+
+    // Fixed segfault for now see also in laik_x_vector.cpp in free_L2A_map
+    std::memcpy(&(A.localToExternalMap), &(A.mapping->localToExternalMap), sizeof(A.mapping->localToExternalMap));
     // TODO other vars
 
+    if(A.localToExternalMap.find(-1) != A.localToExternalMap.end())
+        A.localToExternalMap.erase(-1);
+
+    // Update maps of the SparseMatrix
+    update_Maps(A);
     SetupHalo(A);
-    printf("OLD PROCS ARE EXITING!\n");
-    exit_hpcg_run("re_switch_LaikVectors", false);
+
     return;
 }
 
@@ -880,6 +919,77 @@ void broadcast_hpcg_params(void)
 
     laik_broadcast(iparams, iparams, nparams, laik_Int32);
     return;
+}
+
+/**
+ * @brief Calculate old geometry. We need this to set initial partitioning for new joining processes
+ * 
+ * @param A SparseMatrix
+ * @param[in] old_size of parent world 
+ * @return Pointer to geom with old config 
+ */
+Geometry * calculate_old_geometry(SparseMatrix &A, int old_size)
+{
+    Geometry *old_geometry = new Geometry;
+    // // Calculate nx, ny, nz of old world
+    int npx = 0;
+    int npy = 0;
+    int npz = 0;
+    ComputeOptimalShapeXYZ(old_size, npx, npy, npz);
+    local_int_t old_nx, old_ny, old_nz;
+    old_nx = A.geom->gnx / npx;
+    old_ny = A.geom->gny / npy;
+    old_nz = A.geom->gnz / npz;
+    // Test
+    bool config_1 = A.geom->gnx % npx == 0;
+    bool config_2 = A.geom->gny % npy == 0;
+    bool config_3 = A.geom->gnz % npz == 0;
+    // this tests are not needed, because we are asserting the previous config here...
+    if (!config_1 || !config_2 || !config_3)
+    {
+        // This means, that expanding/shrinking will not work to the demanded size,
+        assert(config_1 == true); // will fail
+        exit_hpcg_run("It is not possible to expand/shrink the world as requested. Try other new sizes!", false);
+    }
+
+    GenerateGeometry(old_size, 0, hpcg_params.numThreads, hpcg_params.pz, hpcg_params.zl, hpcg_params.zu, old_nx, old_ny, old_nz, hpcg_params.npx, hpcg_params.npy, hpcg_params.npz, old_geometry);
+
+    return old_geometry;
+}
+
+/**
+ * @brief Calculate old coarse geometry. We need this to set initial partitioning for new joining processes
+ *
+ * @param Af SparseMatrix
+ * @param[in] old_size of parent world
+ * @return Pointer to geom with old config
+ */
+Geometry * calculate_old_coarse_geometry(Geometry * old_geometry, int old_size)
+{
+    // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
+    // below may result in global range values.
+    global_int_t nxf = old_geometry->nx;
+    global_int_t nyf = old_geometry->ny;
+    global_int_t nzf = old_geometry->nz;
+
+    local_int_t nxc, nyc, nzc; //Coarse nx, ny, nz
+    assert(nxf%2==0); assert(nyf%2==0); assert(nzf%2==0); // Need fine grid dimensions to be divisible by 2
+    nxc = nxf/2; nyc = nyf/2; nzc = nzf/2;
+
+    // Construct the geometry and linear system
+    Geometry * old_geomc = new Geometry;
+    local_int_t zlc = 0; // Coarsen nz for the lower block in the z processor dimension
+    local_int_t zuc = 0; // Coarsen nz for the upper block in the z processor dimension
+    int pz = old_geometry->pz;
+    if (pz > 0)
+    {
+        zlc = old_geometry->partz_nz[0] / 2; // Coarsen nz for the lower block in the z processor dimension
+        zuc = old_geometry->partz_nz[1] / 2; // Coarsen nz for the upper block in the z processor dimension
+    }
+
+    GenerateGeometry(old_size, 0, old_geometry->numThreads, old_geometry->pz, zlc, zuc, nxc, nyc, nzc, old_geometry->npx, old_geometry->npy, old_geometry->npz, old_geomc);
+
+    return old_geomc;
 }
 
 /*

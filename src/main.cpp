@@ -102,6 +102,11 @@ int main(int argc, char *argv[])
 
   HPCG_Init(&argc, &argv, params);
 
+  /* DEBUG */
+  // if(laik_phase(hpcg_instance) > 0)
+  //   printf("nx (%d) ny (%d) nz (%d)\n", params.nx, params.ny, params.nz);
+  /* DEBUG */
+
 #ifndef HPCG_NO_LAIK
 #ifdef REPARTITION
   std::memcpy(&hpcg_params, &params, sizeof(params));
@@ -191,6 +196,8 @@ int main(int argc, char *argv[])
   GenerateProblem(A, &b, &x, &xexact);
   SetupHalo(A);
 
+  printf("Total rows (%lld)\n", A.totalNumberOfRows);
+
 #ifndef HPCG_NO_LAIK
 
   Laik_Blob *b_l = init_blob(A);
@@ -201,7 +208,7 @@ int main(int argc, char *argv[])
   xexact_l->name = "xexact_l";
 
   // New procs will switch later
-  if (laik_phase(hpcg_instance) == 0)
+  if (iter == 0)
   {
     CopyVectorToLaikVector(b, b_l, A.mapping);
     CopyVectorToLaikVector(x, x_l, A.mapping);
@@ -214,11 +221,7 @@ int main(int argc, char *argv[])
 
 #endif // HPCG_NO_LAIK
 
-  if (laik_phase(hpcg_instance) > 0)
-  {
-    printf("NEW PROCS ARE EXITING!\n");
-    exit_hpcg_run("", false);
-  }
+ 
   int numberOfMgLevels = 4; // Number of levels including first
   SparseMatrix *curLevelMatrix = &A;
   for (int level = 1; level < numberOfMgLevels; ++level)
@@ -234,19 +237,42 @@ int main(int argc, char *argv[])
   Vector *curb = &b;
   Vector *curx = &x;
   Vector *curxexact = &xexact;
+
   for (int level = 0; level < numberOfMgLevels; ++level)
   {
+#ifndef HPCG_NO_LAIK
+#ifdef REPARTITION
+    // New joining procs do not need to check problem
+    if (iter > 0)
+      break;
+#endif
+#endif
+
     CheckProblem(*curLevelMatrix, curb, curx, curxexact);
     curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
     curb = 0;                            // No vectors after the top level
     curx = 0;
     curxexact = 0;
   }
-
+ 
   CGData data;
   InitializeSparseCGData(A, data);
 
+  // Switch LAIK vectors now, if I am a new process
+  if (iter > 0)
+  {
+    std::vector<Laik_Blob *> list{};
+    /* Vectors in MG_data will be recursively handled in re_switch_LaikVectors */
+    list.push_back(b_l);
+    list.push_back(x_l);
+    list.push_back(A.ptr_to_xexact); /* x_exact is out of scope but we need to switch this vector as well*/
+    list.push_back(data.r_blob);
+    list.push_back(data.z_blob);
+    list.push_back(data.p_blob);
+    list.push_back(data.Ap_blob);
 
+    re_switch_LaikVectors(A, list);
+  }
   ////////////////////////////////////
   // Reference SpMV+MG Timing Phase //
   ////////////////////////////////////
@@ -254,10 +280,11 @@ int main(int argc, char *argv[])
   // Call Reference SpMV and MG. Compute Optimization time as ratio of times in these routines
 
 #ifndef HPCG_NO_LAIK
-  Laik_Blob *x_overlap = init_blob(A);
-  Laik_Blob *b_computed = init_blob(A);
+  Laik_Blob * x_overlap = init_blob(A);
+  Laik_Blob * b_computed = init_blob(A);
 
-  fillRandomLaikVector(x_overlap, A.mapping);
+  if(iter == 0)
+    fillRandomLaikVector(x_overlap, A.mapping);
 #else
   local_int_t nrow = A.localNumberOfRows;
   local_int_t ncol = A.localNumberOfColumns;
@@ -276,7 +303,7 @@ int main(int argc, char *argv[])
 #ifndef HPCG_NO_LAIK
 #ifdef REPARTITION
   // Need this to know, if this proc is a new joining or old initial process.
-  if(iter != 0)
+  if(iter > 0)
     numberOfCalls = 0;
 #endif
 #endif
@@ -299,7 +326,7 @@ int main(int argc, char *argv[])
     if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
   }
 
-    if (iter != 0)
+    if (iter > 0)
       times[8] = 0;
     else
       times[8] = (mytimer() - t_begin) / ((double)numberOfCalls); // Total time divided by number of calls.
@@ -416,7 +443,6 @@ int main(int argc, char *argv[])
   double opt_worst_time = 0.0;
 
   std::vector<double> opt_times(9, 0.0);
-
   // Compute the residual reduction and residual count for the user ordering and optimized kernels.
   for (int i = 0; i < numberOfCalls; ++i)
   {
@@ -446,8 +472,6 @@ int main(int argc, char *argv[])
   double local_opt_worst_time = opt_worst_time;
 #ifndef HPCG_NO_LAIK
   laik_allreduce(&local_opt_worst_time, &opt_worst_time, 1, laik_Double, LAIK_RO_Max);
-  // MPI_Allreduce(&local_opt_worst_time, &opt_worst_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-
 #else
   MPI_Allreduce(&local_opt_worst_time, &opt_worst_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 #endif // HPCG_NO_LAIK
@@ -471,7 +495,6 @@ int main(int argc, char *argv[])
 
   double total_runtime = params.runningTime;
   int numberOfCgSets = int(total_runtime / opt_worst_time) + 1; // Run at least once, account for rounding
-
 #ifdef HPCG_DEBUG
   if (rank == 0)
   {
@@ -487,14 +510,10 @@ int main(int argc, char *argv[])
   TestNormsData testnorms_data;
   testnorms_data.samples = numberOfCgSets;
 
-
-
   testnorms_data.values = new double[numberOfCgSets];
-
   HPCG_fout << "Number of CG sets: " << numberOfCgSets << "\n";
   for (int i = 0; i < numberOfCgSets; ++i)
   {
-
 #ifndef HPCG_NO_LAIK
     ZeroLaikVector(x_l, A.mapping); // Zero out x
     ierr = CG_laik(A, data, b_l, x_l, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);
@@ -507,7 +526,6 @@ int main(int argc, char *argv[])
     if (rank == 0) HPCG_fout << "Call [" << i << "] Scaled Residual [" << normr / normr0 << "]" << endl;
     testnorms_data.values[i] = normr / normr0; // Record scaled residual from this run
   }
-
   // Compute difference between known exact solution and computed solution
   // All processors are needed here.
 #ifdef HPCG_DEBUG
@@ -531,14 +549,17 @@ int main(int argc, char *argv[])
   // Clean up
   // DeleteMatrix(A); // This delete will recursively delete all coarse grid data
   DeleteCGData(data);
-
-  DeleteVector(x);
-  DeleteVector(b);
-  DeleteVector(xexact);
+  // DeleteVector(x); // TODO NEW joining procs do not init them. Handle that
+  // DeleteVector(b);
+  // DeleteVector(xexact);
 
 #ifndef HPCG_NO_LAIK
   DeleteLaikVector(x_overlap);
   DeleteLaikVector(b_computed);
+  DeleteLaikVector(x_l);
+  DeleteLaikVector(b_l);
+  DeleteLaikVector(xexact_l);
+
 #else
   DeleteVector(x_overlap);
   DeleteVector(b_computed);
@@ -550,11 +571,11 @@ int main(int argc, char *argv[])
 
   // Finish up
 #ifndef HPCG_NO_MPI
-  laik_finalize(hpcg_instance);
+  laik_finalize(hpcg_instance); // nGives double free error, if new joining procs call this functions
 #else
   MPI_Finalize();
 #endif
-  printf("Ending program\n");
+  printf("LAIK %d\tEnding program\n", hpcg_params.comm_rank);
   exit_hpcg_run("Ending program", false);
   return 0;
 }

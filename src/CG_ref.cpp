@@ -34,8 +34,6 @@
 #define TICK()  t0 = mytimer() //!< record current time in 't0'
 #define TOCK(t) t += mytimer() - t0 //!< store time difference in 't' using time in 't0'
 
-#define HPCG_DEBUG
-
 #ifndef HPCG_NO_LAIK
 /*!
   Reference routine to compute an approximate solution to Ax = b
@@ -93,8 +91,39 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
   int iter = laik_phase(hpcg_instance);
 #endif
 
-  if(iter == 0)
+
+  if(A.repartition_me)
   {
+    if (iter == 0)
+    {
+      // copy x to p for sparse MV operation
+      CopyLaikVectorToLaikVector(x, p, A.mapping);
+      TICK();
+      ComputeSPMV_laik_ref(A, p, Ap);
+      TOCK(t3); // Ap = A*p
+      TICK();
+      ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r, A.mapping);
+      TOCK(t2); // r = b - Ax (x stored in p)
+      TICK();
+      ComputeDotProduct_laik_ref(nrow, r, r, normr, t4, A.mapping);
+      TOCK(t1);
+      normr = sqrt(normr);
+
+      // Record initial residual for convergence testing
+      normr0 = normr;
+    }
+    else
+    {
+      // Joining procs need to get this from other proc
+      laik_broadcast((void *)&normr0, (void *)&normr0, 1, laik_Double);
+      laik_broadcast((void *)&normr, (void *)&normr, 1, laik_Double);
+      laik_broadcast((void *)&rtz, (void *)&rtz, 1, laik_Double);
+      // Values of the vector were recieved with a switchto before
+    }
+  }
+  else
+  {
+    // Normal CG_ref call without repartitioning
     // copy x to p for sparse MV operation
     CopyLaikVectorToLaikVector(x, p, A.mapping);
     TICK();
@@ -111,39 +140,34 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     // Record initial residual for convergence testing
     normr0 = normr;
   }
-  else
-  {
-    // Joining procs need to get this from other proc
-    laik_broadcast((void *)&normr0, (void *)&normr0, 1, laik_Double);
-    laik_broadcast((void *)&normr, (void *)&normr, 1, laik_Double);
-    // Values of the vector will be recieved with a switchto
-  }
+  
 
 #ifdef HPCG_DEBUG
   if (A.geom->rank == 0)
     HPCG_fout << "Initial Residual = " << normr << std::endl;
 #endif
 
-
-int k = 1;
+  int k = 1;
 
 #ifdef REPARTITION
-  A.repartitioned = false;
-
-  if(laik_phase(hpcg_instance) > 0)
+  if(A.repartition_me && laik_phase(hpcg_instance) > 0)
+  {
     k = laik_phase(hpcg_instance); // should equal 11
+    assert(k == 11);
+  }
 #endif
 
   for (; k <= max_iter && normr / normr0 > tolerance; k++)
   {
-
     TICK();
     if (doPreconditioning)
       ComputeMG_laik_ref(A, r, z, k); // Apply preconditioner
     else
       ComputeWAXPBY_laik_ref(nrow, 1.0, r, 0.0, r, z, A.mapping); // copy r to z (no preconditioning)
-    TOCK(t5);                                     // Preconditioner apply time
- 
+    TOCK(t5); // Preconditioner apply time
+
+   
+
     if (k == 1)
     {
       CopyLaikVectorToLaikVector(z, p, A.mapping);
@@ -163,10 +187,9 @@ int k = 1;
       ComputeWAXPBY_laik_ref(nrow, 1.0, z, beta, p, p, A.mapping);
       TOCK(t2); // p = beta*p + z
     }
-   
+
     TICK();
     ComputeSPMV_laik_ref(A, p, Ap);
-
     TOCK(t3); // Ap = A*p
     TICK();
     ComputeDotProduct_laik_ref(nrow, p, Ap, pAp, t4, A.mapping);
@@ -240,6 +263,7 @@ int k = 1;
         {
           laik_broadcast((void *)&normr0, (void *) &normr0, 1, laik_Double);
           laik_broadcast((void *)&normr, (void *) &normr, 1, laik_Double);
+          laik_broadcast((void *)&rtz, (void *)&rtz, 1, laik_Double);
         }
 
         // Releasing old, not needed ressources in re_setup_problem(A);
@@ -263,6 +287,10 @@ int k = 1;
     }
 #endif // REPARTITION
   }
+
+// #ifdef REPARTITION
+//   laik_set_phase(hpcg_instance, 0, 0, 0);
+// #endif
 
   // Store times
   times[1] += t1; // dot product time

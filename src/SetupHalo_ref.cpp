@@ -303,11 +303,6 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
     assert(sendList[curNeighbor->first].size() == receiveList[curNeighbor->first].size());
   }
 #endif
-  if (laik_phase(hpcg_instance) > 0 && laik_myid(world) < 2)
-  {
-    printf("OLD PROCS ARE EXITING!\n");
-    exit_hpcg_run("re_switch_LaikVectors", false);
-  }
 
   // Build the arrays and lists needed by the ExchangeHalo function.
   double *sendBuffer = new double[totalToBeSent];
@@ -324,19 +319,22 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
     neighbors[neighborCount] = neighborId; // store rank ID of current neighbor
     receiveLength[neighborCount] = receiveList[neighborId].size();
     sendLength[neighborCount] = sendList[neighborId].size(); // Get count if sends/receives
+
     for (set_iter i = receiveList[neighborId].begin(); i != receiveList[neighborId].end(); ++i, ++receiveEntryCount)
     {
       externalToLocalMap[*i] = localNumberOfRows + receiveEntryCount; // The remote columns are indexed at end of internals
       A.localToExternalMap[localNumberOfRows + receiveEntryCount] = *i;
     }
+
     for (set_iter i = sendList[neighborId].begin(); i != sendList[neighborId].end(); ++i, ++sendEntryCount)
     {
       // if (geom.rank==1) HPCG_fout << "*i, globalToLocalMap[*i], sendEntryCount = " << *i << " " << A.globalToLocalMap[*i] << " " << sendEntryCount << endl;
       elementsToSend[sendEntryCount] = A.globalToLocalMap[*i]; // store local ids of entry to send
     }
+
   }
 
-  // Convert matrix indices to local IDs
+    // Convert matrix indices to local IDs
 #ifndef HPCG_NO_OPENMP
 #pragma omp parallel for
 #endif

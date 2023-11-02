@@ -163,3 +163,7 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
     * -np 2, adding one new process; with problem size: 8192 totalRows
       * not possible to get 8192 rows with 3 procs
 * Need to add code for new joining processes as they need to do only certain things (not everything in setup functions)
+  * Handling the case for new joining procs within setup functions and init functions
+  * Need to call every laik_switchto_ in the correct order as old procs do
+* Discrepancies in the result
+  * Issue was the variable rtz, which also needs to be sent from old proc to new proc

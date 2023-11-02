@@ -120,29 +120,29 @@ void printResultVector(Vector &x)
 void printResultLaikVector(Laik_Blob *x, L2A_map *mapping)
 {
     if (laik_myid(world) == 0)
-        HPCG_fout << "\n\nPrint result of vector\n";
-    // printf("\n\nPrint result of Laik-vector\n");
+        // HPCG_fout << "\n\nPrint result of vector\n";
+    printf("\n\nPrint result of Laik-vector\n");
 
     double *xv;
     laik_get_map_1d(x->values, 0, (void **)&xv, 0);
 
     size_t localLength = x->localLength;
 
-    // if (laik_myid(world) == 0)
-    // {
-    //     printf("localLength = %ld\n", localLength);
-    //     for (size_t i = 0; i < localLength; i++)
-    //         printf("xv[%ld]=%.10f\n", i, xv[map_l2a_x(mapping, i, false)]);
-    // printf("\nEnd of printing result of vector\n\n");
-    // }
-
     if (laik_myid(world) == 0)
     {
-        HPCG_fout << "localLength = " << to_string(localLength) << "\n";
+        printf("localLength = %ld\n", localLength);
         for (size_t i = 0; i < localLength; i++)
-            HPCG_fout << "xv[" << to_string(i) << "]=" << to_string(xv[map_l2a_x(mapping, i, false)]) << "\n";
-        HPCG_fout << "\nEnd of printing result of vector\n\n";
+            printf("xv[%ld]=%.10f\n", i, xv[map_l2a_x(mapping, i, false)]);
+    printf("\nEnd of printing result of vector\n\n");
     }
+
+    // if (laik_myid(world) == 0)
+    // {
+    //     HPCG_fout << "localLength = " << to_string(localLength) << "\n";
+    //     for (size_t i = 0; i < localLength; i++)
+    //         HPCG_fout << "xv[" << to_string(i) << "]=" << to_string(xv[map_l2a_x(mapping, i, false)]) << "\n";
+    //     HPCG_fout << "\nEnd of printing result of vector\n\n";
+    // }
 }
 
 /**
@@ -400,12 +400,10 @@ void print_LaikBlob(Laik_Blob *x)
     if (x != NULL)
     {
         std::string str{"####### Laik_Blob\n"};
-
         std::string str2{x->name};
         str += "LAIK " + to_string(laik_myid(world)) + "\n";
         str += "Vector name: " + str2 + "\n";
         str += "localLength: " + to_string(x->localLength) + "\n#######\n";
-
         std::cout << str;
     }
 }

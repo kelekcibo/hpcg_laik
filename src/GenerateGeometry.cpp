@@ -97,16 +97,16 @@ void GenerateGeometry(int size, int rank, int numThreads,
 #endif // HPCG_NO_LAIK
 
 
-    int *partz_ids = 0;
-    local_int_t *partz_nz = 0;
-    int npartz = 0;
-    if (pz == 0)
-    { // No variation in nz sizes
-      npartz = 1;
-      partz_ids = new int[1];
-      partz_nz = new local_int_t[1];
-      partz_ids[0] = npz;
-      partz_nz[0] = nz;
+  int *partz_ids = 0;
+  local_int_t *partz_nz = 0;
+  int npartz = 0;
+  if (pz == 0)
+  { // No variation in nz sizes
+    npartz = 1;
+    partz_ids = new int[1];
+    partz_nz = new local_int_t[1];
+    partz_ids[0] = npz;
+    partz_nz[0] = nz;
   }
   else {
     npartz = 2;

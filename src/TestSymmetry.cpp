@@ -68,6 +68,12 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
   Laik_Blob * y_ncol = init_blob(A);
   Laik_Blob * z_ncol = init_blob(A);
 
+  #ifdef REPARTITION
+  laik_switchto_partitioning(x_ncol->values, A.local, LAIK_DF_None, LAIK_RO_None);
+  laik_switchto_partitioning(y_ncol->values, A.local, LAIK_DF_None, LAIK_RO_None);
+  laik_switchto_partitioning(z_ncol->values, A.local, LAIK_DF_None, LAIK_RO_None);
+#endif
+
   double t4 = 0.0; // Needed for dot-product call, otherwise unused
   testsymmetry_data.count_fail = 0;
 
@@ -75,14 +81,6 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
 
   // First load vectors with random values
   fillRandomLaikVector(x_ncol, A.mapping);
-
-  // printResultLaikVector(x_ncol, A.mapping);
-
-  // while (1)
-  // {
-  //   ;
-  // }
-  
   fillRandomLaikVector(y_ncol, A.mapping);
 
   double xNorm2, yNorm2;
