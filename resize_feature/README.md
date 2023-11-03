@@ -30,4 +30,9 @@ Let us assume, we want to test a resize from 2 to 4 (previous example)
 ./test-cases/expansion/test-hpcg-resize-2-2.sh
 ```
 
-Note that certain sizes are not supported yet. For instance, expanding from one two 3 processes.
+## NOTE
+
+* Certain configurations for resizing are not supported yet. For instance, expanding from one to 3 processes.
+* The scripts may echo *Result is not as expected* although the results are correct
+  * *numberOfCGsets* is calculated dynamically
+  
