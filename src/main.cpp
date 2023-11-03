@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
   std::cout << "LAIK " << laik_myid(world) << " ("<< laik_size(world) <<")"
             << "\tI initialized the LAIK INSTANCE! Phase counter: " << laik_phase(hpcg_instance) << "\n";
 
-  HPCG_Init(&argc, &argv, params);
+  HPCG_Init(&argc, &argv, params); 
 
   /* DEBUG */
   // if(laik_phase(hpcg_instance) > 0)
@@ -118,8 +118,9 @@ int main(int argc, char *argv[])
   bool quickPath = (params.runningTime == 0);
 
   int size = params.comm_size, rank = params.comm_rank; // Number of MPI processes, My process ID
-  
-  bool doIO = rank == 0;
+
+  // bool doIO = rank == 0;
+  bool doIO = false;
 
 #ifdef HPCG_DETAILED_DEBUG
   if (size < 100 && rank == 0)
@@ -363,8 +364,8 @@ int main(int argc, char *argv[])
     if (i == 0)
       A.repartition_me = true; /* Repartitioning is only done in Reference CG Timing Phase */
 #endif // REPARTITION
-
     ierr = CG_laik_ref(A, data, b_l, x_l, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
+    if (rank == 0) HPCG_fout << "REPARTITIONG: Call [" << i << "] Scaled Residual [" << normr / normr0 << "]" << endl;
 #ifdef REPARTITION
     if (i == 0)
       A.repartition_me = false; /* Repartitioning is only done in Reference CG Timing Phase */
@@ -509,7 +510,6 @@ int main(int argc, char *argv[])
   double optTolerance = 0.0; // Force optMaxIters iterations
   TestNormsData testnorms_data;
   testnorms_data.samples = numberOfCgSets;
-
   testnorms_data.values = new double[numberOfCgSets];
   HPCG_fout << "Number of CG sets: " << numberOfCgSets << "\n";
   for (int i = 0; i < numberOfCgSets; ++i)
@@ -571,7 +571,7 @@ int main(int argc, char *argv[])
 
   // Finish up
 #ifndef HPCG_NO_MPI
-  laik_finalize(hpcg_instance); // nGives double free error, if new joining procs call this functions
+  laik_finalize(hpcg_instance); // Gives double free error, if new joining procs call this functions
 #else
   MPI_Finalize();
 #endif

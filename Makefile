@@ -1,8 +1,9 @@
 # -*- Makefile -*-
 
-arch = Linux_MPI
-setup_file = setup/Make.$(arch)
+# by default, "arch" is unknown, should be specified in the command line
+arch = UNKNOWN
 
+setup_file = setup/Make.$(arch)
 include $(setup_file)
 
 HPCG_DEPS = src/CG.o \

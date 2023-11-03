@@ -166,4 +166,10 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
   * Handling the case for new joining procs within setup functions and init functions
   * Need to call every laik_switchto_ in the correct order as old procs do
 * Discrepancies in the result
-  * Issue was the variable rtz, which also needs to be sent from old proc to new proc
+  * Issue was the variable rtz, which also needs to be sent from old proc to new pro
+
+## 16 Test Cases and README
+
+* Guide for how to use compile and run HPCG with LAIK
+  * Changed README and created new file in setup to enable LAIK
+* Scripts to reproduce test cases with shrinking/expanding

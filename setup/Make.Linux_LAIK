@@ -87,6 +87,19 @@ MPinc        =
 MPlib        =
 #
 #
+#
+# ----------------------------------------------------------------------
+# - LAIK - Library includes / libraries / specifics -------------------------------
+# ----------------------------------------------------------------------
+DEFS          = -DUSE_MPI -DUSE_TCP2
+LAIKLIB       = -L/usr/local/lib -llaik
+# LAIK_INCLUDES = -I./laik/include -I./laik/include/laik/
+LAIK_INCLUDES = -I/usr/local/include/laik -I/usr/local/include/
+LAIK_DEFS    = $(DEFS) $(LAIK_INCLUDES)
+#
+#
+#
+#
 # ----------------------------------------------------------------------
 # - HPCG includes / libraries / specifics -------------------------------
 # ----------------------------------------------------------------------
@@ -97,6 +110,7 @@ HPCG_LIBS     =
 # - Compile time options -----------------------------------------------
 #
 # -DHPCG_NO_MPI	        Define to disable MPI
+# -DHPCG_NO_LAIK	    Define to disable LAIK
 # -DHPCG_NO_OPENMP	Define to disable OPENMP
 # -DHPCG_CONTIGUOUS_ARRAYS Define to have sparse matrix arrays long and contiguous
 # -DHPCG_DEBUG       	Define to enable debugging output
@@ -104,6 +118,7 @@ HPCG_LIBS     =
 #
 # By default HPCG will:
 #    *) Build with MPI enabled.
+#    *) Build with LAIK enabled.
 #    *) Build with OpenMP enabled.
 #    *) Not generate debugging output.
 #
@@ -119,9 +134,9 @@ HPCG_DEFS     = $(HPCG_OPTS) $(HPCG_INCLUDES)
 #
 CXX          = mpicxx
 #CXXFLAGS     = $(HPCG_DEFS) -fomit-frame-pointer -O3 -funroll-loops -W -Wall
-CXXFLAGS     = $(HPCG_DEFS) -O3 -ffast-math -ftree-vectorize -ftree-vectorizer-verbose=0
+CXXFLAGS     = $(HPCG_DEFS) -O3 -ffast-math -ftree-vectorize -ftree-vectorizer-verbose=0 $(LAIK_FLAGS)
 #
-LINKER       = $(CXX)
+LINKER       = $(CXX) 
 LINKFLAGS    = $(CXXFLAGS)
 #
 ARCHIVER     = ar
