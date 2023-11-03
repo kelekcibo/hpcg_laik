@@ -21,7 +21,7 @@
 // The MPI include must be first for Windows platforms
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #endif
 #include <fstream>
 #include <iostream>
@@ -30,7 +30,6 @@ using std::endl;
 #include <vector>
 #include <cmath>
 
-#include "laik_instance.hpp"
 #include "hpcg.hpp"
 #include "ComputeSPMV.hpp"
 #include "ComputeMG.hpp"
@@ -40,6 +39,7 @@ using std::endl;
 #include "SparseMatrix.hpp"
 #include "TestSymmetry.hpp"
 
+#ifndef HPCG_NO_MPI
 /*!
   Tests symmetry-preserving properties of the sparse matrix vector multiply and multi-grid routines.
 
@@ -64,9 +64,15 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
   local_int_t nrow = A.localNumberOfRows;
   // local_int_t ncol = A.localNumberOfColumns;
 
-  Laik_Blob * x_ncol = init_blob(A, true);
-  Laik_Blob * y_ncol = init_blob(A, true);
-  Laik_Blob * z_ncol = init_blob(A, true);
+  Laik_Blob * x_ncol = init_blob(A);
+  Laik_Blob * y_ncol = init_blob(A);
+  Laik_Blob * z_ncol = init_blob(A);
+
+  #ifdef REPARTITION
+  laik_switchto_partitioning(x_ncol->values, A.local, LAIK_DF_None, LAIK_RO_None);
+  laik_switchto_partitioning(y_ncol->values, A.local, LAIK_DF_None, LAIK_RO_None);
+  laik_switchto_partitioning(z_ncol->values, A.local, LAIK_DF_None, LAIK_RO_None);
+#endif
 
   double t4 = 0.0; // Needed for dot-product call, otherwise unused
   testsymmetry_data.count_fail = 0;
@@ -74,10 +80,8 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
   // Test symmetry of matrix
 
   // First load vectors with random values
-  // fillRandomLaikVector(x_ncol, A.mapping);
-  // fillRandomLaikVector(y_ncol, A.mapping);
-  CopyVectorToLaikVector(x_ncol_test, x_ncol, A.mapping);
-  CopyVectorToLaikVector(y_ncol_test, y_ncol, A.mapping);
+  fillRandomLaikVector(x_ncol, A.mapping);
+  fillRandomLaikVector(y_ncol, A.mapping);
 
   double xNorm2, yNorm2;
   double ANorm = 2 * 26.0;
@@ -158,14 +162,13 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
     if (A.geom->rank == 0)
       HPCG_fout << "SpMV call [" << i << "] Residual [" << residual << "]" << endl;
   }
-  
-  // free(x_ncol); // TODO create function to delete an Laik_Blob
-  // free(y_ncol);
-  // free(z_ncol);
 
+  DeleteLaikVector(x_ncol);
+  DeleteLaikVector(y_ncol);
+  DeleteLaikVector(z_ncol);
   return 0;
 }
-
+#else
 /*!
   Tests symmetry-preserving properties of the sparse matrix vector multiply and multi-grid routines.
 
@@ -201,10 +204,8 @@ int TestSymmetry(SparseMatrix &A, Vector &b, Vector &xexact, TestSymmetryData &t
   // Test symmetry of matrix
 
   // First load vectors with random values
-  // FillRandomVector(x_ncol);
-  // FillRandomVector(y_ncol);
-  CopyVector(x_ncol_test, x_ncol);
-  CopyVector(y_ncol_test, y_ncol);
+  FillRandomVector(x_ncol);
+  FillRandomVector(y_ncol);
 
   double xNorm2, yNorm2;
   double ANorm = 2 * 26.0;
@@ -291,3 +292,4 @@ int TestSymmetry(SparseMatrix &A, Vector &b, Vector &xexact, TestSymmetryData &t
 
   return 0;
 }
+#endif

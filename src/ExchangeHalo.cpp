@@ -21,9 +21,10 @@
 // Compile this routine only if running with MPI
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
+#include <cstdlib>
+
 #include "Geometry.hpp"
 #include "ExchangeHalo.hpp"
-#include <cstdlib>
 
 /*!
   Communicates data that is at the border of the part of the domain assigned to this processor.

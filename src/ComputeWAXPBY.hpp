@@ -15,7 +15,7 @@
 #ifndef COMPUTEWAXPBY_HPP
 #define COMPUTEWAXPBY_HPP
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "Vector.hpp"
 int ComputeWAXPBY_laik(const local_int_t n, const double alpha, const Laik_Blob *x,
                        const double beta, const Laik_Blob *y, Laik_Blob *w, bool &isOptimized, L2A_map *mapping);

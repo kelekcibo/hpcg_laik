@@ -21,7 +21,7 @@
 #ifndef TESTCG_HPP
 #define TESTCG_HPP
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "hpcg.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"

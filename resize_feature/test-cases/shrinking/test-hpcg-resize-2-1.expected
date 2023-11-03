@@ -1,0 +1,14 @@
+REPARTIONING: Old world size [2] New world size [1]
+REPARTITIONG: Call [0] Scaled Residual [2.03364e-24]
+WARNING: PERFORMING UNPRECONDITIONED ITERATIONS
+Call [0] Number of Iterations [11] Scaled Residual [1.97551e-14]
+WARNING: PERFORMING UNPRECONDITIONED ITERATIONS
+Call [1] Number of Iterations [11] Scaled Residual [1.97551e-14]
+Call [0] Number of Iterations [1] Scaled Residual [1.43757e-15]
+Call [1] Number of Iterations [1] Scaled Residual [1.43757e-15]
+Departure from symmetry (scaled) for SpMV abs(x'*A*y - y'*A*x) = 1.57236e-05
+Departure from symmetry (scaled) for MG abs(x'*Minv*y - y'*Minv*x) = 2.07464e-06
+SpMV call [0] Residual [0]
+SpMV call [1] Residual [0]
+Number of CG sets: 1
+Call [0] Scaled Residual [5.88488e-33]

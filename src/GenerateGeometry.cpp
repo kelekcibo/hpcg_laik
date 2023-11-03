@@ -21,7 +21,9 @@
 #include <cmath>
 #include <cstdlib>
 #include <cassert>
+#include <cstdio>
 
+#include "laik/hpcg_laik.hpp"
 #include "ComputeOptimalShapeXYZ.hpp"
 #include "GenerateGeometry.hpp"
 
@@ -56,10 +58,50 @@ void GenerateGeometry(int size, int rank, int numThreads,
   if (npx * npy * npz <= 0 || npx * npy * npz > size)
     ComputeOptimalShapeXYZ( size, npx, npy, npz );
 
-  int * partz_ids = 0;
-  local_int_t * partz_nz = 0;
+#ifndef HPCG_NO_LAIK
+#ifdef REPARTITION
+    // change if, such that this part is executed iff. a reseize has been done
+    if(numThreads == -1)
+    {
+      global_int_t old_gnx = geom->gnx;
+      global_int_t old_gny = geom->gny;
+      global_int_t old_gnz = geom->gnz;
+
+      local_int_t new_nx, new_ny, new_nz = 0;
+
+      bool config_1 = old_gnx % npx == 0;
+      bool config_2 = old_gny % npy == 0;
+      bool config_3 = old_gnz % npz == 0;
+
+      if(!config_1 || !config_2 || !config_3)
+      {
+        // This means, that expanding/shrinking will not work to the demanded size,
+        assert(config_1 == true); // will fail
+        exit_hpcg_run("It is not possible to expand/shrink the world as requested. Try other new sizes!", false);
+      }
+
+      new_nx = old_gnx / npx;
+      new_ny = old_gny / npy;
+      new_nz = old_gnz / npz;
+    
+      nx = new_nx;
+      ny = new_ny;
+      nz = new_nz;
+
+      // change hpcg_params as well
+      hpcg_params.nx = nx;
+      hpcg_params.ny = ny;
+      hpcg_params.nz = nz;
+    }
+#endif // REPARTITION
+#endif // HPCG_NO_LAIK
+
+
+  int *partz_ids = 0;
+  local_int_t *partz_nz = 0;
   int npartz = 0;
-  if (pz==0) { // No variation in nz sizes
+  if (pz == 0)
+  { // No variation in nz sizes
     npartz = 1;
     partz_ids = new int[1];
     partz_nz = new local_int_t[1];

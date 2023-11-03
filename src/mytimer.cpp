@@ -21,10 +21,7 @@
 /////////////////////////////////////////////////////////////////////////
 
 #ifndef HPCG_NO_MPI
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 
 double mytimer(void)
 {

@@ -23,10 +23,6 @@
 #include <cassert>
 #include <cstdlib>
 
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-#include "laik_instance.hpp"
 #include "Geometry.hpp"
 
 struct Vector_STRUCT {
@@ -114,7 +110,7 @@ inline void CopyVector(const Vector & v, Vector & w) {
  */
 inline void DeleteVector(Vector & v) {
 
-  delete [] v.values;
+  if(v.values) delete [] v.values;
   v.localLength = 0;
   return;
 }

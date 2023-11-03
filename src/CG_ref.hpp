@@ -15,18 +15,20 @@
 #ifndef CG_REF_HPP
 #define CG_REF_HPP
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 #include "CGData.hpp"
 
-int CG_laik_ref(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Blob *x,
+#ifndef HPCG_NO_LAIK
+int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
            const int max_iter, const double tolerance, int &niters, double &normr, double &normr0,
            double *times, bool doPreconditioning);
-           
+#else
 int CG_ref(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
     const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
     double * times, bool doPreconditioning);
+#endif
 // this function will compute the Conjugate Gradient iterations.
 // geom - Domain and processor topology information
 // A - Matrix

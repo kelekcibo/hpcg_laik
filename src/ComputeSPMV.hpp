@@ -15,7 +15,7 @@
 #ifndef COMPUTESPMV_HPP
 #define COMPUTESPMV_HPP
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
 

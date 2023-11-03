@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# script to run and debug app
+
+# compile hpcg app
+cd ..
+make
+cd expanding_feature
+
+# delete old result files
+rm -f *.txt
+clear
+
+./tcp2run -n 2 -s 2 ./../bin/xhpcg

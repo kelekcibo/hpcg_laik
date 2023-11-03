@@ -21,7 +21,7 @@
 #include <fstream>
 #include <cmath>
 
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #include "hpcg.hpp"
 #include "CG_ref.hpp"
 #include "mytimer.hpp"
@@ -30,11 +30,11 @@
 #include "ComputeDotProduct_ref.hpp"
 #include "ComputeWAXPBY_ref.hpp"
 
-
 // Use TICK and TOCK to time a code section in MATLAB-like fashion
 #define TICK()  t0 = mytimer() //!< record current time in 't0'
 #define TOCK(t) t += mytimer() - t0 //!< store time difference in 't' using time in 't0'
 
+#ifndef HPCG_NO_LAIK
 /*!
   Reference routine to compute an approximate solution to Ax = b
 
@@ -54,7 +54,7 @@
 
   @see CG()
 */
-int CG_laik_ref(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Blob *x,
+int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
            const int max_iter, const double tolerance, int &niters, double &normr, double &normr0,
            double *times, bool doPreconditioning)
 {
@@ -85,35 +85,88 @@ int CG_laik_ref(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Bl
   if (print_freq < 1)
     print_freq = 1;
 #endif
-  // copy x to p for sparse MV operation
-  CopyLaikVectorToLaikVector(x, p, A.mapping);
-  TICK();
-  ComputeSPMV_laik_ref(A, p, Ap);
-  TOCK(t3); // Ap = A*p
-  TICK();
-  ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r, A.mapping);
-  TOCK(t2); // r = b - Ax (x stored in p)
-  TICK();
-  ComputeDotProduct_laik_ref(nrow, r, r, normr, t4, A.mapping);
-  TOCK(t1);
-  normr = sqrt(normr);
+
+#ifdef REPARTITION
+  // Need this to know, if this proc is a new joining or old initial process.
+  int iter = laik_phase(hpcg_instance);
+#endif
+
+
+  if(A.repartition_me)
+  {
+    if (iter == 0)
+    {
+      // copy x to p for sparse MV operation
+      CopyLaikVectorToLaikVector(x, p, A.mapping);
+      TICK();
+      ComputeSPMV_laik_ref(A, p, Ap);
+      TOCK(t3); // Ap = A*p
+      TICK();
+      ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r, A.mapping);
+      TOCK(t2); // r = b - Ax (x stored in p)
+      TICK();
+      ComputeDotProduct_laik_ref(nrow, r, r, normr, t4, A.mapping);
+      TOCK(t1);
+      normr = sqrt(normr);
+
+      // Record initial residual for convergence testing
+      normr0 = normr;
+    }
+    else
+    {
+      // Joining procs need to get this from other proc
+      laik_broadcast((void *)&normr0, (void *)&normr0, 1, laik_Double);
+      laik_broadcast((void *)&normr, (void *)&normr, 1, laik_Double);
+      laik_broadcast((void *)&rtz, (void *)&rtz, 1, laik_Double);
+      // Values of the vector were recieved with a switchto before
+    }
+  }
+  else
+  {
+    // Normal CG_ref call without repartitioning
+    // copy x to p for sparse MV operation
+    CopyLaikVectorToLaikVector(x, p, A.mapping);
+    TICK();
+    ComputeSPMV_laik_ref(A, p, Ap);
+    TOCK(t3); // Ap = A*p
+    TICK();
+    ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r, A.mapping);
+    TOCK(t2); // r = b - Ax (x stored in p)
+    TICK();
+    ComputeDotProduct_laik_ref(nrow, r, r, normr, t4, A.mapping);
+    TOCK(t1);
+    normr = sqrt(normr);
+
+    // Record initial residual for convergence testing
+    normr0 = normr;
+  }
+  
+
 #ifdef HPCG_DEBUG
   if (A.geom->rank == 0)
     HPCG_fout << "Initial Residual = " << normr << std::endl;
 #endif
 
-  // Record initial residual for convergence testing
-  normr0 = normr;
+  int k = 1;
 
-  // Start iterations
-  for (int k = 1; k <= max_iter && normr / normr0 > tolerance; k++)
+#ifdef REPARTITION
+  if(A.repartition_me && laik_phase(hpcg_instance) > 0)
+  {
+    k = laik_phase(hpcg_instance); // should equal 11
+    assert(k == 11);
+  }
+#endif
+
+  for (; k <= max_iter && normr / normr0 > tolerance; k++)
   {
     TICK();
     if (doPreconditioning)
-      ComputeMG_laik_ref(A, r, z); // Apply preconditioner
+      ComputeMG_laik_ref(A, r, z, k); // Apply preconditioner
     else
       ComputeWAXPBY_laik_ref(nrow, 1.0, r, 0.0, r, z, A.mapping); // copy r to z (no preconditioning)
-    TOCK(t5);                                     // Preconditioner apply time
+    TOCK(t5); // Preconditioner apply time
+
+   
 
     if (k == 1)
     {
@@ -155,7 +208,89 @@ int CG_laik_ref(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Bl
       HPCG_fout << "Iteration = " << k << "   Scaled Residual = " << normr / normr0 << std::endl;
 #endif
     niters = k;
+
+#ifdef REPARTITION
+    // Repartitioning / Resizing of current world (group of proccesses) in the 10th iteration
+    // For now, repartitioning is only done once
+    if (k == 10 && A.repartition_me && !A.repartitioned)
+    {
+      A.repartition_me = false;             // do not repartition the matrix anymore
+      uint32_t old_size = laik_size(world); // Old world size for output
+
+      /* Code for shrinking world */
+      // int shrink_count = 1;
+      // int plist[1];
+      // plist[0] = 1; // remove proc 1 as test with config: size = 2
+      // Laik_Group * newworld = laik_new_shrinked_group(world, shrink_count, plist);
+      /* Code for shrinking world */
+
+      // allow resize of world and get new world
+      Laik_Group *newworld = laik_allow_world_resize(hpcg_instance, k + 1);
+      uint32_t new_size = laik_size(newworld); // Old world size for output
+
+      // laik_finish_world_resize(hpcg_instance);
+      if (newworld != world)
+      {
+        // Old partitionings for the x vector, which will be freed after re_switch_LaikVectors()
+        Laik_Partitioning *old_local = A.local;
+        Laik_Partitioning *old_ext = A.ext;
+
+        // Assign new world and release old world
+        laik_release_group(world);
+        world = newworld;
+
+        // Re-run setup functions and run partitioners for the new group
+        repartition_SparseMatrix(A);
+        nrow = A.localNumberOfRows; /* update local value after repartitioning */
+
+        // Switch to the new partitioning on all Laik_data containers
+        std::vector<Laik_Blob *> list{};
+        /* Vectors in MG_data will be recursively handled in re_switch_LaikVectors */
+        list.push_back(b);
+        list.push_back(x);
+        list.push_back(A.ptr_to_xexact); /* x_exact is out of scope but we need to switch this vector as well*/
+        list.push_back(r);
+        list.push_back(z);
+        list.push_back(p);
+        list.push_back(Ap);
+
+        re_switch_LaikVectors(A, list);
+        laik_free_partitioning(old_local);
+        laik_free_partitioning(old_ext);
+
+        // Need to send normr to new joining procs
+        if(new_size > old_size)
+        {
+          laik_broadcast((void *)&normr0, (void *) &normr0, 1, laik_Double);
+          laik_broadcast((void *)&normr, (void *) &normr, 1, laik_Double);
+          laik_broadcast((void *)&rtz, (void *)&rtz, 1, laik_Double);
+        }
+
+        // Releasing old, not needed ressources in re_setup_problem(A);
+        // Exit, if we got removed from the world
+        if (laik_myid(world) < 0)
+        {
+          // DeleteMatrix(A); TODO fix seg fault
+          DeleteCGData(data);
+          DeleteLaikVector(A.ptr_to_xexact);
+          DeleteLaikVector(x);
+          DeleteLaikVector(b);
+
+          HPCG_Finalize();
+          laik_finalize(hpcg_instance);
+          exit_hpcg_run("", false);
+        }
+
+        A.repartitioned = true;
+        HPCG_fout << "REPARTIONING: Old world size [" << old_size << "] New world size [" << new_size << "]" << std::endl;
+      }
+    }
+#endif // REPARTITION
   }
+
+// #ifdef REPARTITION
+//   laik_set_phase(hpcg_instance, 0, 0, 0);
+// #endif
 
   // Store times
   times[1] += t1; // dot product time
@@ -171,7 +306,7 @@ int CG_laik_ref(const SparseMatrix &A, CGData &data, const Laik_Blob *b, Laik_Bl
 
   return 0;
 }
-
+#else
 /*!
   Reference routine to compute an approximate solution to Ax = b
 
@@ -307,3 +442,4 @@ int CG_ref(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   times[0] += mytimer() - t_begin; // Total time. All done...
   return 0;
 }
+#endif

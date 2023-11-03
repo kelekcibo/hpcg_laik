@@ -1,6 +1,6 @@
 clear
 
-make
+make arch=Linux_LAIK
 
 cd ./bin
 

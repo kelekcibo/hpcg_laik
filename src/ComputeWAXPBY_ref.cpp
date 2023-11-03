@@ -19,7 +19,7 @@
  */
 
 #include "ComputeWAXPBY_ref.hpp"
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #ifndef HPCG_NO_OPENMP
 #include <omp.h>
 #endif
@@ -64,7 +64,7 @@ int ComputeWAXPBY_laik_ref(const local_int_t n, const double alpha, const Laik_B
 #endif
     for (local_int_t i = 0; i < n; i++)
     {
-      allocation_int_t j = map_l2a(mapping, i, false);
+      allocation_int_t j = map_l2a_x(mapping, i, false);
       wv[j] = xv[j] + beta * yv[j];
     }
   }
@@ -75,7 +75,7 @@ int ComputeWAXPBY_laik_ref(const local_int_t n, const double alpha, const Laik_B
 #endif
     for (local_int_t i = 0; i < n; i++)
     {
-      allocation_int_t j = map_l2a(mapping, i, false);
+      allocation_int_t j = map_l2a_x(mapping, i, false);
       wv[j] = alpha * xv[j] + yv[j];
     }
   }
@@ -86,7 +86,7 @@ int ComputeWAXPBY_laik_ref(const local_int_t n, const double alpha, const Laik_B
 #endif
     for (local_int_t i = 0; i < n; i++)
     {
-      allocation_int_t j = map_l2a(mapping, i, false);
+      allocation_int_t j = map_l2a_x(mapping, i, false);
       wv[j] = alpha * xv[j] + beta * yv[j];
     }
   }

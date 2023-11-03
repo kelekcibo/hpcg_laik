@@ -14,10 +14,7 @@
 
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
-#ifndef USE_LAIK
-#define USE_LAIK
-#endif
-#include "laik_instance.hpp"
+#include "laik/hpcg_laik.hpp"
 #endif
 
 #ifndef HPCG_NO_OPENMP
@@ -99,7 +96,7 @@ int HPCG_Init(int *argc_p, char ***argv_p, HPCG_Params &params)
   // Check if --rt was specified on the command line
   int * rt  = iparams+3;  // Assume runtime was not specified and will be read from the hpcg.dat file
   if (iparams[3]) rt = 0; // If --rt was specified, we already have the runtime, so don't read it from file
-  if (! iparams[0] && ! iparams[1] && ! iparams[2]) { /* no geometry arguments on the command line */
+  if (! iparams[0] && ! iparams[1] && ! iparams[2]) { /* no geometry arguments on the command line */ 
     ReadHpcgDat(iparams, rt, iparams+7);
     broadcastParams = true;
   }
@@ -115,12 +112,18 @@ int HPCG_Init(int *argc_p, char ***argv_p, HPCG_Params &params)
       iparams[i] = 16;
   }
 
+
+
 // Broadcast values of iparams to all MPI processes
 #ifndef HPCG_NO_MPI
-  if (broadcastParams) 
-    laik_broadcast(iparams, iparams, nparams, laik_Int32);
+#ifndef HPCG_NO_LAIK
+    if (broadcastParams)
+      laik_broadcast(iparams, iparams, nparams, laik_Int32);
+#else
+  if (broadcastParams)
+    MPI_Bcast(iparams, nparams, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
-
+#endif
 
   params.nx = iparams[0];
   params.ny = iparams[1];

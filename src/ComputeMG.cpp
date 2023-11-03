@@ -17,16 +17,12 @@
 
  HPCG routine
  */
-struct SparseMatrix_STRUCT;
-typedef struct SparseMatrix_STRUCT SparseMatrix;
 
-// #ifndef HPCG_NO_MPI
-#include "laik_instance.hpp"
-// #endif
-
+#include "laik/hpcg_laik.hpp"
 #include "ComputeMG.hpp"
 #include "ComputeMG_ref.hpp"
 
+#ifndef HPCG_NO_MPI
 /*!
   @param[in] A the known system matrix
   @param[in] r the input vector
@@ -41,9 +37,9 @@ int ComputeMG_laik(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *x)
 
   // This line and the next two lines should be removed and your version of ComputeSYMGS should be used.
   A.isMgOptimized = false;
-  return ComputeMG_laik_ref(A, r, x);
+  return ComputeMG_laik_ref(A, r, x, 0);
 }
-
+#else
 /*!
   @param[in] A the known system matrix
   @param[in] r the input vector
@@ -59,3 +55,4 @@ int ComputeMG(const SparseMatrix  & A, const Vector & r, Vector & x) {
   A.isMgOptimized = false;
   return ComputeMG_ref(A, r, x);
 }
+#endif
