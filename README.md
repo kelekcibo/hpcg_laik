@@ -43,3 +43,7 @@ To run hpcg with LAIK enabled
 4. view results
 
 hpcg will generate a result-file *hpcg\*.txt* and a report of the benchmark *HPCG-\*.txt*
+
+5. En-/Disabling REPARTITIONING
+
+Go to file ./src/laik/hpcg_laik.hpp and (un)comment the definition *#define REPARTITION*
