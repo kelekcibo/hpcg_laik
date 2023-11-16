@@ -168,8 +168,11 @@ void laik_barrier()
  */
 void laik_partial_broadcast(const void *sendBuf, void *recvBuf, uint64_t n, Laik_Type *data_type, int old_size)
 {
-    Laik_Partitioner * partitioner = laik_new_partitioner("Partial_broadcast", new_joining_procs, (void*)&old_size, LAIK_PF_None);
+    printf("WARNING: This is only enabled, if repartitioning should be done!\n");    
+#ifdef REPARTITION
+    Laik_Partitioner *partitioner = laik_new_partitioner("Partial_broadcast", new_joining_procs, (void *)&old_size, LAIK_PF_None);
     laik_helper(sendBuf, recvBuf, n, data_type, LAIK_RO_None, laik_Master, partitioner);
+#endif
     return;
 }
 

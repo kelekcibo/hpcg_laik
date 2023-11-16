@@ -100,7 +100,7 @@ MPlib        =
 #
 # DEFAULT: the base directory with the compiled LAIK sources
 DEFS          = -DUSE_MPI -DUSE_TCP2
-LAIKLIB       = -L./laik/ -llaik
+LAIKLIB       = $(abspath laik/liblaik.so)
 LAIK_INCLUDES = -I./laik/include -I./laik/include/laik/
 LAIK_DEFS    = $(DEFS) $(LAIK_INCLUDES)
 #

@@ -224,6 +224,7 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
  */
 void printSPM_val(SparseMatrix &A)
 {
+#ifdef REPARTITION
     global_int_t nx = A.geom->nx;
     global_int_t ny = A.geom->ny;
     global_int_t nz = A.geom->nz;
@@ -304,6 +305,8 @@ void printSPM_val(SparseMatrix &A)
         }     // end iy loop
     }         // end iz loop
     HPCG_fout << debug;
+#endif
+    return;
 }
 
 /**

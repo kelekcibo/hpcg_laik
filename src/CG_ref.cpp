@@ -91,7 +91,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
   int iter = laik_phase(hpcg_instance);
 #endif
 
-
+#ifdef REPARTITION
   if(A.repartition_me)
   {
     if (iter == 0)
@@ -140,7 +140,24 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     // Record initial residual for convergence testing
     normr0 = normr;
   }
-  
+#else
+  // Normal CG_ref call without repartitioning
+  // copy x to p for sparse MV operation
+  CopyLaikVectorToLaikVector(x, p, A.mapping);
+  TICK();
+  ComputeSPMV_laik_ref(A, p, Ap);
+  TOCK(t3); // Ap = A*p
+  TICK();
+  ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r, A.mapping);
+  TOCK(t2); // r = b - Ax (x stored in p)
+  TICK();
+  ComputeDotProduct_laik_ref(nrow, r, r, normr, t4, A.mapping);
+  TOCK(t1);
+  normr = sqrt(normr);
+
+  // Record initial residual for convergence testing
+  normr0 = normr;
+#endif
 
 #ifdef HPCG_DEBUG
   if (A.geom->rank == 0)

@@ -174,8 +174,10 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
   * Changed README and created new file in setup to enable LAIK
 * Scripts to reproduce test cases with shrinking/expanding
 
-## 17 Implementing the Sparse layout
+## 17 Implementing the compact vector and sparse layout
 
 * Overview of the interface
   * Analyzed lex_layout and generic layout interface
-* Adjusting the functions to implement the sparse layout
+* Need to refactor code
+  * current code in data.c is adjusted only to use of lex_layout
+    * need a generic way

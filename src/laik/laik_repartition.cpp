@@ -24,6 +24,7 @@
 #include "GenerateGeometry.hpp"
 #include "CheckProblem.hpp"
 #include "ComputeOptimalShapeXYZ.hpp"
+
 /*
     Includes -END
 */
@@ -35,8 +36,8 @@
 
 /**
  * @brief This partitioner is needed, if new processes join. New processes will need some data from old procs.
- * 
- */
+ *
+*/
 void new_joining_procs(Laik_RangeReceiver *r, Laik_PartitionerParams *p)
 {
     Laik_Space * space = p->space;
@@ -322,6 +323,7 @@ void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
     return;    
 }
 
+
 /**
  * @brief Initialize partitionings needed to partition the SparseMatrix.
  *
@@ -344,6 +346,11 @@ void init_SPM_partitionings(SparseMatrix &A)
     A.matrixDiagonal_d = laik_new_data(A.space, laik_Double);
     A.mtxIndG_d = laik_new_data(A.space2d, laik_UInt64);
     A.matrixValues_d = laik_new_data(A.space2d, laik_Double);
+
+    laik_data_set_layout_factory(A.nonzerosInRow_d, laik_new_layout_vector);
+    laik_data_set_layout_factory(A.matrixDiagonal_d, laik_new_layout_vector);
+    laik_data_set_layout_factory(A.mtxIndG_d, laik_new_layout_sparse);
+    laik_data_set_layout_factory(A.matrixValues_d, laik_new_layout_sparse);
 
     // New joining procs
     // Need geometry with old config. Store current config

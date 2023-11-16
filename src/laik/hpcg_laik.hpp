@@ -15,7 +15,7 @@
     Defs
 */
 // Delete me, if no repartitioning should happen
-#define REPARTITION // To enable shrink/expand feature. 
+// #define REPARTITION // To enable shrink/expand feature. 
 
 typedef long long allocation_int_t; // Index to the allocation buffer
 /*
@@ -27,7 +27,8 @@ typedef long long allocation_int_t; // Index to the allocation buffer
 */
 extern "C"
 {
-#include <laik.h> // using laik library
+#include "../../laik/include/laik.h" // using laik library
+// #include <laik.h> // if LAIK is installed
 }
 
 // All other custom laik headers within src/laik

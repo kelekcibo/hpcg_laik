@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
 
   // ps -ef | grep xhpcg
   // killall xhpcg
-  std::cout << "LAIK\tCalling laik_init now\n";
+  // std::cout << "LAIK\tCalling laik_init now\n";
 
 #ifndef HPCG_NO_MPI
   #ifndef HPCG_NO_LAIK
@@ -97,8 +97,8 @@ int main(int argc, char *argv[])
   #endif // HPCG_NO_LAIK
 #endif // HPCG_NO_MPI
 
-  std::cout << "LAIK " << laik_myid(world) << " ("<< laik_size(world) <<")"
-            << "\tI initialized the LAIK INSTANCE! Phase counter: " << laik_phase(hpcg_instance) << "\n";
+  // std::cout << "LAIK " << laik_myid(world) << " ("<< laik_size(world) <<")"
+  //           << "\tI initialized the LAIK INSTANCE! Phase counter: " << laik_phase(hpcg_instance) << "\n";
 
   HPCG_Init(&argc, &argv, params); 
 
@@ -194,10 +194,10 @@ int main(int argc, char *argv[])
 
   Vector b, x, xexact;
 
-  GenerateProblem(A, &b, &x, &xexact);
+  GenerateProblem(A, &b, &x, &xexact);   
   SetupHalo(A);
 
-  printf("Total rows (%lld)\n", A.totalNumberOfRows);
+  // printf("Total rows (%lld)\n", A.totalNumberOfRows);
 
 #ifndef HPCG_NO_LAIK
 
@@ -259,6 +259,7 @@ int main(int argc, char *argv[])
   CGData data;
   InitializeSparseCGData(A, data);
 
+#ifdef REPARTITION
   // Switch LAIK vectors now, if I am a new process
   if (iter > 0)
   {
@@ -274,6 +275,7 @@ int main(int argc, char *argv[])
 
     re_switch_LaikVectors(A, list);
   }
+#endif
   ////////////////////////////////////
   // Reference SpMV+MG Timing Phase //
   ////////////////////////////////////
@@ -575,7 +577,7 @@ int main(int argc, char *argv[])
 #else
   MPI_Finalize();
 #endif
-  printf("LAIK %d\tEnding program\n", hpcg_params.comm_rank);
+  printf("LAIK %d\tEnding program\n", laik_myid(world));
   exit_hpcg_run("Ending program", false);
   return 0;
 }
