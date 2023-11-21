@@ -174,10 +174,73 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
   * Changed README and created new file in setup to enable LAIK
 * Scripts to reproduce test cases with shrinking/expanding
 
-## 17 Implementing the compact vector and sparse layout
+## 17 Implementing the compact vector layout
 
 * Overview of the interface
   * Analyzed lex_layout and generic layout interface
+  * Asking advisor to understand it better
 * Need to refactor code
   * current code in data.c is adjusted only to use of lex_layout
     * need a generic way
+    * using a flag to know which layout is being used
+* Our custom layout needs extra data from the application
+  * Quick solution
+    * Add pointer in Laik_Data to layout_data
+    * add function to set layout_Data in Laik_Data
+* Implement function to get required range for the vector layout
+  * instead of expanding in both directions, we only add the size of ranges to the upper bound of the required range
+* For now only considered the local partitioning. Need extra data for ext partitioning
+* Tested it and we see errors in copying when switching to laik_all and back.
+  * Assigning value using vector layout;
+
+```C
+  double *v;
+  uint64_t count;
+  laik_get_map_1d(blob->values, 0, (void **)&v, &count);
+  for (size_t i = 0; i < count; i++)
+  {
+      v[i] = i;
+      // printf("v[%lld]=%.1f\n", A.localToGlobalMap[i], v[i]);
+  }
+```
+
+* Switching to laik_All partitioning to exchange values
+  * our not yet implemented functions in the layout are used
+* Switching back to local partitioning and printing values
+  * we can see that at index 16 it should go on with 16, but as we changed to laik all and back again, it did not copy the correct indices to the correct place again.
+  * the global index 16 is the local index 0 of the second process. that is why we get a zero there.
+
+```C
+v[0]=0.0
+v[1]=1.0
+v[2]=2.0
+v[3]=3.0
+v[4]=4.0
+v[5]=5.0
+v[6]=6.0
+v[7]=7.0
+v[8]=8.0
+v[9]=9.0
+v[10]=10.0
+v[11]=11.0
+v[12]=12.0
+v[13]=13.0
+v[14]=14.0
+v[15]=15.0
+v[16]=0.0
+v[17]=1.0
+v[18]=2.0
+v[19]=3.0
+...
+v[31]=15.0
+v[32]=32.0
+v[33]=33.0
+v[34]=34.0
+v[35]=35.0
+```
+
+* At global index 32, the correct value is visible again.
+* So we need to implement a compact vector layout specific function of copying buffers in regard to global indexes.
+* But we need to consider the offset as well as we saw in 3.4. because LAIK works with global indexes and if the first global index is 16 and base pointer is 1000, we would write to 100 + 16 * 8, which is obviously not the starting adress.
+* The things we did explicitly in the code need to be done in LAIK now.
+* Thinking about which data we need from the application
