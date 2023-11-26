@@ -19,11 +19,12 @@
 
 #include <algorithm>
 
-#ifndef HPCG_NO_MPI
-#ifndef USE_LAIK
-#define USE_LAIK
+#ifndef HPCG_NOMPI
+#ifndef HPCG_NO_LAIK
+#include "./laik/hpcg_laik.hpp"
+#else
+#include <mpi.h> // If this routine is not compiled with HPCG_NOMPI
 #endif
-#include "laik/hpcg_laik.hpp"
 #endif
 
 #include "hpcg.hpp"
@@ -43,7 +44,11 @@ CheckAspectRatio(double smallest_ratio, int x, int y, int z, const char *what, b
     }
 
 #ifndef HPCG_NO_MPI
+#ifndef HPCG_NO_LAIK
     laik_finalize(hpcg_instance);
+#else
+    MPI_Abort(MPI_COMM_WORLD, 127);
+#endif
 #endif
 
     return 127;

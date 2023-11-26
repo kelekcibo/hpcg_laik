@@ -26,33 +26,31 @@
 /**
  * @brief Compare two double values x and y
  *
- * @param x
- * @param y
- * @param doIO
- * @param curIndex
+ * @param[in] x value
+ * @param[in] y value
+ * @param[in] doIO print
+ * @param[in] curIndex index to the allocation buffer
  */
 void compare2(double x, double y, bool doIO, allocation_int_t curIndex)
 {
     double delta = std::abs(x - y);
 
-    if (doIO)
-        printf("map_l2a index: %lld\t| %.10f - %.10f | = %.10f\n", curIndex, x, y, delta);
+    if (doIO) printf("map_l2a index: %lld\t| %.10f - %.10f | = %.10f\n", curIndex, x, y, delta);
 
     if (delta != 0.0)
     {
-        if (doIO)
-            printf("Difference is not tolerated: %.20f\nindex of map_l2a: %lld\n", delta, curIndex);
-        assert(delta == 0);
+        if (doIO) printf("Difference is not tolerated: %.20f\nindex of map_l2a: %lld\n", delta, curIndex);
+        exit_hpcg_run("delta does not equal 0!", false);
     }
 }
 
 /**
  * @brief Compare the two vectors x and y.
  *
- * @param x
- * @param y
- * @param mapping
- * @param doIO
+ * @param[in] x vector
+ * @param[in] y vector
+ * @param[in] mapping due to the lex layout
+ * @param[in] doIO print
  */
 void compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO)
 {
@@ -68,26 +66,22 @@ void compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO)
     for (size_t i = 0; i < length; i++)
     {
         double delta = std::abs(xv[i] - yv[map_l2a_x(mapping, i, false)]);
-        if (doIO)
-            // printf("Index %lld: Delta %.10f\n", i, delta);
-            if (doIO)
-                printf("xv[%ld]=%.10f\tyv_blob[%lld]=%.10f\n", i, xv[i], map_l2a_x(mapping, i, false), yv[map_l2a_x(mapping, i, false)]);
+        // if (doIO) printf("Index %lld: Delta %.10f\n", i, delta);
+        if (doIO) printf("xv[%ld]=%.10f\tyv_blob[%lld]=%.10f\n", i, xv[i], map_l2a_x(mapping, i, false), yv[map_l2a_x(mapping, i, false)]);
         if (delta != 0)
         {
-            if (doIO)
-                printf("Difference is not tolerated: %.20f\n", delta);
-            assert(false);
+            if (doIO) printf("Difference is not tolerated: %.20f\n", delta);
+            exit_hpcg_run("delta does not equal 0!", false);
         }
     }
 
-    if (doIO)
-        printf("Compare done\n");
+    if (doIO) printf("Compare done\n");
 }
 
 /**
  * @brief Print the vector
  *
- * @param x vector to be printed
+ * @param[in] x vector to be printed
  */
 void printResultVector(Vector &x)
 {
@@ -114,8 +108,8 @@ void printResultVector(Vector &x)
 /**
  * @brief Print the Laik Vector
  *
- * @param x
- * @param mapping
+ * @param[in] x laik vector to be printed
+ * @param[in] mapping due to the lex layout
  */
 void printResultLaikVector(Laik_Blob *x, L2A_map *mapping)
 {
@@ -148,8 +142,8 @@ void printResultLaikVector(Laik_Blob *x, L2A_map *mapping)
 /**
  * @brief Print some information about the SparseMatrix
  *
- * @param spm
- * @param coarseLevel
+ * @param[in] spm sparsematrix
+ * @param[in] coarseLevel current matrix layer/level
  */
 void printSPM(SparseMatrix *spm, int coarseLevel)
 {
@@ -162,28 +156,23 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
               << "\nTotal # of nonzeros " << spm->totalNumberOfNonzeros
               << std::endl;
 
-    HPCG_fout << "\n##################### Local stats #####################\n\n";
-
     // Local
+    HPCG_fout << "\n##################### Local stats #####################\n\n";
     HPCG_fout << "\nLocal # of rows " << spm->localNumberOfRows
               << std::endl
               << "\nLocal # of nonzeros " << spm->localNumberOfNonzeros
               << std::endl;
-
+    // mapping of rows
     HPCG_fout << "\n##################### Mapping of rows #####################\n\n";
-
     HPCG_fout << "\nLocal-to-global Map\n";
     HPCG_fout << "Local\tGlobal\n";
     for (int c = 0; c < spm->localToGlobalMap.size(); c++)
-    {
         HPCG_fout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
-    }
 
-
+    // other procs print on stdin
     if (spm->geom->rank != 0)
     {
         std::cout << "\n##################### My RANK (" << spm->geom->rank << ") #####################\n\n";
-
         // Global data
         std::cout << "\n##################### Global stats #####################\n\n";
 
@@ -192,24 +181,19 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
                   << "\nTotal # of nonzeros " << spm->totalNumberOfNonzeros
                   << std::endl;
 
-        std::cout << "\n##################### Local stats #####################\n\n";
-
         // Local
+        std::cout << "\n##################### Local stats #####################\n\n";
         std::cout << "\nLocal # of rows " << spm->localNumberOfRows
                   << std::endl
                   << "\nLocal # of nonzeros " << spm->localNumberOfNonzeros
                   << std::endl;
 
-        // std::cout << "\n##################### Mapping of rows #####################\n\n";
-
-        // Local to Global mapping:
+        // mapping of rows
+        std::cout << "\n##################### Mapping of rows #####################\n\n";
         std::cout << "\nLocal-to-global Map\n";
         std::cout << "Local\tGlobal\n";
         for (int c = 0; c < spm->localToGlobalMap.size(); c++)
-        {
             std::cout << c << "\t\t" << spm->localToGlobalMap[c] << std::endl;
-        }
-
         std::cout << "\n##################### My RANK (" << spm->geom->rank << ") END #####################\n\n";
     }
 
@@ -217,10 +201,11 @@ void printSPM(SparseMatrix *spm, int coarseLevel)
 }
 
 /**
- * @brief Print values of matrixValues and matrixDiagonal members of A
+ * @brief Print values of matrixValues and matrixDiagonal members of A.
+ * 
+ * This is to print the values, if repartitioning is enabled. Then we use Laik_Data members.
  *
- * @param A
- * @param coarseLevel
+ * @param[in] A SparseMatrix
  */
 void printSPM_val(SparseMatrix &A)
 {
@@ -235,20 +220,12 @@ void printSPM_val(SparseMatrix &A)
     global_int_t giy0 = A.geom->giy0;
     global_int_t giz0 = A.geom->giz0;
 
-    const char *nonzerosInRow;
-    laik_get_map_1d(A.nonzerosInRow_d, 0, (void **)&nonzerosInRow, 0);
-
-    const double *matrixValues;
-    laik_get_map_1d(A.matrixValues_d, 0, (void **)&matrixValues, 0);
-
-    const double *matrixDiagonal;
-    laik_get_map_1d(A.matrixDiagonal_d, 0, (void **)&matrixDiagonal, 0);
-
-    double entry_val = 0.0;
-    double entry_dia = 0.0;
+    const char *nonzerosInRow; laik_get_map_1d(A.nonzerosInRow_d, 0, (void **)&nonzerosInRow, 0);
+    const double *matrixValues; laik_get_map_1d(A.matrixValues_d, 0, (void **)&matrixValues, 0);
+    const double *matrixDiagonal; laik_get_map_1d(A.matrixDiagonal_d, 0, (void **)&matrixDiagonal, 0);
+    double entry_val = 0.0; double entry_dia = 0.0;
 
     std::string debug{""};
-
     for (local_int_t iz = 0; iz < nz; iz++)
     {
         global_int_t giz = giz0 + iz;
@@ -257,16 +234,13 @@ void printSPM_val(SparseMatrix &A)
             global_int_t giy = giy0 + iy;
             for (local_int_t ix = 0; ix < nx; ix++)
             {
-                global_int_t gix = gix0 + ix;
-                local_int_t currentLocalRow = iz * nx * ny + iy * nx + ix;
+                global_int_t gix = gix0 + ix; local_int_t currentLocalRow = iz * nx * ny + iy * nx + ix;
                 global_int_t currentGlobalRow = giz * gnx * gny + giy * gnx + gix;
 
                 debug += "Current Local Row (" + std::to_string(currentLocalRow) + ") " 
                       + "Current Global Row (" + std::to_string(currentGlobalRow) + ") " 
                       + "cur_nnz (" + std::to_string(nonzerosInRow[map_l2a_A(A, currentLocalRow)]) + ") ";
-
                 debug += "\nUsed Matrix values: ";
-
                 uint64_t currentValuePointer_index = -1;      // Index to current value in current row
                 global_int_t currentIndexPointerG_index = -1; // Index to current index in current row
                 for (int sz = -1; sz <= 1; sz++)
@@ -300,7 +274,6 @@ void printSPM_val(SparseMatrix &A)
                 }                     // end sz loop
 
                 debug += "\n";
-
             } // end ix loop
         }     // end iy loop
     }         // end iz loop
@@ -312,8 +285,8 @@ void printSPM_val(SparseMatrix &A)
 /**
  * @brief Print members of HPCG_Params Struct
  *
- * @param[in] params
- * @param[in] doIO
+ * @param[in] params HPCG_Params
+ * @param[in] doIO print
  */
 void print_HPCG_PARAMS(HPCG_Params params, bool doIO)
 {
@@ -332,7 +305,6 @@ void print_HPCG_PARAMS(HPCG_Params params, bool doIO)
         a += "runningTime: " + to_string(params.runningTime) + "\n";
         a += "zl: " + to_string(params.zl) + "\n";
         a += "zu: " + to_string(params.zu) + "\n";
-
         std::cout << a;
     }
 
@@ -350,7 +322,6 @@ void print_GEOMETRY(Geometry *geom, bool doIO)
     if (doIO)
     {
         std::string a{"####### Geometry values\t"};
-
         a += "printed by rank " + to_string(geom->rank) + "\n";
         a += "gix0: " + to_string(geom->gix0) + "\n";
         a += "giy0: " + to_string(geom->giy0) + "\n";
@@ -370,34 +341,31 @@ void print_GEOMETRY(Geometry *geom, bool doIO)
         a += "ny: " + to_string(geom->ny) + "\n";
         a += "nz: " + to_string(geom->nz) + "\n";
         a += "pz: " + to_string(geom->pz) + "\n";
-
         a += "partz_ids: ";
         for (int i = 0; i < geom->npartz; ++i)
         {
             a += to_string(geom->partz_ids[i]);
-
-            if (i != geom->npartz - 1)
-                a += ", ";
+            if (i != geom->npartz - 1) a += ", ";
         }
         a += "\n";
-
         a += "partz_nz: ";
-
         for (int i = 0; i < geom->npartz; ++i)
         {
             a += to_string(geom->partz_nz[i]);
-
-            if (i != geom->npartz - 1)
-                a += ", ";
+            if (i != geom->npartz - 1) a += ", ";
         }
         a += "\n";
-
         a += "size: " + to_string(geom->size) + "\n";
-
         std::cout << a;
     }
+    return;
 }
 
+/**
+ * @brief Print information stored in a Laik_Blob
+ *
+ * @param[in] x Laik_Blob to be printed
+ */
 void print_LaikBlob(Laik_Blob *x)
 {
     if (x != NULL)
@@ -409,6 +377,7 @@ void print_LaikBlob(Laik_Blob *x)
         str += "localLength: " + to_string(x->localLength) + "\n#######\n";
         std::cout << str;
     }
+    return;
 }
 
 /**
@@ -416,8 +385,8 @@ void print_LaikBlob(Laik_Blob *x)
  *
  * Exit the program on all processes
  *
- * @param msg will be printed by proc with ID 0 (No need to add "\\n")
- * @param wait tells, if proc should wait instead of exiting
+ * @param[in] msg will be printed by proc with ID 0 (No need to add "\\n")
+ * @param[in] wait tells, if proc should wait instead of exiting
  */
 void exit_hpcg_run(const char *msg, bool wait)
 {

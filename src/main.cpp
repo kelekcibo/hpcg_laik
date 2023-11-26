@@ -25,12 +25,11 @@
 
 
 #ifndef HPCG_NO_MPI
-#include <mpi.h>
-
-#ifndef USE_LAIK // CHANGE TO HPCG_NO_LAIK
-#define USE_LAIK
-#endif
+#ifndef HPCG_NO_LAIK
 #include "laik/hpcg_laik.hpp"
+#else
+#include <mpi.h>
+#endif
 #endif
 
 #include <fstream>
@@ -84,10 +83,6 @@ int main(int argc, char *argv[])
 
   HPCG_Params params;
 
-  // ps -ef | grep xhpcg
-  // killall xhpcg
-  // std::cout << "LAIK\tCalling laik_init now\n";
-
 #ifndef HPCG_NO_MPI
   #ifndef HPCG_NO_LAIK
   hpcg_instance = laik_init(&argc, &argv);
@@ -97,15 +92,7 @@ int main(int argc, char *argv[])
   #endif // HPCG_NO_LAIK
 #endif // HPCG_NO_MPI
 
-  // std::cout << "LAIK " << laik_myid(world) << " ("<< laik_size(world) <<")"
-  //           << "\tI initialized the LAIK INSTANCE! Phase counter: " << laik_phase(hpcg_instance) << "\n";
-
   HPCG_Init(&argc, &argv, params); 
-
-  /* DEBUG */
-  // if(laik_phase(hpcg_instance) > 0)
-  //   printf("nx (%d) ny (%d) nz (%d)\n", params.nx, params.ny, params.nz);
-  /* DEBUG */
 
 #ifndef HPCG_NO_LAIK
 #ifdef REPARTITION
@@ -119,8 +106,7 @@ int main(int argc, char *argv[])
 
   int size = params.comm_size, rank = params.comm_rank; // Number of MPI processes, My process ID
 
-  // bool doIO = rank == 0;
-  bool doIO = false;
+  bool doIO = rank == 0;
 
 #ifdef HPCG_DETAILED_DEBUG
   if (size < 100 && rank == 0)
@@ -144,14 +130,10 @@ int main(int argc, char *argv[])
 #endif // HPCG_DETAILED_DEBUG
 
   local_int_t nx, ny, nz;
-  nx = (local_int_t)params.nx;
-  ny = (local_int_t)params.ny;
-  nz = (local_int_t)params.nz;
+  nx = (local_int_t)params.nx; ny = (local_int_t)params.ny; nz = (local_int_t)params.nz;
   int ierr = 0; // Used to check return codes on function calls
-
   ierr = CheckAspectRatio(0.125, nx, ny, nz, "local problem", rank == 0);
-  if (ierr)
-    return ierr;
+  if (ierr) return ierr;
 
   /////////////////////////
   // Problem setup Phase //
@@ -162,8 +144,7 @@ int main(int argc, char *argv[])
 #endif
 
 #ifndef HPCG_NO_LAIK
-  if (doIO)
-    HPCG_fout << "######## HPCG LAIK v1.1 ########\n#\n# New Features\n#\t-Expanding/Shrinking the group of processes\n#\n\n";
+  if (doIO) HPCG_fout << "######## HPCG LAIK v1.1 ########\n#\n# New Features\n#\t-Expanding/Shrinking the group of processes\n#\n\n";
 #endif // HPCG_NO_LAIK
 
   // Use this array for collecting timing information
@@ -174,9 +155,7 @@ int main(int argc, char *argv[])
   GenerateGeometry(size, rank, params.numThreads, params.pz, params.zl, params.zu, nx, ny, nz, params.npx, params.npy, params.npz, geom);
 
   ierr = CheckAspectRatio(0.125, geom->npx, geom->npy, geom->npz, "process grid", rank == 0);
-  if (ierr)
-    return ierr;
-
+  if (ierr) return ierr;
 
   int iter = 0;
 
@@ -193,22 +172,19 @@ int main(int argc, char *argv[])
   InitializeSparseMatrix(A, geom);
 
   Vector b, x, xexact;
-
   GenerateProblem(A, &b, &x, &xexact);   
   SetupHalo(A);
 
-  // printf("Total rows (%lld)\n", A.totalNumberOfRows);
-
 #ifndef HPCG_NO_LAIK
-
   Laik_Blob *b_l = init_blob(A);
+  exit_hpcg_run("DEBUG", false);
   b_l->name = "b_l";
   Laik_Blob *x_l = init_blob(A);
   x_l->name = "x_l";
   Laik_Blob *xexact_l = init_blob(A);
   xexact_l->name = "xexact_l";
-
-  // New procs will switch later
+  
+  // Only initial processes will do this copy
   if (iter == 0)
   {
     CopyVectorToLaikVector(b, b_l, A.mapping);
@@ -219,7 +195,6 @@ int main(int argc, char *argv[])
 #ifdef REPARTITION
   A.ptr_to_xexact = xexact_l; /* See @Laik_Blob */
 #endif
-
 #endif // HPCG_NO_LAIK
 
  
@@ -239,43 +214,35 @@ int main(int argc, char *argv[])
   Vector *curx = &x;
   Vector *curxexact = &xexact;
 
-  for (int level = 0; level < numberOfMgLevels; ++level)
+  // Only initial processes will call CheckProblem
+  if(iter == 0)
   {
-#ifndef HPCG_NO_LAIK
-#ifdef REPARTITION
-    // New joining procs do not need to check problem
-    if (iter > 0)
-      break;
-#endif
-#endif
-
-    CheckProblem(*curLevelMatrix, curb, curx, curxexact);
-    curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
-    curb = 0;                            // No vectors after the top level
-    curx = 0;
-    curxexact = 0;
+    for (int level = 0; level < numberOfMgLevels; ++level)
+    {
+      CheckProblem(*curLevelMatrix, curb, curx, curxexact);
+      curLevelMatrix = curLevelMatrix->Ac; // Make the nextcoarse grid the next level
+      curb = 0;                            // No vectors after the top level
+      curx = 0;
+      curxexact = 0;
+    }
   }
  
   CGData data;
   InitializeSparseCGData(A, data);
 
 #ifdef REPARTITION
-  // Switch LAIK vectors now, if I am a new process
+  // Distribute LAIK vectors now, if I am a new process
+  // initial processes are calling the function to exchange values within the CG iteration, after repartitioning was done 
   if (iter > 0)
   {
     std::vector<Laik_Blob *> list{};
     /* Vectors in MG_data will be recursively handled in re_switch_LaikVectors */
-    list.push_back(b_l);
-    list.push_back(x_l);
-    list.push_back(A.ptr_to_xexact); /* x_exact is out of scope but we need to switch this vector as well*/
-    list.push_back(data.r_blob);
-    list.push_back(data.z_blob);
-    list.push_back(data.p_blob);
-    list.push_back(data.Ap_blob);
-
-    re_switch_LaikVectors(A, list);
+    list.push_back(b_l); list.push_back(x_l); list.push_back(A.ptr_to_xexact); 
+    list.push_back(data.r_blob); list.push_back(data.z_blob); list.push_back(data.p_blob);
+    list.push_back(data.Ap_blob); re_switch_LaikVectors(A, list);
   }
 #endif
+
   ////////////////////////////////////
   // Reference SpMV+MG Timing Phase //
   ////////////////////////////////////
@@ -285,7 +252,7 @@ int main(int argc, char *argv[])
 #ifndef HPCG_NO_LAIK
   Laik_Blob * x_overlap = init_blob(A);
   Laik_Blob * b_computed = init_blob(A);
-
+  // Only initial processes will do this copy
   if(iter == 0)
     fillRandomLaikVector(x_overlap, A.mapping);
 #else
@@ -294,7 +261,6 @@ int main(int argc, char *argv[])
   Vector x_overlap, b_computed;
   InitializeVector(x_overlap, ncol);  // Overlapped copy of x vector
   InitializeVector(b_computed, nrow); // Computed RHS vector
-
   // Record execution time of reference SpMV and MG kernels for reporting times
   // First load vector with random values
   FillRandomVector(x_overlap);
@@ -305,7 +271,7 @@ int main(int argc, char *argv[])
 
 #ifndef HPCG_NO_LAIK
 #ifdef REPARTITION
-  // Need this to know, if this proc is a new joining or old initial process.
+  // New processes need to "jump" to the current iteration in the CG computation
   if(iter > 0)
     numberOfCalls = 0;
 #endif
@@ -329,10 +295,9 @@ int main(int argc, char *argv[])
     if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
   }
 
-    if (iter > 0)
-      times[8] = 0;
-    else
-      times[8] = (mytimer() - t_begin) / ((double)numberOfCalls); // Total time divided by number of calls.
+    if (iter > 0) times[8] = 0; // new processes skipped this part, so store 0
+    else times[8] = (mytimer() - t_begin) / ((double)numberOfCalls); // Total time divided by number of calls.
+
 #ifdef HPCG_DEBUG
   if (rank == 0)
     HPCG_fout << "Total SpMV+MG timing phase execution time in main (sec) = " << mytimer() - t1 << endl;
@@ -363,14 +328,12 @@ int main(int argc, char *argv[])
 #ifndef HPCG_NO_LAIK
     ZeroLaikVector(x_l, A.mapping);
 #ifdef REPARTITION
-    if (i == 0)
-      A.repartition_me = true; /* Repartitioning is only done in Reference CG Timing Phase */
+    if (i == 0) A.repartition_me = true; /* Repartitioning is only done in Reference CG Timing Phase */
 #endif // REPARTITION
     ierr = CG_laik_ref(A, data, b_l, x_l, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
     if (rank == 0) HPCG_fout << "REPARTITIONG: Call [" << i << "] Scaled Residual [" << normr / normr0 << "]" << endl;
 #ifdef REPARTITION
-    if (i == 0)
-      A.repartition_me = false; /* Repartitioning is only done in Reference CG Timing Phase */
+    if (i == 0) A.repartition_me = false; /* Repartitioning is only done in Reference CG Timing Phase */
 #endif // REPARTITION
 #else
     ZeroVector(x);
@@ -407,6 +370,7 @@ int main(int argc, char *argv[])
 #ifdef HPCG_DEBUG
   t1 = mytimer();
 #endif
+  
   TestCGData testcg_data;
   testcg_data.count_pass = testcg_data.count_fail = 0;
 #ifndef HPCG_NO_LAIK
@@ -419,7 +383,7 @@ int main(int argc, char *argv[])
 #ifndef HPCG_NO_LAIK
   TestSymmetry_laik(A, b_l, xexact_l, testsymmetry_data);
 #else
-    TestSymmetry(A, b, xexact, testsymmetry_data);
+  TestSymmetry(A, b, xexact, testsymmetry_data);
 #endif
 
 #ifdef HPCG_DEBUG
@@ -485,8 +449,7 @@ int main(int argc, char *argv[])
   if (tolerance_failures)
   {
     global_failure = 1;
-    if (rank == 0)
-      HPCG_fout << "Failed to reduce the residual " << tolerance_failures << " times." << endl;
+    if (rank == 0) HPCG_fout << "Failed to reduce the residual " << tolerance_failures << " times." << endl;
   }
 
   ///////////////////////////////

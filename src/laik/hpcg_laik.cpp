@@ -20,8 +20,8 @@
     Important global variables
 */
 // should be initialized at the very beginning of the program. No use without init.
-Laik_Instance *hpcg_instance;
-Laik_Group *world;
+Laik_Instance *hpcg_instance; // The instance the world is associated to
+Laik_Group *world; // group of processes
 /*
     Important global variables -END
 */

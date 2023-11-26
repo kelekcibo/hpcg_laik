@@ -15,6 +15,8 @@
 // forw. decl.
 struct Local2Allocation_map_x;
 typedef Local2Allocation_map_x L2A_map;
+// forw. decl.
+
 /*
     Includes -END
 */
@@ -158,14 +160,83 @@ Laik_Blob *init_blob(const SparseMatrix &A)
 
     blob->values = laik_new_data(A.space, laik_Double);
     blob->localLength = A.localNumberOfRows;
-    
+
+    // debug
+    std::string b{"local "};
+    b += to_string(laik_myid(world));
+    std::string c{"ext "};
+    c += to_string(laik_myid(world));
+
+    laik_partitioning_set_name(A.local, b.data());
+    laik_partitioning_set_name(A.ext, c.data());
+    std::string a{"Blob "};
+    a += to_string(laik_myid(world)) + "\t";
+    a.append("b_l");
+    laik_data_set_name(blob->values, a.data());
+
+    // Preparation to use the vector layout
+    laik_data_set_layout_factory(blob->values, laik_new_layout_vector);
+    laik_data_set_layout_flag(blob->values, LAIK_Vector_Layout);
+
+    Laik_vector_data *layout_data = (Laik_vector_data *)malloc(sizeof(Laik_vector_data));
+    layout_data->localLength = blob->localLength;
+    layout_data->offset = A.mapping->offset; // TODO: Have better approach to solve this issue or even automatically by LAIK
+    layout_data->numberOfExternalValues = A.numberOfExternalValues;
+    laik_data_set_layout_data(blob->values, layout_data);
+
+    // First, switchto A.ext then switch to A.local immediately
+    // Optimization, as LAIK will create a buffer under the hood and reuse the buffer, if we switch to A.ext first and then to A.local
+    laik_switchto_partitioning(blob->values, A.ext, LAIK_DF_None, LAIK_RO_None);
+
     // New joining procs will switch later
     if (laik_phase(hpcg_instance) == 0)
         // Start with partitioning containing only access to local elements
         laik_switchto_partitioning(blob->values, A.local, LAIK_DF_None, LAIK_RO_None);
 
+    // Test get_map
+    double *v;
+    uint64_t count;
+    laik_get_map_1d(blob->values, 0, (void **)&v, &count);
+    if(laik_myid(world) == 1)
+        printf("START\tBase pointer; %p\tcount=%ld\n", v, count);
+    
+    for (size_t i = 0; i < count; i++)
+    {
+        v[i] = i;
+        // printf("v[%ld]=%.1f\n", i, v[i]);
+        // printf("v[%lld]=%.1f\n", A.localToGlobalMap[i], v[i]);
+    }
+
+    laik_switchto_partitioning(blob->values, A.ext, LAIK_DF_Preserve, LAIK_RO_None);
+    // exit_hpcg_run("", true);
+
+    if(laik_myid(world) == 1){
+        laik_get_map_1d(blob->values, 0, (void **)&v, &count);
+        // printf("NEW\tBase pointer; %p\tcount=%ld\n", v, count);
+        for (size_t i = 0; i < count; i++)
+        {
+            // printf("v[%ld]=%.1f\n", i, v[i]);
+            // assert(v[i] < 2 && v[i] > 0);
+        }
+    }
+
+
+    laik_switchto_partitioning(blob->values, A.local, LAIK_DF_None, LAIK_RO_None);
+    if (laik_myid(world) == 1)
+    {
+        laik_get_map_1d(blob->values, 0, (void **)&v, &count);
+        // printf("OLD\tBase pointer; %p\tcount=%ld\n", v, count);
+
+        for (size_t i = 0; i < count; i++)
+        {
+            // printf("v[%lld]=%.1f\n", A.localToGlobalMap[i], v[i]);
+            // printf("v[%ld]=%.1f\n", i, v[i]);
+        }
+    }
+    exit_hpcg_run("", false);
+
     return blob;
-}
+    }
 
 /**
  * @brief Initialize partition_d data needed to partition the Laik vectors.
