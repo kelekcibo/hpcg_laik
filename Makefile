@@ -139,7 +139,7 @@ src/finalize.o: ./src/finalize.cpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -I./src $< -o $@
 
 src/init.o: ./src/init.cpp $(PRIMARY_HEADERS)
-	$(CXX) -c $(CXXFLAGS) -I./src $< -o $@ $(LAIKLIB)
+	$(CXX) -c $(CXXFLAGS) -I./src $< -o $@
 
 src/mytimer.o: ./src/mytimer.cpp ./src/mytimer.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -I./src $< -o $@

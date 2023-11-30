@@ -38,7 +38,6 @@ std::map<std::pair<int, Laik_Type *>, Laik_Data *> data_objects;
  */
 void laik_helper(const void * sendBuf, void * recvBuf, uint64_t n, Laik_Type * data_type, Laik_ReductionOperation ro_type, Laik_Partitioner * partitioner, Laik_Partitioner * partitioner2)
 {
-
     // Definition and initialization of laik-specific data (Reuse of laik-specific data, if used more than once)
     Laik_Data *data;
     Laik_Space *space;
@@ -53,7 +52,7 @@ void laik_helper(const void * sendBuf, void * recvBuf, uint64_t n, Laik_Type * d
         data = laik_new_data(space, data_type);
         data_objects.insert({{n, data_type} , data});
     }
-
+ 
     // Switch to partitioning created by running "partitioner"
     laik_switchto_new_partitioning(data, world, partitioner, LAIK_DF_None, LAIK_RO_None);
 
