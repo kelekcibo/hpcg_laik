@@ -206,9 +206,11 @@ Laik_Blob *init_blob(const SparseMatrix &A)
     laik_get_map_1d(blob->values, 0, (void **)&v, &count);
     // printf("m->start = %p\n", v);
 
+    std::string errs{"\033[0;31mLAIK \t"};
     std::string debug{"LAIK \t"};
     int print_id = 1;
 
+    errs += to_string(laik_myid(world)) + "  # ERROS # \n";
     debug += to_string(laik_myid(world)) + "  ###########\n";
     debug += to_string(print_id++) + "\tswitch to ext partitioning: count = " + to_string(count) + "\n";
 
@@ -235,7 +237,8 @@ Laik_Blob *init_blob(const SparseMatrix &A)
         debug += "\t\tv[" + to_string(i) + "]=" + to_string(v[i]) + "\n";
         if (i < blob->localLength && A.localToGlobalMap[i] != (global_int_t)v[i])
         {
-            printf("LAIK %d \t Failed at index %lu \t value: %.1f \t should be %lld\n", laik_myid(world), i, v[i], A.localToGlobalMap[i]);
+            // printf("Failed at index %lu \t value: %.1f \t should be %lld \033[0m\n", laik_myid(world), i, v[i], A.localToGlobalMap[i]);
+            errs += "Failed at index " + to_string(i) + " \t actual value: " + to_string(v[i]) + " \t should be " + to_string(A.localToGlobalMap[i]) + "  \033[0m\n";
             // exit(1);
         }
     }
@@ -243,6 +246,7 @@ Laik_Blob *init_blob(const SparseMatrix &A)
     debug += to_string(print_id++) + "\tEnd of printing values!\n\n";
 
     debug += "\n\n\n";
+    debug += errs;
     if(laik_myid(world) == 0)
        std::cout << debug;
     exit_hpcg_run("LAIK_DF_Preserve || LAIK_Vector_Layout", false);
