@@ -6,3 +6,6 @@ bin/HPCG-Benchmark_3*.txt
 bin/xhpcg
 bin/hpcg20*.txt
 .DS_Store
+.vscode/
+1
+debug_outputFiles/
