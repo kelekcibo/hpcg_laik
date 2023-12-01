@@ -239,7 +239,7 @@ void printSPM_val(SparseMatrix &A)
 
                 debug += "Current Local Row (" + std::to_string(currentLocalRow) + ") " 
                       + "Current Global Row (" + std::to_string(currentGlobalRow) + ") " 
-                      + "cur_nnz (" + std::to_string(nonzerosInRow[map_l2a_A(A, currentLocalRow)]) + ") ";
+                      + "cur_nnz (" + std::to_string(nonzerosInRow[currentLocalRow]) + ") ";
                 debug += "\nUsed Matrix values: ";
                 uint64_t currentValuePointer_index = -1;      // Index to current value in current row
                 global_int_t currentIndexPointerG_index = -1; // Index to current index in current row
@@ -259,7 +259,7 @@ void printSPM_val(SparseMatrix &A)
                                         if (curcol == currentGlobalRow)
                                         {
                                             debug += std::to_string(matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + ++currentValuePointer_index]) + " [dia ";
-                                            debug += std::to_string(matrixDiagonal[map_l2a_A(A, currentLocalRow)]) + "], ";
+                                            debug += std::to_string(matrixDiagonal[currentLocalRow]) + "], ";
                                         }
                                         else
                                         {

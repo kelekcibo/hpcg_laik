@@ -77,7 +77,6 @@ int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x
   }
   else
   {
-
     ierr = ComputeSYMGS_laik_ref(A, r, x);
     if (ierr != 0)
       return ierr;

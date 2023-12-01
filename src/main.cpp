@@ -93,6 +93,7 @@ int main(int argc, char *argv[])
 #endif // HPCG_NO_MPI
 
   HPCG_Init(&argc, &argv, params); 
+  printf("LAIK %d\t HI\n", laik_myid(world));
 
 #ifndef HPCG_NO_LAIK
 #ifdef REPARTITION
@@ -176,11 +177,11 @@ int main(int argc, char *argv[])
   SetupHalo(A);
 
 #ifndef HPCG_NO_LAIK
-  Laik_Blob *b_l = init_blob(A);
+  Laik_Blob *b_l = init_blob(A, false);
   b_l->name = "b_l";
-  Laik_Blob *x_l = init_blob(A);
+  Laik_Blob *x_l = init_blob(A, false);
   x_l->name = "x_l";
-  Laik_Blob *xexact_l = init_blob(A);
+  Laik_Blob *xexact_l = init_blob(A, false);
   xexact_l->name = "xexact_l";
   
   // Only initial processes will do this copy
@@ -249,8 +250,8 @@ int main(int argc, char *argv[])
   // Call Reference SpMV and MG. Compute Optimization time as ratio of times in these routines
 
 #ifndef HPCG_NO_LAIK
-  Laik_Blob * x_overlap = init_blob(A);
-  Laik_Blob * b_computed = init_blob(A);
+  Laik_Blob * x_overlap = init_blob(A, true);
+  Laik_Blob * b_computed = init_blob(A, false);
   // Only initial processes will do this copy
   if(iter == 0)
     fillRandomLaikVector(x_overlap);
@@ -298,14 +299,11 @@ int main(int argc, char *argv[])
     //   printResultLaikVector(x_overlap);
     //   exit_hpcg_run("", false);
     // }
-
 #else
     ierr = ComputeMG_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
 #endif
     if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
   }
-
-
 
     if (iter > 0) times[8] = 0; // new processes skipped this part, so store 0
     else times[8] = (mytimer() - t_begin) / ((double)numberOfCalls); // Total time divided by number of calls.
@@ -314,6 +312,8 @@ int main(int argc, char *argv[])
   if (rank == 0)
     HPCG_fout << "Total SpMV+MG timing phase execution time in main (sec) = " << mytimer() - t1 << endl;
 #endif
+
+  printf("\x1B[31mCheckpoint 0\x1B[0m\n");
 
   ///////////////////////////////
   // Reference CG Timing Phase //
@@ -376,6 +376,8 @@ int main(int argc, char *argv[])
     WriteProblem(*geom, A, b, x, xexact);
 #endif
 
+  printf("\x1B[34mCheckpoint 1\x1B[0m\n");
+
   //////////////////////////////
   // Validation Testing Phase //
   //////////////////////////////
@@ -383,11 +385,11 @@ int main(int argc, char *argv[])
 #ifdef HPCG_DEBUG
   t1 = mytimer();
 #endif
-  
+
   TestCGData testcg_data;
   testcg_data.count_pass = testcg_data.count_fail = 0;
 #ifndef HPCG_NO_LAIK
-  TestCG_laik(A, data, b_l, x_l, testcg_data);
+    TestCG_laik(A, data, b_l, x_l, testcg_data);
 #else
   TestCG(A, data, b, x, testcg_data);
 #endif
@@ -407,6 +409,8 @@ int main(int argc, char *argv[])
 #ifdef HPCG_DEBUG
   t1 = mytimer();
 #endif
+
+  printf("\x1B[33mCheckpoint 2\x1B[0m\n");
 
   //////////////////////////////
   // Optimized CG Setup Phase //
@@ -465,6 +469,8 @@ int main(int argc, char *argv[])
     if (rank == 0) HPCG_fout << "Failed to reduce the residual " << tolerance_failures << " times." << endl;
   }
 
+  printf("\x1B[36mCheckpoint 3\x1B[0m\n");
+
   ///////////////////////////////
   // Optimized CG Timing Phase //
   ///////////////////////////////
@@ -516,6 +522,8 @@ int main(int argc, char *argv[])
   // Test Norm Results
   ierr = TestNorms(testnorms_data);
   if (ierr) HPCG_fout << "Error in call to TestNorms: " << ierr << ".\n" << endl;
+
+  printf("\x1B[32mCheckpoint 4\x1B[0m\n");
 
   ////////////////////
   // Report Results //

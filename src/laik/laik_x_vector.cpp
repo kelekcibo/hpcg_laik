@@ -154,12 +154,13 @@ allocation_int_t map_l2a_x(L2A_map *mapping, local_int_t local_index, bool halo)
  * @param A SparseMatrix
  * @return populated blob
  */
-Laik_Blob *init_blob(const SparseMatrix &A)
+Laik_Blob *init_blob(const SparseMatrix &A, bool exchangesValues)
 {
     Laik_Blob *blob = (Laik_Blob *)malloc(sizeof(Laik_Blob));
 
     blob->values = laik_new_data(A.space, laik_Double);
     blob->localLength = A.localNumberOfRows;
+    blob->exchangesValues = exchangesValues;
 
     // debug
     std::string b{"local "};
@@ -189,7 +190,9 @@ Laik_Blob *init_blob(const SparseMatrix &A)
     {
         // First, switchto A.ext then switch to A.local immediately
         // Optimization, as LAIK will create a buffer under the hood and reuse the buffer, if we switch to A.ext first and then to A.local
-        laik_switchto_partitioning(blob->values, A.ext, LAIK_DF_None, LAIK_RO_None);
+        // Not all vectors have external values, handle that case,so we only switch to local pt
+        if(blob->exchangesValues)
+            laik_switchto_partitioning(blob->values, A.ext, LAIK_DF_None, LAIK_RO_None);
 
         // Start with partitioning containing only access to local elements
         laik_switchto_partitioning(blob->values, A.local, LAIK_DF_None, LAIK_RO_None);

@@ -346,9 +346,19 @@ void init_SPM_partitionings(SparseMatrix &A)
     A.matrixValues_d = laik_new_data(A.space2d, laik_Double);
     // use custom layouts instead of the default lex layout
     laik_data_set_layout_factory(A.nonzerosInRow_d, laik_new_layout_vector);
+    laik_data_set_layout_flag(A.nonzerosInRow_d, LAIK_Vector_Layout);
     laik_data_set_layout_factory(A.matrixDiagonal_d, laik_new_layout_vector);
-    laik_data_set_layout_factory(A.mtxIndG_d, laik_new_layout_sparse);
-    laik_data_set_layout_factory(A.matrixValues_d, laik_new_layout_sparse);
+    laik_data_set_layout_flag(A.matrixDiagonal_d, LAIK_Vector_Layout);
+
+    Laik_vector_data *layout_data = (Laik_vector_data *)malloc(sizeof(Laik_vector_data));
+    layout_data->localLength = A.localNumberOfRows;
+    layout_data->numberOfExternalValues = 0; // not used 
+    layout_data->id = laik_myid(world);
+    laik_data_set_layout_data(A.nonzerosInRow_d, layout_data);
+    laik_data_set_layout_data(A.matrixDiagonal_d, layout_data); // same metadata
+
+    // laik_data_set_layout_factory(A.mtxIndG_d, laik_new_layout_sparse);
+    // laik_data_set_layout_factory(A.matrixValues_d, laik_new_layout_sparse);
 
     // New joining procs
     // Need geometry with old config. Store current config
@@ -480,7 +490,7 @@ void replaceMatrixValues(SparseMatrix &A)
                                         global_int_t curcol = currentGlobalRow + sz * gnx * gny + sy * gnx + sx;
                                         currentValuePointer_index++;
                                         if (curcol == currentGlobalRow)
-                                            matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index] = matrixDiagonal[map_l2a_A(A, currentLocalRow)]; 
+                                            matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index] = matrixDiagonal[currentLocalRow]; 
                                        
                                     } // end x bounds test
                                 }     // end sx loop
@@ -845,7 +855,7 @@ void update_Values(SparseMatrix &A)
 
     local_int_t localNumberOfNonZeros = 0;
     for (local_int_t i = 0; i < A.localNumberOfRows; i++)
-        localNumberOfNonZeros += nonzerosInRow[map_l2a_A(A, i)];
+        localNumberOfNonZeros += nonzerosInRow[i];
 
     A.localNumberOfNonzeros = localNumberOfNonZeros;
 

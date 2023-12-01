@@ -104,6 +104,7 @@ struct Laik_Blob
     const char *name; // name of the vector /* Debug
 
     Laik_Data *values;
+    bool exchangesValues;
     mutable local_int_t localLength;
 };
 
@@ -117,7 +118,7 @@ struct Laik_Blob
 extern void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams *p);
 extern void init_partition_data(SparseMatrix &A, partition_d *local, partition_d *ext);
 extern void init_partitionings(SparseMatrix &A, partition_d *local, partition_d *ext);
-extern Laik_Blob *init_blob(const SparseMatrix &A);
+extern Laik_Blob *init_blob(const SparseMatrix &A, bool exchangesValues);
 extern allocation_int_t map_l2a_x(L2A_map *mapping, local_int_t local_index, bool halo);
 /*
     Functions needed to exchange values via LAIK -END

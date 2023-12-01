@@ -213,7 +213,7 @@ inline void CopyMatrixDiagonal(SparseMatrix & A, Vector & diagonal) {
     laik_get_map_1d(A.matrixDiagonal_d, 0, (void **)&matrixDiagonal, 0);
     double *dia_v = diagonal.values;
     assert(A.localNumberOfRows == diagonal.localLength);
-    for (local_int_t i=0; i<A.localNumberOfRows; ++i) dia_v[i] = matrixDiagonal[map_l2a_A(A, i)];
+    for (local_int_t i=0; i<A.localNumberOfRows; ++i) dia_v[i] = matrixDiagonal[i];
   return;
 #endif
 #endif
@@ -238,7 +238,7 @@ inline void ReplaceMatrixDiagonal(SparseMatrix & A, Vector & diagonal) {
     laik_get_map_1d(A.matrixDiagonal_d, 0, (void **)&matrixDiagonal, 0);
     double *dia_v = diagonal.values;
     assert(A.localNumberOfRows == diagonal.localLength);
-    for (local_int_t i=0; i<A.localNumberOfRows; ++i) matrixDiagonal[map_l2a_A(A, i)] = dia_v[i];
+    for (local_int_t i=0; i<A.localNumberOfRows; ++i) matrixDiagonal[i] = dia_v[i];
 
     replaceMatrixValues(A);
     

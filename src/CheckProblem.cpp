@@ -235,7 +235,7 @@ void CheckProblem_repartition(SparseMatrix &A, Vector *b, Vector *x, Vector *xex
                     if (curcol == currentGlobalRow)
                     {
                       assert(matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + ++currentValuePointer_index] == 26.0);
-                      assert(matrixDiagonal[map_l2a_A(A, currentLocalRow)] == matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index]);
+                      assert(matrixDiagonal[currentLocalRow] == matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index]);
                     }
                     else
                     {
@@ -249,7 +249,7 @@ void CheckProblem_repartition(SparseMatrix &A, Vector *b, Vector *x, Vector *xex
             }       // end sy loop
           }         // end z bounds test
         }           // end sz loop
-        assert(nonzerosInRow[map_l2a_A(A, currentLocalRow)] == numberOfNonzerosInRow);
+        assert(nonzerosInRow[currentLocalRow] == numberOfNonzerosInRow);
 #ifndef HPCG_NO_OPENMP
 #pragma omp critical
 #endif

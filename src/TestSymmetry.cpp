@@ -64,21 +64,30 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
   local_int_t nrow = A.localNumberOfRows;
   // local_int_t ncol = A.localNumberOfColumns;
 
-  Laik_Blob * x_ncol = init_blob(A);
-  Laik_Blob * y_ncol = init_blob(A);
-  Laik_Blob * z_ncol = init_blob(A);
+  Laik_Blob * x_ncol = init_blob(A, true);
+  x_ncol->name = "x_ncol";
+  Laik_Blob * y_ncol = init_blob(A, true);
+  y_ncol->name = "y_ncol";
+  Laik_Blob * z_ncol = init_blob(A, true);
+  z_ncol->name = "z_ncol";
 
-  #ifdef REPARTITION
+#ifdef REPARTITION
+  // Repartitioning was done before, so phase is not zero. This means we have to call the switch here.
+  // Optimisation reasons as mentioned in init_blob();
+  laik_switchto_partitioning(x_ncol->values, A.ext, LAIK_DF_None, LAIK_RO_None);
+  laik_switchto_partitioning(y_ncol->values, A.ext, LAIK_DF_None, LAIK_RO_None);
+  laik_switchto_partitioning(z_ncol->values, A.ext, LAIK_DF_None, LAIK_RO_None);
+  // start with local partitioning
   laik_switchto_partitioning(x_ncol->values, A.local, LAIK_DF_None, LAIK_RO_None);
   laik_switchto_partitioning(y_ncol->values, A.local, LAIK_DF_None, LAIK_RO_None);
   laik_switchto_partitioning(z_ncol->values, A.local, LAIK_DF_None, LAIK_RO_None);
 #endif
 
+
   double t4 = 0.0; // Needed for dot-product call, otherwise unused
   testsymmetry_data.count_fail = 0;
 
   // Test symmetry of matrix
-
   // First load vectors with random values
   fillRandomLaikVector(x_ncol);
   fillRandomLaikVector(y_ncol);

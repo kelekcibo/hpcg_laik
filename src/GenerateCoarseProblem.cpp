@@ -103,11 +103,11 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
   MGData *mgData = new MGData;
 
 #ifndef HPCG_NO_LAIK
-  Laik_Blob *rc_blob = init_blob(*Ac);
+  Laik_Blob *rc_blob = init_blob(*Ac, false);
   rc_blob->name = "MG_Data rc";
-  Laik_Blob *xc_blob = init_blob(*Ac);
+  Laik_Blob *xc_blob = init_blob(*Ac, true);
   rc_blob->name = "MG_Data xc";
-  Laik_Blob *Axf_blob = init_blob(Af);
+  Laik_Blob *Axf_blob = init_blob(Af, true);
   Axf_blob->name = "MG_Data Axf";
 
   InitializeMGData_laik(f2cOperator, rc_blob, xc_blob, Axf_blob, *mgData);

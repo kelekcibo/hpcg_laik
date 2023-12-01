@@ -97,15 +97,15 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     if (iter == 0)
     {
       // copy x to p for sparse MV operation
-      CopyLaikVectorToLaikVector(x, p, A.mapping);
+      CopyLaikVectorToLaikVector(x, p);
       TICK();
       ComputeSPMV_laik_ref(A, p, Ap);
       TOCK(t3); // Ap = A*p
       TICK();
-      ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r, A.mapping);
+      ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r);
       TOCK(t2); // r = b - Ax (x stored in p)
       TICK();
-      ComputeDotProduct_laik_ref(nrow, r, r, normr, t4, A.mapping);
+      ComputeDotProduct_laik_ref(nrow, r, r, normr, t4);
       TOCK(t1);
       normr = sqrt(normr);
 
@@ -125,15 +125,15 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
   {
     // Normal CG_ref call without repartitioning
     // copy x to p for sparse MV operation
-    CopyLaikVectorToLaikVector(x, p, A.mapping);
+    CopyLaikVectorToLaikVector(x, p);
     TICK();
     ComputeSPMV_laik_ref(A, p, Ap);
     TOCK(t3); // Ap = A*p
     TICK();
-    ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r, A.mapping);
+    ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r);
     TOCK(t2); // r = b - Ax (x stored in p)
     TICK();
-    ComputeDotProduct_laik_ref(nrow, r, r, normr, t4, A.mapping);
+    ComputeDotProduct_laik_ref(nrow, r, r, normr, t4);
     TOCK(t1);
     normr = sqrt(normr);
 

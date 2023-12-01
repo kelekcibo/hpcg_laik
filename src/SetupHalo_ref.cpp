@@ -261,7 +261,7 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
   for (local_int_t i = 0; i < localNumberOfRows; i++)
   {
     global_int_t currentGlobalRow = A.localToGlobalMap[i];
-    for (int j = 0; j < nonzerosInRow[map_l2a_A(A, i)]; j++)
+    for (int j = 0; j < nonzerosInRow[i]; j++)
     {
       global_int_t curIndex = mtxIndG[map_l2a_A(A, i) * numberOfNonzerosPerRow + j];
       int rankIdOfColumnEntry = ComputeRankOfMatrixRow(*(A.geom), curIndex);
@@ -340,7 +340,7 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
 #endif
   for (local_int_t i = 0; i < localNumberOfRows; i++)
   {
-    for (int j = 0; j < nonzerosInRow[map_l2a_A(A, i)]; j++)
+    for (int j = 0; j < nonzerosInRow[i]; j++)
     {
       global_int_t curIndex = mtxIndG[map_l2a_A(A, i) * numberOfNonzerosPerRow + j];
       int rankIdOfColumnEntry = ComputeRankOfMatrixRow(*(A.geom), curIndex);
