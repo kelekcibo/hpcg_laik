@@ -10,4 +10,6 @@ rm hpcg*.txt
 clear
 # run HPCG
 # mpirun -np 2 ./xhpcg
- ./resize_feature/launcher/tcp2run -n 3 ./bin/xhpcg 
+cd ./bin
+rm hpcg*.txt
+ ./../resize_feature/launcher/tcp2run -n 3 ./xhpcg 
