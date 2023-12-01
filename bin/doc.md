@@ -189,9 +189,14 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
     * add function to set layout_Data in Laik_Data
 * Implement function to get required range for the vector layout
   * instead of expanding in both directions, we only add the size of ranges to the upper bound of the required range
-* Approach for calculating the mapping from global to local indices by LAIK
+* Approach for calculating the mapping from owned global to local indices by LAIK
   * Implementation of a struct storing all intervals a process contains
   * with that, we can calculate in which interval the global index is
     * during calculation, we add the interval sizes, to get the offset into allocation buffer
-* Need to implement pack/unpack function, because we do not know where the reeceived values are stored
-  * FIguring out why pack/unpack function are not called by LAIK
+  * little optimization
+    * if we know that an index is between two intervals, than we can immediatley break, because idx is external
+* Approach for calculating the mapping from external global to local indices by LAIK
+  * Analyzing in which order HPCG copies the external values to the vector after the local values
+    * starting in ascending order of rank id's and starting in ascending order with global indexes to be sent
+  * d
+  
