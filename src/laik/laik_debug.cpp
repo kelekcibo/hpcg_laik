@@ -111,7 +111,7 @@ void printResultVector(Vector &x)
  * @param[in] x laik vector to be printed
  * @param[in] mapping due to the lex layout
  */
-void printResultLaikVector(Laik_Blob *x, L2A_map *mapping)
+void printResultLaikVector(Laik_Blob *x)
 {
     if (laik_myid(world) == 0)
         // HPCG_fout << "\n\nPrint result of vector\n";
@@ -126,7 +126,7 @@ void printResultLaikVector(Laik_Blob *x, L2A_map *mapping)
     {
         printf("localLength = %ld\n", localLength);
         for (size_t i = 0; i < localLength; i++)
-            printf("xv[%ld]=%.10f\n", i, xv[map_l2a_x(mapping, i, false)]);
+            printf("xv[%ld]=%.10f\n", i, xv[i]);
     printf("\nEnd of printing result of vector\n\n");
     }
 

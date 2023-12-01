@@ -80,32 +80,32 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
   // Test symmetry of matrix
 
   // First load vectors with random values
-  fillRandomLaikVector(x_ncol, A.mapping);
-  fillRandomLaikVector(y_ncol, A.mapping);
+  fillRandomLaikVector(x_ncol);
+  fillRandomLaikVector(y_ncol);
 
   double xNorm2, yNorm2;
   double ANorm = 2 * 26.0;
 
   // Next, compute x'*A*y
-  ComputeDotProduct_laik(nrow, y_ncol, y_ncol, yNorm2, t4, A.isDotProductOptimized, A.mapping);
+  ComputeDotProduct_laik(nrow, y_ncol, y_ncol, yNorm2, t4, A.isDotProductOptimized);
   int ierr = ComputeSPMV_laik(A, y_ncol, z_ncol); // z_nrow = A*y_overlap
   if (ierr)
     HPCG_fout << "Error in call to SpMV: " << ierr << ".\n"
               << endl;
   double xtAy = 0.0;
-  ierr = ComputeDotProduct_laik(nrow, x_ncol, z_ncol, xtAy, t4, A.isDotProductOptimized, A.mapping); // x'*A*y
+  ierr = ComputeDotProduct_laik(nrow, x_ncol, z_ncol, xtAy, t4, A.isDotProductOptimized); // x'*A*y
   if (ierr)
     HPCG_fout << "Error in call to dot: " << ierr << ".\n"
               << endl;
 
   // Next, compute y'*A*x
-  ComputeDotProduct_laik(nrow, x_ncol, x_ncol, xNorm2, t4, A.isDotProductOptimized, A.mapping);
+  ComputeDotProduct_laik(nrow, x_ncol, x_ncol, xNorm2, t4, A.isDotProductOptimized);
   ierr = ComputeSPMV_laik(A, x_ncol, z_ncol); // b_computed = A*x_overlap
   if (ierr)
     HPCG_fout << "Error in call to SpMV: " << ierr << ".\n"
               << endl;
   double ytAx = 0.0;
-  ierr = ComputeDotProduct_laik(nrow, y_ncol, z_ncol, ytAx, t4, A.isDotProductOptimized, A.mapping); // y'*A*x
+  ierr = ComputeDotProduct_laik(nrow, y_ncol, z_ncol, ytAx, t4, A.isDotProductOptimized); // y'*A*x
   if (ierr)
     HPCG_fout << "Error in call to dot: " << ierr << ".\n"
               << endl;
@@ -124,7 +124,7 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
     HPCG_fout << "Error in call to MG: " << ierr << ".\n"
               << endl;
   double xtMinvy = 0.0;
-  ierr = ComputeDotProduct_laik(nrow, x_ncol, z_ncol, xtMinvy, t4, A.isDotProductOptimized, A.mapping); // x'*Minv*y
+  ierr = ComputeDotProduct_laik(nrow, x_ncol, z_ncol, xtMinvy, t4, A.isDotProductOptimized); // x'*Minv*y
   if (ierr)
     HPCG_fout << "Error in call to dot: " << ierr << ".\n"
               << endl;
@@ -135,7 +135,7 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
     HPCG_fout << "Error in call to MG: " << ierr << ".\n"
               << endl;
   double ytMinvx = 0.0;
-  ierr = ComputeDotProduct_laik(nrow, y_ncol, z_ncol, ytMinvx, t4, A.isDotProductOptimized, A.mapping); // y'*Minv*x
+  ierr = ComputeDotProduct_laik(nrow, y_ncol, z_ncol, ytMinvx, t4, A.isDotProductOptimized); // y'*Minv*x
   if (ierr)
     HPCG_fout << "Error in call to dot: " << ierr << ".\n"
               << endl;
@@ -146,7 +146,7 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
   if (A.geom->rank == 0)
     HPCG_fout << "Departure from symmetry (scaled) for MG abs(x'*Minv*y - y'*Minv*x) = " << testsymmetry_data.depsym_mg << endl;
 
-  CopyLaikVectorToLaikVector(xexact, x_ncol, A.mapping); // Copy exact answer into overlap vector
+  CopyLaikVectorToLaikVector(xexact, x_ncol); // Copy exact answer into overlap vector
 
   int numberOfCalls = 2;
   double residual = 0.0;
@@ -156,7 +156,7 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
     if (ierr)
       HPCG_fout << "Error in call to SpMV: " << ierr << ".\n"
                 << endl;
-    if ((ierr = ComputeResidual_laik(A.localNumberOfRows, b, z_ncol, residual, A.mapping)))
+    if ((ierr = ComputeResidual_laik(A.localNumberOfRows, b, z_ncol, residual)))
       HPCG_fout << "Error in call to compute_residual: " << ierr << ".\n"
                 << endl;
     if (A.geom->rank == 0)

@@ -39,12 +39,12 @@
   @see ComputeDotProduct_ref
 */
 int ComputeDotProduct_laik(const local_int_t n, const Laik_Blob *x, const Laik_Blob *y,
-                      double &result, double &time_allreduce, bool &isOptimized, L2A_map * mapping)
+                      double &result, double &time_allreduce, bool &isOptimized)
 {
 
   // This line and the next two lines should be removed and your version of ComputeDotProduct should be used.
   isOptimized = false;
-  return ComputeDotProduct_laik_ref(n, x, y, result, time_allreduce, mapping);
+  return ComputeDotProduct_laik_ref(n, x, y, result, time_allreduce);
 }
 
 /*!

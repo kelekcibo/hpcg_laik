@@ -86,10 +86,10 @@ int CG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     print_freq = 1;
 #endif
   // copy x to p for sparse MV operation
-  CopyLaikVectorToLaikVector(x, p, A.mapping);
+  CopyLaikVectorToLaikVector(x, p);
   TICK(); ComputeSPMV_laik(A, p, Ap); TOCK(t3); // Ap = A*p
-  TICK(); ComputeWAXPBY_laik(nrow, 1.0, b, -1.0, Ap, r, A.isWaxpbyOptimized, A.mapping); TOCK(t2); // r = b - Ax (x stored in p)
-  TICK(); ComputeDotProduct_laik(nrow, r, r, normr, t4, A.isDotProductOptimized, A.mapping); TOCK(t1);
+  TICK(); ComputeWAXPBY_laik(nrow, 1.0, b, -1.0, Ap, r, A.isWaxpbyOptimized); TOCK(t2); // r = b - Ax (x stored in p)
+  TICK(); ComputeDotProduct_laik(nrow, r, r, normr, t4, A.isDotProductOptimized); TOCK(t1);
   normr = sqrt(normr);
 #ifdef HPCG_DEBUG
   if (A.geom->rank == 0) HPCG_fout << "Initial Residual = " << normr << std::endl;
@@ -106,20 +106,20 @@ int CG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     if (doPreconditioning)
       ComputeMG_laik(A, r, z); // Apply preconditioner
     else
-      CopyLaikVectorToLaikVector(r, z, A.mapping); // copy r to z (no preconditioning)
+      CopyLaikVectorToLaikVector(r, z); // copy r to z (no preconditioning)
     TOCK(t5);           // Preconditioner apply time
 
 
     if (k == 1)
     {
       TICK();
-      ComputeWAXPBY_laik(nrow, 1.0, z, 0.0, z, p, A.isWaxpbyOptimized, A.mapping);
+      ComputeWAXPBY_laik(nrow, 1.0, z, 0.0, z, p, A.isWaxpbyOptimized);
       TOCK(t2); // Copy Mr to p
 
   
 
       TICK();
-      ComputeDotProduct_laik(nrow, r, z, rtz, t4, A.isDotProductOptimized, A.mapping);
+      ComputeDotProduct_laik(nrow, r, z, rtz, t4, A.isDotProductOptimized);
 
       TOCK(t1); // rtz = r'*z
     }
@@ -127,35 +127,27 @@ int CG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     {
       oldrtz = rtz;
       TICK();
-      ComputeDotProduct_laik(nrow, r, z, rtz, t4, A.isDotProductOptimized, A.mapping);
+      ComputeDotProduct_laik(nrow, r, z, rtz, t4, A.isDotProductOptimized);
       TOCK(t1); // rtz = r'*z
       beta = rtz / oldrtz;
       TICK();
-      ComputeWAXPBY_laik(nrow, 1.0, z, beta, p, p, A.isWaxpbyOptimized, A.mapping);
+      ComputeWAXPBY_laik(nrow, 1.0, z, beta, p, p, A.isWaxpbyOptimized);
       TOCK(t2); // p = beta*p + z
     }
 
     TICK();
     ComputeSPMV_laik(A, p, Ap);
     TOCK(t3); // Ap = A*p
-
-    /* DEBUG */
-    // printResultLaikVector(Ap, A.mapping);
-    // while (1)
-    // {
-    //   ;
-    // }
-    /* DEBUG */ // DIfferent results after ComputeMG in z vector
     TICK();
-    ComputeDotProduct_laik(nrow, p, Ap, pAp, t4, A.isDotProductOptimized, A.mapping);
+    ComputeDotProduct_laik(nrow, p, Ap, pAp, t4, A.isDotProductOptimized);
     TOCK(t1); // alpha = p'*Ap
     alpha = rtz / pAp;
     TICK();
-    ComputeWAXPBY_laik(nrow, 1.0, x, alpha, p, x, A.isWaxpbyOptimized, A.mapping); // x = x + alpha*p
-    ComputeWAXPBY_laik(nrow, 1.0, r, -alpha, Ap, r, A.isWaxpbyOptimized, A.mapping);
+    ComputeWAXPBY_laik(nrow, 1.0, x, alpha, p, x, A.isWaxpbyOptimized); // x = x + alpha*p
+    ComputeWAXPBY_laik(nrow, 1.0, r, -alpha, Ap, r, A.isWaxpbyOptimized);
     TOCK(t2); // r = r - alpha*Ap
     TICK();
-    ComputeDotProduct_laik(nrow, r, r, normr, t4, A.isDotProductOptimized, A.mapping);
+    ComputeDotProduct_laik(nrow, r, r, normr, t4, A.isDotProductOptimized);
     TOCK(t1);
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG

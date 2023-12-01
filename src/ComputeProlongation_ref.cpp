@@ -48,16 +48,12 @@ int ComputeProlongation_laik_ref(const SparseMatrix & Af, Laik_Blob * xf) {
   local_int_t * f2c = Af.mgData->f2cOperator;
   local_int_t nc = Af.mgData->rc_blob->localLength;
 
-  // xc vector is for next layer, thus need mapping from next level matrix
-  assert(Af.Ac != NULL);
-  L2A_map *mapping_xc_blob = Af.Ac->mapping;
-
 #ifndef HPCG_NO_OPENMP
 #pragma omp parallel for
 #endif
 // TODO: Somehow note that this loop can be safely vectorized since f2c has no repeated indices
   for (local_int_t i=0; i<nc; ++i)
-    xfv[map_l2a_x(Af.mapping, f2c[i], false)] += xcv[map_l2a_x(mapping_xc_blob, i, false)]; // This loop is safe to vectorize
+    xfv[f2c[i]] += xcv[i]; // This loop is safe to vectorize
 
   return 0;
 }

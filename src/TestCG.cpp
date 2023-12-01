@@ -66,13 +66,7 @@ int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestC
   InitializeVector(origB, A.localNumberOfRows);
   CopyMatrixDiagonal(A, origDiagA);
   CopyVector(origDiagA, exaggeratedDiagA);
-  CopyLaikVectorToVector(b, origB, A.mapping);
-
-
-
-  // TEST ALL VECTORS IF THE SAME PRINT OUT ALL VECTORS AND SCALED VECTORS WITH REPARTITIONING
-  // Matrix values are not the same after exaggerating
-
+  CopyLaikVectorToVector(b, origB);
 
   // Modify the matrix diagonal to greatly exaggerate diagonal values.
   // CG should converge in about 10 iterations for this problem, regardless of problem size
@@ -83,12 +77,12 @@ int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestC
     {
       double scale = (globalRowID + 2) * 1.0e6;
       ScaleVectorValue(exaggeratedDiagA, i, scale);
-      ScaleLaikVectorValue(b, i, scale, A.mapping);
+      ScaleLaikVectorValue(b, i, scale);
     }
     else
     {
       ScaleVectorValue(exaggeratedDiagA, i, 1.0e6);
-      ScaleLaikVectorValue(b, i, 1.0e6, A.mapping);
+      ScaleLaikVectorValue(b, i, 1.0e6);
     }
   }
 
@@ -111,7 +105,7 @@ int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestC
       expected_niters = testcg_data.expected_niters_prec;
     for (int i = 0; i < numberOfCgCalls; ++i)
     {
-      ZeroLaikVector(x, A.mapping); // Zero out x
+      ZeroLaikVector(x); // Zero out x
       int ierr = CG_laik(A, data, b, x, maxIters, tolerance, niters, normr, normr0, &times[0], k == 1); // true);
       if (ierr)
         HPCG_fout << "Error in call to CG: " << ierr << ".\n"
@@ -139,7 +133,7 @@ int TestCG_laik(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x, TestC
 
   // Restore matrix diagonal and RHS
   ReplaceMatrixDiagonal(A, origDiagA);
-  CopyVectorToLaikVector(origB, b, A.mapping);
+  CopyVectorToLaikVector(origB, b);
   // Delete vectors
   DeleteVector(origDiagA);
   DeleteVector(exaggeratedDiagA);

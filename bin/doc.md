@@ -198,5 +198,13 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
 * Approach for calculating the mapping from external global to local indices by LAIK
   * Analyzing in which order HPCG copies the external values to the vector after the local values
     * starting in ascending order of rank id's and starting in ascending order with global indexes to be sent
-  * d
+  * Just using a member in the layout object, which is increased by 1 for every calculated offset
+    * if it reaches the numberOfexternalvalues stored in the layout as well, then communication should be finished and we reset the counter
+
+## 18 Discrepancies within sparse vector layout
+  
+* Comparing again every function call with original application to find the discrepancies
+  * First function ComputeSPMV_ref.cpp is correct
+  * But I realized, that I needed to delete the old mappings due to the lex layout at some points
+    * deleting all mappings gave us identical result files
   

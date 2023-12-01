@@ -136,7 +136,9 @@ int ComputeSYMGS_laik_ref(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *
 
   assert(x->localLength == A.localNumberOfRows);
 
+
   laik_switchto_partitioning(x->values, A.ext, LAIK_DF_Preserve, LAIK_RO_None);
+
   const local_int_t nrow = A.localNumberOfRows;
   double **matrixDiagonal = A.matrixDiagonal; // An array of pointers to the diagonal entries A.matrixValues
 
@@ -146,24 +148,23 @@ int ComputeSYMGS_laik_ref(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *
   laik_get_map_1d(x->values, 0, (void **)&xv, 0);
   laik_get_map_1d(r->values, 0, (void **)&rv, 0);
 
-  // std::string debug{""};
   for (local_int_t i = 0; i < nrow; i++)
   {
     const double *const currentValues = A.matrixValues[i];
     const local_int_t *const currentColIndices = A.mtxIndL[i];
     const int currentNumberOfNonzeros = A.nonzerosInRow[i];
     const double currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
-    double sum = rv[map_l2a_x(A.mapping, i, false)];        // RHS value
+    double sum = rv[i];        // RHS value
 
     for (int j = 0; j < currentNumberOfNonzeros; j++)
     {
       local_int_t curCol = currentColIndices[j];
-      sum -= currentValues[j] * xv[map_l2a_x(A.mapping, curCol, true)];
+      sum -= currentValues[j] * xv[curCol];
     }
 
-    sum += xv[map_l2a_x(A.mapping, i, true)] * currentDiagonal; // Remove diagonal contribution from previous loop
+    sum += xv[i] * currentDiagonal; // Remove diagonal contribution from previous loop
 
-    xv[map_l2a_x(A.mapping, i, true)] = sum / currentDiagonal;
+    xv[i] = sum / currentDiagonal;
   }
 
   // Now the back sweep.
@@ -174,16 +175,16 @@ int ComputeSYMGS_laik_ref(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *
     const local_int_t *const currentColIndices = A.mtxIndL[i];
     const int currentNumberOfNonzeros = A.nonzerosInRow[i];
     const double currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
-    double sum = rv[map_l2a_x(A.mapping, i, false)];       // RHS value
+    double sum = rv[i];       // RHS value
 
     for (int j = 0; j < currentNumberOfNonzeros; j++)
     {
       local_int_t curCol = currentColIndices[j];
-      sum -= currentValues[j] * xv[map_l2a_x(A.mapping, curCol, true)];
+      sum -= currentValues[j] * xv[curCol];
     }
 
-    sum += xv[map_l2a_x(A.mapping, i, true)] * currentDiagonal; // Remove diagonal contribution from previous loop
-    xv[map_l2a_x(A.mapping, i, true)] = sum / currentDiagonal;
+    sum += xv[i] * currentDiagonal; // Remove diagonal contribution from previous loop
+    xv[i] = sum / currentDiagonal;
   }
 
   laik_switchto_partitioning(x->values, A.local, LAIK_DF_None, LAIK_RO_None);

@@ -143,15 +143,15 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 #else
   // Normal CG_ref call without repartitioning
   // copy x to p for sparse MV operation
-  CopyLaikVectorToLaikVector(x, p, A.mapping);
+  CopyLaikVectorToLaikVector(x, p);
   TICK();
   ComputeSPMV_laik_ref(A, p, Ap);
   TOCK(t3); // Ap = A*p
   TICK();
-  ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r, A.mapping);
+  ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r);
   TOCK(t2); // r = b - Ax (x stored in p)
   TICK();
-  ComputeDotProduct_laik_ref(nrow, r, r, normr, t4, A.mapping);
+  ComputeDotProduct_laik_ref(nrow, r, r, normr, t4);
   TOCK(t1);
   normr = sqrt(normr);
 
@@ -180,28 +180,28 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     if (doPreconditioning)
       ComputeMG_laik_ref(A, r, z, k); // Apply preconditioner
     else
-      ComputeWAXPBY_laik_ref(nrow, 1.0, r, 0.0, r, z, A.mapping); // copy r to z (no preconditioning)
+      ComputeWAXPBY_laik_ref(nrow, 1.0, r, 0.0, r, z); // copy r to z (no preconditioning)
     TOCK(t5); // Preconditioner apply time
 
    
 
     if (k == 1)
     {
-      CopyLaikVectorToLaikVector(z, p, A.mapping);
+      CopyLaikVectorToLaikVector(z, p);
       TOCK(t2); // Copy Mr to p
       TICK();
-      ComputeDotProduct_laik_ref(nrow, r, z, rtz, t4, A.mapping);
+      ComputeDotProduct_laik_ref(nrow, r, z, rtz, t4);
       TOCK(t1); // rtz = r'*z
     }
     else
     {
       oldrtz = rtz;
       TICK();
-      ComputeDotProduct_laik_ref(nrow, r, z, rtz, t4, A.mapping);
+      ComputeDotProduct_laik_ref(nrow, r, z, rtz, t4);
       TOCK(t1); // rtz = r'*z
       beta = rtz / oldrtz;
       TICK();
-      ComputeWAXPBY_laik_ref(nrow, 1.0, z, beta, p, p, A.mapping);
+      ComputeWAXPBY_laik_ref(nrow, 1.0, z, beta, p, p);
       TOCK(t2); // p = beta*p + z
     }
 
@@ -209,15 +209,15 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     ComputeSPMV_laik_ref(A, p, Ap);
     TOCK(t3); // Ap = A*p
     TICK();
-    ComputeDotProduct_laik_ref(nrow, p, Ap, pAp, t4, A.mapping);
+    ComputeDotProduct_laik_ref(nrow, p, Ap, pAp, t4);
     TOCK(t1); // alpha = p'*Ap
     alpha = rtz / pAp;
     TICK();
-    ComputeWAXPBY_laik_ref(nrow, 1.0, x, alpha, p, x, A.mapping); // x = x + alpha*p
-    ComputeWAXPBY_laik_ref(nrow, 1.0, r, -alpha, Ap, r, A.mapping);
+    ComputeWAXPBY_laik_ref(nrow, 1.0, x, alpha, p, x); // x = x + alpha*p
+    ComputeWAXPBY_laik_ref(nrow, 1.0, r, -alpha, Ap, r);
     TOCK(t2); // r = r - alpha*Ap
     TICK();
-    ComputeDotProduct_laik_ref(nrow, r, r, normr, t4, A.mapping);
+    ComputeDotProduct_laik_ref(nrow, r, r, normr, t4);
     TOCK(t1);
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG

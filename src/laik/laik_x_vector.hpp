@@ -126,13 +126,13 @@ extern allocation_int_t map_l2a_x(L2A_map *mapping, local_int_t local_index, boo
 /*
     Operations on laik vectors
 */
-extern void fillRandomLaikVector(Laik_Blob *x, L2A_map *mapping);
-extern void ZeroLaikVector(Laik_Blob *x, L2A_map *mapping);
-extern void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y, L2A_map *mapping);
-extern void CopyVectorToLaikVector(Vector &v, Laik_Blob *x_blob, L2A_map *mapping);
-extern void CopyLaikVectorToVector(const Laik_Blob *x_blob, Vector &v, L2A_map *mapping);
-extern void CopyLaikVectorToVector(Laik_Blob *x, Vector &v, L2A_map *mapping);
-extern void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value, L2A_map *mapping);
+extern void fillRandomLaikVector(Laik_Blob *x);
+extern void ZeroLaikVector(Laik_Blob *x);
+extern void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y);
+extern void CopyVectorToLaikVector(Vector &v, Laik_Blob *x);
+extern void CopyLaikVectorToVector(const Laik_Blob *x, Vector &v);
+extern void CopyLaikVectorToVector(Laik_Blob *x, Vector &v);
+extern void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value);
 /*
     Operations on laik vectors -END
 */
