@@ -270,6 +270,8 @@ int main(int argc, char *argv[])
 #endif // HPCG_NO_LAIK
 
   int numberOfCalls = 10;
+  numberOfCalls = 0; // TODO DELETE ME
+
   if (quickPath) numberOfCalls = 1; // QuickPath means we do on one call of each block of repetitive code
 
 #ifndef HPCG_NO_LAIK
@@ -379,7 +381,15 @@ int main(int argc, char *argv[])
     WriteProblem(*geom, A, b, x, xexact);
 #endif
 
+  // printf("\x1B[34m ROWS: %lld; n \x1B[0m\n", A.totalNumberOfRows);
+
   printf("\x1B[34m LAIK %d \t  Checkpoint 1 \x1B[0m\n", laik_myid(world));
+
+  // std::string debug{"\x1B[33m"};
+  // debug += "LAIK " + to_string(laik_myid(world)) + "\t";
+  // debug += to_string(A.localNumberOfRows) + " localRows\nCheckpoint END\x1B[0m";
+  // printf("%s\n", debug.data());
+  // exit_hpcg_run("Searching free()/malloc() error", false);
 
   //////////////////////////////
   // Validation Testing Phase //

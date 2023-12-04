@@ -224,4 +224,12 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
     * But reason was, that not removed procs switched to new external partitoning. deleted that,
     * then both procs switched from old layout again. and everything worked
   * Running it further, segfault came.
-    * DUe to not setting layout data.
+    * Due to not setting layout data,little details
+  * Implementing reuse function was important, because errors due to correct reuse function
+  * Another error of free() and malloc()  unaligned tcache chunk detected
+    * incremental search for the place where error occurs.
+    * in reuse_function
+      * if vector size is the same, then this means we switched from a local to external partitioning.
+        // this means, that we need the Map from the local partitioning as it is not calculated for external partitioning
+        // when we repartition, we are not able to make the optimisation of switching to the external partitioning first
+    * After fixing this everything worked

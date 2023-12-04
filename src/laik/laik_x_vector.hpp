@@ -78,7 +78,7 @@ typedef partition_data partition_d;
  */
 struct Laik_Blob
 {
-    const char *name; // name of the vector /* Debug
+    char *name; // name of the vector /* Debug
 
     Laik_Data *values;
     bool exchangesValues;

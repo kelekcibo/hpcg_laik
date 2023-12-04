@@ -278,9 +278,6 @@ void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
         if (laik_myid(world) >= old_size)
             laik_set_initial_partitioning(elem->values, local_old[0]); // local_old[0] previously calculated
 
-        // if(laik_myid(world) != -1) /// NOOOO WRONG! WILL HAVE TO DO ONE COPY, => IMPLEMENT REUSE PROPERLY.
-        //     laik_switchto_partitioning(elem->values, A.ext, LAIK_DF_None, LAIK_RO_None); // due to optimisation reasons as mentioned in init_blob()
-
         laik_switchto_partitioning(elem->values, A.local, LAIK_DF_Preserve, LAIK_RO_None);
     }
 
@@ -303,11 +300,12 @@ void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
         // prepare data for rc
         layout_data_rc->id = laik_myid(world);
         layout_data_rc->localLength = curLevelMatrix->Ac->localNumberOfRows;
-        layout_data_rc->numberOfExternalValues = curMGData->rc_blob->exchangesValues ? curLevelMatrix->numberOfExternalValues : 0; // will return 0
+        layout_data_rc->numberOfExternalValues = curMGData->rc_blob->exchangesValues ? curLevelMatrix->Ac->numberOfExternalValues : 0; // will return 0
         // prepare data for xc
         layout_data_xc->id = laik_myid(world);
         layout_data_xc->localLength = curLevelMatrix->Ac->localNumberOfRows;
-        layout_data_xc->numberOfExternalValues = curMGData->xc_blob->exchangesValues ? curLevelMatrix->numberOfExternalValues : 0; // will return curLevelMatrix->numberOfExternalValues
+        layout_data_xc->numberOfExternalValues = curMGData->xc_blob->exchangesValues ? curLevelMatrix->Ac->numberOfExternalValues : 0; // will return curLevelMatrix->numberOfExternalValues
+
         // debug
         // laik_data_set_name(curMGData->Axf_blob->values, (char *)curMGData->Axf_blob->name);
         // laik_data_set_name(curMGData->rc_blob->values, (char *)curMGData->rc_blob->name);

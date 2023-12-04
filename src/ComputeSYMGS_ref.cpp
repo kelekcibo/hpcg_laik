@@ -34,7 +34,26 @@ int ComputeSYMGS_laik_repartition_ref(const SparseMatrix &A, const Laik_Blob *r,
 {
   assert(x->localLength == A.localNumberOfRows);
 
+  // if (A.localNumberOfRows == 768 && laik_size(world) == 2)
+  // {
+  //   std::string name{"Abcdef"};
+  //   laik_data_set_name(x->values, name.data());
+  // }
+
   laik_switchto_partitioning(x->values, A.ext, LAIK_DF_Preserve, LAIK_RO_None);
+
+  // if (A.localNumberOfRows == 768 && laik_size(world) == 2)
+  // {
+  //   laik_print_local_Map(x->values, 0);
+  //   std::string debug{"\x1B[33m"};
+  //   debug += "HERE ";
+  //   debug += "LAIK " + to_string(laik_myid(world)) + "\t";
+  //   debug += to_string(A.localNumberOfRows) + " localRows\nCheckpoint END\x1B[0m";
+  //   printf("%s\n", debug.data());
+  //   exit_hpcg_run("Searching free()/malloc() error", false);
+  // }
+
+
   const local_int_t nrow = A.localNumberOfRows;
 
   char *nonzerosInRow;
@@ -135,7 +154,6 @@ int ComputeSYMGS_laik_ref(const SparseMatrix &A, const Laik_Blob *r, Laik_Blob *
 #endif
 
   assert(x->localLength == A.localNumberOfRows);
-
 
   laik_switchto_partitioning(x->values, A.ext, LAIK_DF_Preserve, LAIK_RO_None);
 

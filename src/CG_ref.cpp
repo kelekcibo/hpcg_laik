@@ -176,13 +176,21 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 
   for (; k <= max_iter && normr / normr0 > tolerance; k++)
   {
+    // if (k == 11 && laik_size(world) == 2)
+    // {
+    //   std::string debug{"\x1B[33m"};
+    //   debug += "LAIK " + to_string(laik_myid(world)) + "\t";
+    //   debug += "Checkpoint END\x1B[0m";
+    //   printf("%s\n", debug.data());
+    //   exit_hpcg_run("free()/malloc() error", false);
+    // }
+
     TICK();
     if (doPreconditioning)
       ComputeMG_laik_ref(A, r, z, k); // Apply preconditioner
     else
       ComputeWAXPBY_laik_ref(nrow, 1.0, r, 0.0, r, z); // copy r to z (no preconditioning)
     TOCK(t5); // Preconditioner apply time
-
 
     if (k == 1)
     {
@@ -260,7 +268,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
         // Re-run setup functions and run partitioners for the new group
         repartition_SparseMatrix(A);
         nrow = A.localNumberOfRows; /* update local value after repartitioning */
-
+   
         // Switch to the new partitioning on all Laik_data containers
         std::vector<Laik_Blob *> list{};
         /* Vectors in MG_data will be recursively handled in re_switch_LaikVectors */
@@ -271,12 +279,10 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
         list.push_back(z);
         list.push_back(p);
         list.push_back(Ap);
-          // std::string debug{"\x1B[33mCheckpoint END\x1B[0m"};
-          // exit_hpcg_run(debug.data(), false);
         re_switch_LaikVectors(A, list);
+
         // laik_free_partitioning(old_local); // TODO fix double free (occurs when removed processes free old partitionings)
         // laik_free_partitioning(old_ext);
-
         // Need to send normr to new joining procs
         if(new_size > old_size)
         {
@@ -294,7 +300,6 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
           DeleteLaikVector(A.ptr_to_xexact);
           DeleteLaikVector(x);
           DeleteLaikVector(b);
-          printf("I am exiting\n");
           HPCG_Finalize();
           // laik_finalize(hpcg_instance); // TODO fix double free (occurs when removed processes call laik_finalize())
           exit_hpcg_run("", false);
