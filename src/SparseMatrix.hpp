@@ -29,9 +29,6 @@
 #include "laik/hpcg_laik.hpp"
 
 // forw. decl.
-struct Local2Allocation_map_x;
-typedef Local2Allocation_map_x L2A_map;
-void free_L2A_map(L2A_map *mapping);
 #ifdef REPARTITION
 allocation_int_t map_l2a_A(const SparseMatrix &A, local_int_t localIndex);
 void replaceMatrixValues(SparseMatrix &A);
@@ -94,8 +91,6 @@ using GlobalToLocalMap = std::unordered_map< global_int_t, local_int_t >;
 
 #ifndef HPCG_NO_LAIK
       // ############### Data needed to create partitionings and Laik_Data container
-      std::map<local_int_t, global_int_t> localToExternalMap; /* Needed for LAIK (@see L2A_map)*/
-      L2A_map *mapping;
       Laik_Space *space;
       Laik_Partitioning *ext;
       Laik_Partitioning *local;
@@ -105,7 +100,7 @@ using GlobalToLocalMap = std::unordered_map< global_int_t, local_int_t >;
       bool repartition_me; /* Tell the app, that a reseize should happen. We want to test it during the call to CG_REFin CG Reference Timing Phase */
       bool repartitioned;
 
-      uint64_t *mapping_; // @see L2A_map. Same applies for allocation buffers of A
+      uint64_t *mapping_; // Need mapping due to the lex_layout. @see map_l2a_A()
       int offset_;
 
       // Special space for 2D arrays implemented as 1D array
@@ -173,7 +168,6 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
   A.sendBuffer = 0;
   
   #ifndef HPCG_NO_LAIK
-  A.mapping = 0;
   A.space = 0;
   A.ext = 0;
   A.local = 0;
@@ -302,7 +296,6 @@ if (A.mtxIndL)
 #ifndef HPCG_NO_LAIK
     // Delete LAIK specific data
     A.globalToLocalMap.clear();
-    if (A.mapping) free_L2A_map(A.mapping);
     if (A.space) { laik_free_space(A.space); A.space = 0; }
     if (A.local) { laik_free_partitioning(A.local); A.local = 0; };
     if (A.ext) { laik_free_partitioning(A.ext); A.ext = 0; };

@@ -12,10 +12,6 @@
     Includes
 */
     #include "laik_x_vector.hpp"
-// forw. decl.
-struct Local2Allocation_map_x;
-typedef Local2Allocation_map_x L2A_map;
-// forw. decl.
 
 /*
     Includes -END
@@ -43,9 +39,6 @@ void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams 
     int rank = data->geom->rank;
     Laik_Range range;
 
-    std::string a{""};
-    // a += "LAIK " + std::to_string(laik_myid(world)) + "\t[";
-
     for (long long i = 0; i < data->size; i++)
     {
         // assign every process its global part
@@ -53,18 +46,7 @@ void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams 
 
         laik_range_init_1d(&range, x_space, i, i + 1);
         laik_append_range(r, proc, &range, 1, 0);
-
-        // Prepare data for mapping from global index to allocation index (lex_layout)
-
-        if (data->offset == -1 && rank == proc)
-            data->offset = i;
-
-        // a += std::to_string(ComputeRankOfMatrixRow(*data->geom, i)) + ", ";
     }
-
-    // a += "]\n";
-
-    // printf("%s", a.data());
 
     // Specifying ranges which need to be exchanged
     if (data->halo)
@@ -80,13 +62,6 @@ void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams 
 
                 laik_range_init_1d(&range, x_space, globalIndex, globalIndex + 1);
                 laik_append_range(r, rank, &range, 1, 0);
-
-                if (globalIndex < data->offset)
-                {
-                    data->offset = globalIndex;
-                }
-
-                // printf("I (%d) need to have access to global index %lld of x vector (updated by proc %d)\n", rank, globalIndex, data->neighbors[nb]);
             }
         }
 
@@ -100,11 +75,9 @@ void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams 
 
             for (local_int_t i = 0; i < numbOfElementsToSend; i++)
             {
-
                 global_int_t j = (*data->localToGlobalMap)[data->elementsToSend[index_elementsToSend++]]; // neighbour n needs this value from proc i
 
                 assert(ComputeRankOfMatrixRow(*(data->geom), j) == data->geom->rank);
-                // printf("I (%d) need to give access to proc %d at global offset %llu\n", data->geom->rank, data->neighbors[nb], j);
 
                 laik_range_init_1d(&range, x_space, j, j + 1);
                 laik_append_range(r, data->neighbors[nb], &range, 1, 0);
@@ -114,53 +87,20 @@ void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams 
 }
 
 /**
- * @brief Map the local index (mtxIndL) to the corresponding global index. Then map this global index to the allocation index. 
- * 
- * This extra step has to be done since Laik makes use of the lex_layout under the hood.  
- * v1.2 will hopefully implement the custom hpcg_layout, so that there is no need for this anymore
- *
- * @param[in] mapping used to calculate the allocation index
- * @param[in] localIndex which will be mapped to the corresponding allocation index
- * @param[in] halo determines the allocation buffer to be used
- *
- * @return index to the allocation buffer
- *
- * @see L2A_map 
- */
-allocation_int_t map_l2a_x(L2A_map *mapping, local_int_t local_index, bool halo)
-{
-    global_int_t global_index;
-
-    // Map local index to global index
-    if (local_index < mapping->localNumberOfRows)
-        global_index = mapping->localToGlobalMap[local_index]; /* No need to handle errors, since we map values from mtxIndL only */
-    else
-        global_index = mapping->localToExternalMap[local_index];
-
-    // Map global index to allocation index
-    // We have different allocation buffers depending on the current active partitioning
-    allocation_int_t allocation_index;
-    if (halo)
-        allocation_index = global_index - mapping->offset_ext;
-    else
-        allocation_index = global_index - mapping->offset;
-
-    return allocation_index;
-}
-
-/**
  * @brief Populate an Laik_Blob and start with the partitioning such that every process has only access to local values.
  *
  * @param A SparseMatrix
  * @return populated blob
  */
-Laik_Blob *init_blob(const SparseMatrix &A, bool exchangesValues)
+Laik_Blob *init_blob(const SparseMatrix &A, bool exchangesValues, char * name)
 {
     Laik_Blob *blob = (Laik_Blob *)malloc(sizeof(Laik_Blob));
 
     blob->values = laik_new_data(A.space, laik_Double);
     blob->localLength = A.localNumberOfRows;
     blob->exchangesValues = exchangesValues;
+    blob->name = name;
+    laik_data_set_name(blob->values, name);
 
     // debug
     std::string b{"local "};
@@ -179,15 +119,18 @@ Laik_Blob *init_blob(const SparseMatrix &A, bool exchangesValues)
     laik_data_set_layout_factory(blob->values, laik_new_layout_vector);
     laik_data_set_layout_flag(blob->values, LAIK_Vector_Layout);
 
-    Laik_vector_data *layout_data = (Laik_vector_data *)malloc(sizeof(Laik_vector_data));
-    layout_data->localLength = blob->localLength;
-    layout_data->numberOfExternalValues = A.numberOfExternalValues;
-    layout_data->id = laik_myid(world);
-    laik_data_set_layout_data(blob->values, layout_data);
 
     // New joining procs will switch later
     if (laik_phase(hpcg_instance) == 0)
     {
+        // TODO put this code above the if statement
+        // Set layout_data
+        Laik_vector_data *layout_data = (Laik_vector_data *)malloc(sizeof(Laik_vector_data));
+        layout_data->localLength = blob->localLength;
+        layout_data->numberOfExternalValues = exchangesValues ? A.numberOfExternalValues : 0;
+        layout_data->id = laik_myid(world);
+        laik_data_set_layout_data(blob->values, layout_data);
+
         // First, switchto A.ext then switch to A.local immediately
         // Optimization, as LAIK will create a buffer under the hood and reuse the buffer, if we switch to A.ext first and then to A.local
         // Not all vectors have external values, handle that case,so we only switch to local pt
@@ -252,9 +195,6 @@ void init_partitionings(SparseMatrix &A, partition_d *local, partition_d *ext)
 
     A.local = laik_new_partitioning(x_localPR, world, A.space, NULL);
     A.ext = laik_new_partitioning(x_extPR, world, A.space, NULL);
-
-    A.mapping->offset = local->offset;
-    A.mapping->offset_ext = ext->offset;
 
     return;
 }
@@ -414,32 +354,6 @@ void CopyLaikVectorToVector(Laik_Blob *x, Vector &v)
 /*
     Clean-up functions
 */
-/**
- * @brief Deallocate L2A_map Struct
- *
- * @param mapping to be deallocated
- */
-void free_L2A_map(L2A_map *mapping)
-{
-    if (mapping != NULL)
-    {
-        mapping->localNumberOfRows = 0;
-        mapping->offset = 0;
-        mapping->offset_ext = 0;
-
-        if (!mapping->localToExternalMap.empty())
-        {
-            mapping->localToExternalMap.clear();
-            // Fixed segfault for now see also in laik_reaprtition:cpp in update_partitionings_x
-            mapping->localToExternalMap[-1] = 144;
-        }
-        if (!mapping->localToGlobalMap.empty())
-            mapping->localToGlobalMap.clear();
-
-        free((void *)mapping);
-    }
-    return;
-}
 
 /**
  * @brief Deallocate a Laik vector

@@ -208,3 +208,20 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
   * But I realized, that I needed to delete the old mappings due to the lex layout at some points
     * deleting all mappings gave us identical result files
   
+## 19 Repartitioning with sparse vector layout
+
+* Now, need to test it with resizing enabled
+* segfaults
+  * GOing iteratively through code with "exit" function to detect the error
+  * did not delete mappings here as well
+* Testing shrinking
+  * deadlock when redistributing data according to new world size
+    * Reason was when redistributing data of matrix members
+    * a little if (n>0) was omitted and thus it resulted that strange things happend
+    * this was the case for procs which were removed, and thus have n = 0 value, so no layout
+  * FIxing this it worked, but issue with redistributing data of LAIK vectors
+    * Again, removed proc does strange things as mentioned
+    * But reason was, that not removed procs switched to new external partitoning. deleted that,
+    * then both procs switched from old layout again. and everything worked
+  * Running it further, segfault came.
+    * DUe to not setting layout data.

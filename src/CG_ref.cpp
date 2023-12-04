@@ -183,7 +183,6 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
       ComputeWAXPBY_laik_ref(nrow, 1.0, r, 0.0, r, z); // copy r to z (no preconditioning)
     TOCK(t5); // Preconditioner apply time
 
-   
 
     if (k == 1)
     {
@@ -256,6 +255,8 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
         laik_release_group(world);
         world = newworld;
 
+        // printf("LAIK %d \t New world size: %d\n", laik_myid(world), new_size);
+
         // Re-run setup functions and run partitioners for the new group
         repartition_SparseMatrix(A);
         nrow = A.localNumberOfRows; /* update local value after repartitioning */
@@ -270,15 +271,16 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
         list.push_back(z);
         list.push_back(p);
         list.push_back(Ap);
-
+          // std::string debug{"\x1B[33mCheckpoint END\x1B[0m"};
+          // exit_hpcg_run(debug.data(), false);
         re_switch_LaikVectors(A, list);
-        laik_free_partitioning(old_local);
-        laik_free_partitioning(old_ext);
+        // laik_free_partitioning(old_local); // TODO fix double free (occurs when removed processes free old partitionings)
+        // laik_free_partitioning(old_ext);
 
         // Need to send normr to new joining procs
         if(new_size > old_size)
         {
-          laik_broadcast((void *)&normr0, (void *) &normr0, 1, laik_Double);
+          laik_broadcast((void *)&normr0, (void *) &normr0, 1, laik_Double); // TODO Use partial broadcast (old processes do not need to parcipate in the computation)
           laik_broadcast((void *)&normr, (void *) &normr, 1, laik_Double);
           laik_broadcast((void *)&rtz, (void *)&rtz, 1, laik_Double);
         }
@@ -292,22 +294,20 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
           DeleteLaikVector(A.ptr_to_xexact);
           DeleteLaikVector(x);
           DeleteLaikVector(b);
-
+          printf("I am exiting\n");
           HPCG_Finalize();
-          laik_finalize(hpcg_instance);
+          // laik_finalize(hpcg_instance); // TODO fix double free (occurs when removed processes call laik_finalize())
           exit_hpcg_run("", false);
         }
 
         A.repartitioned = true;
         HPCG_fout << "REPARTIONING: Old world size [" << old_size << "] New world size [" << new_size << "]" << std::endl;
+        printf("################### LAIK %d \t REPARTIONING DONE -> NEW WORLD SIZE %d\n\n", laik_myid(world), new_size); // DELETE ME
       }
     }
 #endif // REPARTITION
   }
 
-// #ifdef REPARTITION
-//   laik_set_phase(hpcg_instance, 0, 0, 0);
-// #endif
 
   // Store times
   times[1] += t1; // dot product time

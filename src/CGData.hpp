@@ -50,14 +50,15 @@ typedef struct CGData_STRUCT CGData;
 inline void InitializeSparseCGData(SparseMatrix & A, CGData & data) {
 
 #ifndef HPCG_NO_LAIK
-  data.r_blob = init_blob(A, false);
-  data.r_blob->name = "CG_Data r";
-  data.z_blob = init_blob(A, true);
-  data.z_blob->name = "CG_Data z";
-  data.p_blob = init_blob(A, true);
-  data.p_blob->name = "CG_Data p";
-  data.Ap_blob = init_blob(A, false);
-  data.Ap_blob->name = "CG_Data Ap";
+  std::string name{""};
+  name = "CG_Data_r";
+  data.r_blob = init_blob(A, false, name.data());
+  name = "CG_Data_z";
+  data.z_blob = init_blob(A, true, name.data());
+  name = "CG_Data_p";
+  data.p_blob = init_blob(A, true, name.data());
+  name = "CG_Data_Ap";
+  data.Ap_blob = init_blob(A, false, name.data());
 #else
   local_int_t nrow = A.localNumberOfRows;
   local_int_t ncol = A.localNumberOfColumns;

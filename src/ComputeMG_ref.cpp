@@ -51,7 +51,11 @@ int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x
   { // Go to next coarse level if defined
     int numberOfPresmootherSteps = A.mgData->numberOfPresmootherSteps;
     for (int i = 0; i < numberOfPresmootherSteps; ++i) ierr += ComputeSYMGS_laik_ref(A, r, x);
-
+    if (k == 11)
+    {
+      std::string debug{"\x1B[33mCheckpoint END\x1B[0m"};
+      exit_hpcg_run(debug.data(), false);
+    }
     if (ierr != 0)
       return ierr;
     ierr = ComputeSPMV_laik_ref(A, x, A.mgData->Axf_blob);

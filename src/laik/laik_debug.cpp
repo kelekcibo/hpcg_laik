@@ -52,22 +52,21 @@ void compare2(double x, double y, bool doIO, allocation_int_t curIndex)
  * @param[in] mapping due to the lex layout
  * @param[in] doIO print
  */
-void compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO)
+void compareResult(Vector &x, Laik_Blob *y, bool doIO)
 {
     assert(x.localLength >= y->localLength); // Test vector lengths
-    assert(y->localLength == mapping->localNumberOfRows);
 
     double *xv = x.values;
     double *yv;
     laik_get_map_1d(y->values, 0, (void **)&yv, 0);
 
-    size_t length = y->localLength;
+    local_int_t length = y->localLength;
 
-    for (size_t i = 0; i < length; i++)
+    for (local_int_t i = 0; i < length; i++)
     {
-        double delta = std::abs(xv[i] - yv[map_l2a_x(mapping, i, false)]);
+        double delta = std::abs(xv[i] - yv[i]);
         // if (doIO) printf("Index %lld: Delta %.10f\n", i, delta);
-        if (doIO) printf("xv[%ld]=%.10f\tyv_blob[%lld]=%.10f\n", i, xv[i], map_l2a_x(mapping, i, false), yv[map_l2a_x(mapping, i, false)]);
+        if (doIO) printf("xv[%d]=%.10f\tyv_blob[%d]=%.10f\n", i, xv[i], i, yv[i]);
         if (delta != 0)
         {
             if (doIO) printf("Difference is not tolerated: %.20f\n", delta);

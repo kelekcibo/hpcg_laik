@@ -64,16 +64,27 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
   local_int_t nrow = A.localNumberOfRows;
   // local_int_t ncol = A.localNumberOfColumns;
 
-  Laik_Blob * x_ncol = init_blob(A, true);
-  x_ncol->name = "x_ncol";
-  Laik_Blob * y_ncol = init_blob(A, true);
-  y_ncol->name = "y_ncol";
-  Laik_Blob * z_ncol = init_blob(A, true);
-  z_ncol->name = "z_ncol";
+  std::string name{""};
+  name = "x_ncol";
+  Laik_Blob *x_ncol = init_blob(A, true, name.data());
+  name = "y_ncol";
+  Laik_Blob *y_ncol = init_blob(A, true, name.data());
+  name = "z_ncol";
+  Laik_Blob *z_ncol = init_blob(A, true, name.data());
 
 #ifdef REPARTITION
   // Repartitioning was done before, so phase is not zero. This means we have to call the switch here.
   // Optimisation reasons as mentioned in init_blob();
+
+  // Set layout_data
+  Laik_vector_data *layout_data = (Laik_vector_data *)malloc(sizeof(Laik_vector_data));
+  layout_data->localLength = x_ncol->localLength;
+  layout_data->numberOfExternalValues = A.numberOfExternalValues;
+  layout_data->id = laik_myid(world);
+  laik_data_set_layout_data(x_ncol->values, layout_data);
+  laik_data_set_layout_data(y_ncol->values, layout_data);
+  laik_data_set_layout_data(z_ncol->values, layout_data);
+
   laik_switchto_partitioning(x_ncol->values, A.ext, LAIK_DF_None, LAIK_RO_None);
   laik_switchto_partitioning(y_ncol->values, A.ext, LAIK_DF_None, LAIK_RO_None);
   laik_switchto_partitioning(z_ncol->values, A.ext, LAIK_DF_None, LAIK_RO_None);
@@ -82,7 +93,6 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
   laik_switchto_partitioning(y_ncol->values, A.local, LAIK_DF_None, LAIK_RO_None);
   laik_switchto_partitioning(z_ncol->values, A.local, LAIK_DF_None, LAIK_RO_None);
 #endif
-
 
   double t4 = 0.0; // Needed for dot-product call, otherwise unused
   testsymmetry_data.count_fail = 0;
@@ -94,6 +104,7 @@ int TestSymmetry_laik(SparseMatrix &A, Laik_Blob *b, Laik_Blob *xexact, TestSymm
 
   double xNorm2, yNorm2;
   double ANorm = 2 * 26.0;
+
 
   // Next, compute x'*A*y
   ComputeDotProduct_laik(nrow, y_ncol, y_ncol, yNorm2, t4, A.isDotProductOptimized);
