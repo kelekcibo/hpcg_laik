@@ -244,6 +244,7 @@ int main(int argc, char *argv[])
   }
 #endif
 
+  printf("\x1B[34m ROWS: %lld \x1B[0m\n", A.totalNumberOfRows);
   ////////////////////////////////////
   // Reference SpMV+MG Timing Phase //
   ////////////////////////////////////
@@ -381,7 +382,7 @@ int main(int argc, char *argv[])
     WriteProblem(*geom, A, b, x, xexact);
 #endif
 
-  // printf("\x1B[34m ROWS: %lld; n \x1B[0m\n", A.totalNumberOfRows);
+  printf("\x1B[34m ROWS: %lld; n \x1B[0m\n", A.totalNumberOfRows);
 
   printf("\x1B[34m LAIK %d \t  Checkpoint 1 \x1B[0m\n", laik_myid(world));
 

@@ -849,6 +849,15 @@ void update_partitionings_A(SparseMatrix &A)
     if (A.geom->rank >= 0)
         calculate_Mapping(A);
 
+    if (A.localNumberOfRows == 4)
+    {
+        // std::string debug{"\x1B[33m"};
+        // debug += "LAIK " + to_string(laik_myid(world)) + "\t";
+        // debug += "Checkpoint END\x1B[0m";
+        // printf("%s\n", debug.data());
+        // exit_hpcg_run("Assertion `chunksInitialised == map_size' failed.", false);
+    }
+
     Laik_Partitioner * partitioner_1d = laik_new_partitioner("partitioner_1d_members_of_A", partitioner_1d_members_of_A, (void *)&A, LAIK_PF_None);
     Laik_Partitioner * partitioner_2d = laik_new_partitioner("partitioner_2d_members_of_A", partitioner_2d_members_of_A, (void *)&A, LAIK_PF_None);
 

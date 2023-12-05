@@ -263,11 +263,10 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
         laik_release_group(world);
         world = newworld;
 
-        // printf("LAIK %d \t New world size: %d\n", laik_myid(world), new_size);
-
         // Re-run setup functions and run partitioners for the new group
         repartition_SparseMatrix(A);
         nrow = A.localNumberOfRows; /* update local value after repartitioning */
+
    
         // Switch to the new partitioning on all Laik_data containers
         std::vector<Laik_Blob *> list{};

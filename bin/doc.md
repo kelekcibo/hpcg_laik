@@ -233,3 +233,12 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
         // this means, that we need the Map from the local partitioning as it is not calculated for external partitioning
         // when we repartition, we are not able to make the optimisation of switching to the external partitioning first
     * After fixing this everything worked
+* Testing expanding
+  * Expanding from 2 to 4 procs worked immediately.
+  * expanding from 1 to 2 gave us an assertion error, when we calculate the Mapping for the sparse vector layout.
+    * Need incrementally detect bug.
+    * bug was that we needed to initialie last chunk as well, if the last two ranges are not neighbours.
+  * Compared results with orig app
+    * correct results
+
+## 20 Implementing sparse layout
