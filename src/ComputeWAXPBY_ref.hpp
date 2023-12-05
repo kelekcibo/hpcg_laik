@@ -19,7 +19,7 @@
 #include "Vector.hpp"
 
 int ComputeWAXPBY_laik_ref(const local_int_t n, const double alpha, const Laik_Blob *x,
-                           const double beta, const Laik_Blob *y, const Laik_Blob *w, L2A_map *mapping);
+                           const double beta, const Laik_Blob *y, const Laik_Blob *w);
 int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Vector & x,
     const double beta, const Vector & y, Vector & w);
 #endif // COMPUTEWAXPBY_REF_HPP

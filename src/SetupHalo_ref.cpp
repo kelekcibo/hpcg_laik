@@ -143,7 +143,6 @@ void SetupHalo_ref(SparseMatrix & A) {
     sendLength[neighborCount] = sendList[neighborId].size(); // Get count if sends/receives
     for (set_iter i = receiveList[neighborId].begin(); i != receiveList[neighborId].end(); ++i, ++receiveEntryCount) {
       externalToLocalMap[*i] = localNumberOfRows + receiveEntryCount; // The remote columns are indexed at end of internals
-      A.localToExternalMap[localNumberOfRows + receiveEntryCount] = *i;
     }
     for (set_iter i = sendList[neighborId].begin(); i != sendList[neighborId].end(); ++i, ++sendEntryCount) {
       //if (geom.rank==1) HPCG_fout << "*i, globalToLocalMap[*i], sendEntryCount = " << *i << " " << A.globalToLocalMap[*i] << " " << sendEntryCount << endl;
@@ -187,20 +186,6 @@ void SetupHalo_ref(SparseMatrix & A) {
   std::memcpy((void *)&pt_data_ext->receiveList, (void *)&receiveList, sizeof(receiveList));
 
   init_partition_data(A, pt_data_local, pt_data_ext);
-  // ########## Data for partitioning algorithm
-
-  // ########## Data to calculate mapping
-  L2A_map * map_data = (L2A_map *) malloc(sizeof(L2A_map));
-
-  map_data->localNumberOfRows = A.localNumberOfRows;
-  map_data->offset = -1;
-  map_data->offset_ext = -1;
-
-  std::memcpy((void *)&map_data->localToGlobalMap, (void *)&A.localToGlobalMap, sizeof(A.localToGlobalMap));
-  std::memcpy((void *)&map_data->localToExternalMap, (void *)&A.localToExternalMap, sizeof(A.localToExternalMap));
-
-  A.mapping = map_data;
-  // ########## Data to calculate mapping
 
   A.space = laik_new_space_1d(hpcg_instance, A.totalNumberOfRows);
 
@@ -261,7 +246,7 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
   for (local_int_t i = 0; i < localNumberOfRows; i++)
   {
     global_int_t currentGlobalRow = A.localToGlobalMap[i];
-    for (int j = 0; j < nonzerosInRow[map_l2a_A(A, i)]; j++)
+    for (int j = 0; j < nonzerosInRow[i]; j++)
     {
       global_int_t curIndex = mtxIndG[map_l2a_A(A, i) * numberOfNonzerosPerRow + j];
       int rankIdOfColumnEntry = ComputeRankOfMatrixRow(*(A.geom), curIndex);
@@ -323,7 +308,6 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
     for (set_iter i = receiveList[neighborId].begin(); i != receiveList[neighborId].end(); ++i, ++receiveEntryCount)
     {
       externalToLocalMap[*i] = localNumberOfRows + receiveEntryCount; // The remote columns are indexed at end of internals
-      A.localToExternalMap[localNumberOfRows + receiveEntryCount] = *i;
     }
 
     for (set_iter i = sendList[neighborId].begin(); i != sendList[neighborId].end(); ++i, ++sendEntryCount)
@@ -340,7 +324,7 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
 #endif
   for (local_int_t i = 0; i < localNumberOfRows; i++)
   {
-    for (int j = 0; j < nonzerosInRow[map_l2a_A(A, i)]; j++)
+    for (int j = 0; j < nonzerosInRow[i]; j++)
     {
       global_int_t curIndex = mtxIndG[map_l2a_A(A, i) * numberOfNonzerosPerRow + j];
       int rankIdOfColumnEntry = ComputeRankOfMatrixRow(*(A.geom), curIndex);
@@ -376,19 +360,6 @@ void SetupHalo_repartition_ref(SparseMatrix &A)
 
   init_partition_data(A, pt_data_local, pt_data_ext);
   // ########## Data for partitioning algorithm
-
-  // ########## Data to calculate mapping
-  L2A_map *map_data = (L2A_map *)malloc(sizeof(L2A_map));
-
-  map_data->localNumberOfRows = A.localNumberOfRows;
-  map_data->offset = -1;
-  map_data->offset_ext = -1;
-
-  std::memcpy((void *)&map_data->localToGlobalMap, (void *)&A.localToGlobalMap, sizeof(A.localToGlobalMap));
-  std::memcpy((void *)&map_data->localToExternalMap, (void *)&A.localToExternalMap, sizeof(A.localToExternalMap));
-
-  A.mapping = map_data;
-  // ########## Data to calculate mapping
 
   init_partitionings(A, pt_data_local, pt_data_ext);
 

@@ -76,7 +76,6 @@ void GenerateGeometry(int size, int rank, int numThreads,
       if(!config_1 || !config_2 || !config_3)
       {
         // This means, that expanding/shrinking will not work to the demanded size,
-        assert(config_1 == true); // will fail
         exit_hpcg_run("It is not possible to expand/shrink the world as requested. Try other new sizes!", false);
       }
 

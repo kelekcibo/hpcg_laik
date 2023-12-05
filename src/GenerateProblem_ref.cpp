@@ -355,7 +355,7 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
     for (local_int_t i = 0; i < localNumberOfRows; ++i)
     {
         mtxIndL[i] = 0;
-        matrixDiagonal[map_l2a_A(A, i)] = 0;
+        matrixDiagonal[i] = 0;
     }
 
     for (local_int_t i = 0; i < localNumberOfRows; i++)
@@ -424,7 +424,7 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
                                         if (curcol == currentGlobalRow)
                                         {
                                             matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + ++currentValuePointer_index] = 26.0;                                              // *currentValuePointer++ = 26.0;
-                                            matrixDiagonal[map_l2a_A(A, currentLocalRow)] = matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index]; // matrixDiagonal[currentLocalRow] = currentValuePointer;
+                                            matrixDiagonal[currentLocalRow] = matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index]; // matrixDiagonal[currentLocalRow] = currentValuePointer;
                                         }
                                         else
                                         {
@@ -438,7 +438,7 @@ void GenerateProblem_repartition_ref(SparseMatrix &A, Vector *b, Vector *x, Vect
                         }             // end sy loop
                     }                 // end z bounds test
                 }                     // end sz loop
-                nonzerosInRow[map_l2a_A(A, currentLocalRow)] = numberOfNonzerosInRow;
+                nonzerosInRow[currentLocalRow] = numberOfNonzerosInRow;
 #ifndef HPCG_NO_OPENMP
 #pragma omp critical
 #endif

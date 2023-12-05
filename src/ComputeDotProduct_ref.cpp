@@ -46,11 +46,10 @@
   @see ComputeDotProduct
 */
 int ComputeDotProduct_laik_ref(const local_int_t n, const Laik_Blob *x, const Laik_Blob *y,
-                          double &result, double &time_allreduce, L2A_map * mapping)
+                          double &result, double &time_allreduce)
 {
   assert(x->localLength == n); // Test vector lengths
   assert(y->localLength == n);
-  assert(n == mapping->localNumberOfRows); // mapping being used should fit the vectors
 
   double local_result = 0.0;
 
@@ -65,10 +64,7 @@ int ComputeDotProduct_laik_ref(const local_int_t n, const Laik_Blob *x, const La
 #pragma omp parallel for reduction(+ : local_result)
 #endif
     for (local_int_t i = 0; i < n; i++)
-    {
-      allocation_int_t j = map_l2a_x(mapping, i, false);
-      local_result += xv[j] * xv[j];
-    }
+      local_result += xv[i] * xv[i];
   }
   else
   {
@@ -76,10 +72,7 @@ int ComputeDotProduct_laik_ref(const local_int_t n, const Laik_Blob *x, const La
 #pragma omp parallel for reduction(+ : local_result)
 #endif
     for (local_int_t i = 0; i < n; i++)
-    {
-      allocation_int_t j = map_l2a_x(mapping, i, false);
-      local_result += xv[j] * yv[j];
-    }
+      local_result += xv[i] * yv[i];
   }
 
   // Collect all partial sums

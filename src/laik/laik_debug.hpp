@@ -38,8 +38,8 @@ typedef struct SparseMatrix_STRUCT SparseMatrix;
     Debug functions
 */
 extern void compare2(double x, double y, bool doIO, allocation_int_t curIndex);
-extern void compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO);
-extern void printResultLaikVector(Laik_Blob *x, L2A_map *mapping);
+extern void compareResult(Vector &x, Laik_Blob *y, bool doIO);
+extern void printResultLaikVector(Laik_Blob *x);
 extern void printResultVector(Vector &x);
 extern void printSPM(SparseMatrix *A, int coarseLevel);
 extern void printSPM_val(SparseMatrix &A);

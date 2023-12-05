@@ -12,10 +12,6 @@
     Includes
 */
     #include "laik_x_vector.hpp"
-// forw. decl.
-struct Local2Allocation_map_x;
-typedef Local2Allocation_map_x L2A_map;
-// forw. decl.
 
 /*
     Includes -END
@@ -43,9 +39,6 @@ void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams 
     int rank = data->geom->rank;
     Laik_Range range;
 
-    std::string a{""};
-    // a += "LAIK " + std::to_string(laik_myid(world)) + "\t[";
-
     for (long long i = 0; i < data->size; i++)
     {
         // assign every process its global part
@@ -53,18 +46,7 @@ void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams 
 
         laik_range_init_1d(&range, x_space, i, i + 1);
         laik_append_range(r, proc, &range, 1, 0);
-
-        // Prepare data for mapping from global index to allocation index (lex_layout)
-
-        if (data->offset == -1 && rank == proc)
-            data->offset = i;
-
-        // a += std::to_string(ComputeRankOfMatrixRow(*data->geom, i)) + ", ";
     }
-
-    // a += "]\n";
-
-    // printf("%s", a.data());
 
     // Specifying ranges which need to be exchanged
     if (data->halo)
@@ -80,13 +62,6 @@ void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams 
 
                 laik_range_init_1d(&range, x_space, globalIndex, globalIndex + 1);
                 laik_append_range(r, rank, &range, 1, 0);
-
-                if (globalIndex < data->offset)
-                {
-                    data->offset = globalIndex;
-                }
-
-                // printf("I (%d) need to have access to global index %lld of x vector (updated by proc %d)\n", rank, globalIndex, data->neighbors[nb]);
             }
         }
 
@@ -100,11 +75,9 @@ void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams 
 
             for (local_int_t i = 0; i < numbOfElementsToSend; i++)
             {
-
                 global_int_t j = (*data->localToGlobalMap)[data->elementsToSend[index_elementsToSend++]]; // neighbour n needs this value from proc i
 
                 assert(ComputeRankOfMatrixRow(*(data->geom), j) == data->geom->rank);
-                // printf("I (%d) need to give access to proc %d at global offset %llu\n", data->geom->rank, data->neighbors[nb], j);
 
                 laik_range_init_1d(&range, x_space, j, j + 1);
                 laik_append_range(r, data->neighbors[nb], &range, 1, 0);
@@ -114,52 +87,20 @@ void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams 
 }
 
 /**
- * @brief Map the local index (mtxIndL) to the corresponding global index. Then map this global index to the allocation index. 
- * 
- * This extra step has to be done since Laik makes use of the lex_layout under the hood.  
- * v1.2 will hopefully implement the custom hpcg_layout, so that there is no need for this anymore
- *
- * @param[in] mapping used to calculate the allocation index
- * @param[in] localIndex which will be mapped to the corresponding allocation index
- * @param[in] halo determines the allocation buffer to be used
- *
- * @return index to the allocation buffer
- *
- * @see L2A_map 
- */
-allocation_int_t map_l2a_x(L2A_map *mapping, local_int_t local_index, bool halo)
-{
-    global_int_t global_index;
-
-    // Map local index to global index
-    if (local_index < mapping->localNumberOfRows)
-        global_index = mapping->localToGlobalMap[local_index]; /* No need to handle errors, since we map values from mtxIndL only */
-    else
-        global_index = mapping->localToExternalMap[local_index];
-
-    // Map global index to allocation index
-    // We have different allocation buffers depending on the current active partitioning
-    allocation_int_t allocation_index;
-    if (halo)
-        allocation_index = global_index - mapping->offset_ext;
-    else
-        allocation_index = global_index - mapping->offset;
-
-    return allocation_index;
-}
-
-/**
  * @brief Populate an Laik_Blob and start with the partitioning such that every process has only access to local values.
  *
  * @param A SparseMatrix
  * @return populated blob
  */
-Laik_Blob *init_blob(const SparseMatrix &A)
+Laik_Blob *init_blob(const SparseMatrix &A, bool exchangesValues, char * name)
 {
     Laik_Blob *blob = (Laik_Blob *)malloc(sizeof(Laik_Blob));
 
     blob->values = laik_new_data(A.space, laik_Double);
     blob->localLength = A.localNumberOfRows;
+    blob->exchangesValues = exchangesValues;
+    blob->name = name;
+    laik_data_set_name(blob->values, name);
 
     // debug
     std::string b{"local "};
@@ -178,87 +119,27 @@ Laik_Blob *init_blob(const SparseMatrix &A)
     laik_data_set_layout_factory(blob->values, laik_new_layout_vector);
     laik_data_set_layout_flag(blob->values, LAIK_Vector_Layout);
 
-    Laik_vector_data *layout_data = (Laik_vector_data *)malloc(sizeof(Laik_vector_data));
-    layout_data->localLength = blob->localLength;
-    layout_data->numberOfExternalValues = A.numberOfExternalValues;
-    layout_data->id = laik_myid(world);
-    laik_data_set_layout_data(blob->values, layout_data);
-
-    // if (laik_myid(world) == 0)
-    // {
-    //     printf("My global Indexes\n");
-    //     for (size_t i = 0; i < A.localNumberOfRows; i++)
-    //     {
-    //         printf("%lld\n", A.localToGlobalMap[i]);
-    //     }
-    //     printf("My global Indexes\n");
-    // }
-    // while (1)
-    //     ;
-
-    // First, switchto A.ext then switch to A.local immediately
-    // Optimization, as LAIK will create a buffer under the hood and reuse the buffer, if we switch to A.ext first and then to A.local
-    laik_switchto_partitioning(blob->values, A.ext, LAIK_DF_None, LAIK_RO_None);
-
-    // Test get_map
-    double *v;
-    uint64_t count;
-    laik_get_map_1d(blob->values, 0, (void **)&v, &count);
-    // printf("m->start = %p\n", v);
-
-    std::string errs{"\033[0;31mLAIK \t"};
-    std::string debug{"LAIK \t"};
-    int print_id = 1;
-
-    errs += to_string(laik_myid(world)) + "  ###### ERRORS  \n";
-    debug += to_string(laik_myid(world)) + "  ###########\n";
-    debug += to_string(print_id++) + "\tswitch to ext partitioning: count = " + to_string(count) + "\n";
 
     // New joining procs will switch later
     if (laik_phase(hpcg_instance) == 0)
+    {
+        // TODO put this code above the if statement
+        // Set layout_data
+        Laik_vector_data *layout_data = (Laik_vector_data *)malloc(sizeof(Laik_vector_data));
+        layout_data->localLength = blob->localLength;
+        layout_data->numberOfExternalValues = exchangesValues ? A.numberOfExternalValues : 0;
+        layout_data->id = laik_myid(world);
+        laik_data_set_layout_data(blob->values, layout_data);
+
+        // First, switchto A.ext then switch to A.local immediately
+        // Optimization, as LAIK will create a buffer under the hood and reuse the buffer, if we switch to A.ext first and then to A.local
+        // Not all vectors have external values, handle that case,so we only switch to local pt
+        if(blob->exchangesValues)
+            laik_switchto_partitioning(blob->values, A.ext, LAIK_DF_None, LAIK_RO_None);
+
         // Start with partitioning containing only access to local elements
         laik_switchto_partitioning(blob->values, A.local, LAIK_DF_None, LAIK_RO_None);
-
-    laik_get_map_1d(blob->values, 0, (void **)&v, &count);
-    debug += to_string(print_id++) + "\tswitch to local partitioning: count = " + to_string(count) + "\n";
-
-    for (size_t i = 0; i < count; i++)
-        // v[i] = i;
-    v[i] = A.localToGlobalMap[i];
-
-    laik_switchto_partitioning(blob->values, A.ext, LAIK_DF_Preserve, LAIK_RO_None);
-
-    laik_get_map_1d(blob->values, 0, (void **)&v, &count);
-    debug += to_string(print_id++) + "\tswitch to ext partitioning: count = " + to_string(count) + "\n";
-    debug += to_string(print_id++) + "\tprint all values including external values!\n";
-    int err_count = 0;
-    for (uint64_t i = 0; i < count; i++)
-    {
-        debug += "\t\tv[" + to_string(i) + "]=" + to_string(v[i]) + "\n";
-        if (i < blob->localLength && A.localToGlobalMap[i] != (global_int_t)v[i])
-        {
-            errs += "Failed at index " + to_string(i) + " \t actual value: " + to_string(v[i]) + " \t should be " + to_string(A.localToGlobalMap[i]) + "  \033[0m\n";
-            err_count++;
-        }
-        // TODO unit test received values
-
     }
-
-    debug += to_string(print_id++) + "\tEnd of printing values!\n\n";
-
-    debug += "\n\n\n";
-    if(laik_myid(world) == 1)
-        std::cout << debug;
-
-    errs += "\nDetected " + to_string(err_count) + " Errors\033[0m\n\n";
-    std::cout << errs;
-
-    exit_hpcg_run("LAIK_DF_Preserve || LAIK_Vector_Layout", false);
-
-    laik_switchto_partitioning(blob->values, A.local, LAIK_DF_None, LAIK_RO_None);
-
-    laik_get_map_1d(blob->values, 0, (void **)&v, &count);
-    debug += to_string(print_id++) + "\tswitch to local partitioning: count = " + to_string(count) + "\n";
 
     return blob;
 }
@@ -315,9 +196,6 @@ void init_partitionings(SparseMatrix &A, partition_d *local, partition_d *ext)
     A.local = laik_new_partitioning(x_localPR, world, A.space, NULL);
     A.ext = laik_new_partitioning(x_extPR, world, A.space, NULL);
 
-    A.mapping->offset = local->offset;
-    A.mapping->offset_ext = ext->offset;
-
     return;
 }
 
@@ -336,9 +214,9 @@ void init_partitionings(SparseMatrix &A, partition_d *local, partition_d *ext)
  *
  * @see ZeroVector in Vector.hpp
  */
-void ZeroLaikVector(Laik_Blob *x, L2A_map *mapping)
+void ZeroLaikVector(Laik_Blob *x)
 {
-    assert(x->localLength == mapping->localNumberOfRows);
+    assert(x);
 
     double *base;
     uint64_t count;
@@ -346,7 +224,7 @@ void ZeroLaikVector(Laik_Blob *x, L2A_map *mapping)
     laik_get_map_1d(x->values, 0, (void **)&base, &count);
 
     for (uint64_t i = 0; i < x->localLength; i++)
-        base[map_l2a_x(mapping, i, false)] = 0;
+        base[i] = 0;
 
     return;
 }
@@ -358,14 +236,14 @@ void ZeroLaikVector(Laik_Blob *x, L2A_map *mapping)
   @param[in] index Local index of entry to scale
   @param[in] value Value to scale by
  */
-void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value, L2A_map *mapping)
+void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value)
 {
+    assert(v);
     assert(index >= 0 && index < v->localLength);
-    assert(v->localLength == mapping->localNumberOfRows);
 
     double *vv;
     laik_get_map_1d(v->values, 0, (void **)&vv, 0);
-    vv[map_l2a_x(mapping, index, false)] *= value;
+    vv[index] *= value;
     return;
 }
 
@@ -375,10 +253,9 @@ void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value, L2A_map
  * @param[in] x input vector
  * @param[in] y output vector
  */
-void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y, L2A_map *mapping)
+void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y)
 {
     assert(x->localLength == y->localLength); /* they use the same mapping */
-    assert(x->localLength == mapping->localNumberOfRows);
 
     double *xv;
     double *yv;
@@ -387,10 +264,7 @@ void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y, L2A_map *mapping)
     laik_get_map_1d(y->values, 0, (void **)&yv, 0);
 
     for (uint64_t i = 0; i < x->localLength; i++)
-    {
-        allocation_int_t j = map_l2a_x(mapping, i, false);
-        yv[j] = xv[j];
-    }
+        yv[i] = xv[i];
 
     return;
 }
@@ -402,21 +276,19 @@ void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y, L2A_map *mapping)
  *
  * @see FillRandomVector in Vector.hpp
  */
-void fillRandomLaikVector(Laik_Blob *x, L2A_map *mapping)
+void fillRandomLaikVector(Laik_Blob *x)
 {
     assert(x != NULL);
-    assert(mapping != NULL);
-    assert(x->localLength == mapping->localNumberOfRows);
 
     double *xv;
     uint64_t count;
     laik_get_map_1d(x->values, 0, (void **)&xv, &count);
     for (uint64_t i = 0; i < x->localLength; i++)
-        xv[map_l2a_x(mapping, i, false)] = rand() / (double)(RAND_MAX) + 1.0;
-        // xv[map_l2a_x(mapping, i, false)] = i / (double)(RAND_MAX) + 1.0;
-        // xv[map_l2a_x(mapping, i, false)] = i + 1.0;
+        // xv[i] = rand() / (double)(RAND_MAX) + 1.0;
+        xv[i] = i + 1.0;
+        // xv[i] = laik_myid(world);
         // TODO. Hardcoded values for now to test it with the original application
-    return;
+        return;
 }
 
 /**
@@ -427,10 +299,9 @@ void fillRandomLaikVector(Laik_Blob *x, L2A_map *mapping)
  *
  * @see CopyVector in Vector.hpp
  */
-void CopyVectorToLaikVector(Vector &v, Laik_Blob *x, L2A_map *mapping)
+void CopyVectorToLaikVector(Vector &v, Laik_Blob *x)
 {
     assert(v.localLength >= x->localLength);
-    assert(x->localLength == mapping->localNumberOfRows);
 
     double *xv;
     uint64_t count;
@@ -439,7 +310,7 @@ void CopyVectorToLaikVector(Vector &v, Laik_Blob *x, L2A_map *mapping)
     const double *vv = v.values;
 
     for (uint64_t i = 0; i < x->localLength; i++)
-        xv[map_l2a_x(mapping, i, false)] = vv[i];
+        xv[i] = vv[i];
 
     return;
 }
@@ -450,10 +321,9 @@ void CopyVectorToLaikVector(Vector &v, Laik_Blob *x, L2A_map *mapping)
  * @param[in] x contains input vector
  * @param[in] v output vector
  */
-void CopyLaikVectorToVector(const Laik_Blob *x, Vector &v, L2A_map *mapping)
+void CopyLaikVectorToVector(const Laik_Blob *x, Vector &v)
 {
     assert(x->localLength == v.localLength);
-    assert(x->localLength == mapping->localNumberOfRows);
 
     double *xv;
     uint64_t count;
@@ -462,7 +332,7 @@ void CopyLaikVectorToVector(const Laik_Blob *x, Vector &v, L2A_map *mapping)
     double *vv = v.values;
 
     for (uint64_t i = 0; i < x->localLength; i++)
-        vv[i] = xv[map_l2a_x(mapping, i, false)];
+        vv[i] = xv[i];
 
     return;
 }
@@ -471,10 +341,10 @@ void CopyLaikVectorToVector(const Laik_Blob *x, Vector &v, L2A_map *mapping)
  * @brief Copy input Laik-vector to output vector.
  * @see CopyLaikVectorToVector
  */
-void CopyLaikVectorToVector(Laik_Blob *x, Vector &v, L2A_map *mapping)
+void CopyLaikVectorToVector(Laik_Blob *x, Vector &v)
 {
     const Laik_Blob *x_const = x;
-    CopyLaikVectorToVector(x_const, v, mapping);
+    CopyLaikVectorToVector(x_const, v);
     return;
 }
 /*
@@ -484,32 +354,6 @@ void CopyLaikVectorToVector(Laik_Blob *x, Vector &v, L2A_map *mapping)
 /*
     Clean-up functions
 */
-/**
- * @brief Deallocate L2A_map Struct
- *
- * @param mapping to be deallocated
- */
-void free_L2A_map(L2A_map *mapping)
-{
-    if (mapping != NULL)
-    {
-        mapping->localNumberOfRows = 0;
-        mapping->offset = 0;
-        mapping->offset_ext = 0;
-
-        if (!mapping->localToExternalMap.empty())
-        {
-            mapping->localToExternalMap.clear();
-            // Fixed segfault for now see also in laik_reaprtition:cpp in update_partitionings_x
-            mapping->localToExternalMap[-1] = 144;
-        }
-        if (!mapping->localToGlobalMap.empty())
-            mapping->localToGlobalMap.clear();
-
-        free((void *)mapping);
-    }
-    return;
-}
 
 /**
  * @brief Deallocate a Laik vector

@@ -97,15 +97,15 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     if (iter == 0)
     {
       // copy x to p for sparse MV operation
-      CopyLaikVectorToLaikVector(x, p, A.mapping);
+      CopyLaikVectorToLaikVector(x, p);
       TICK();
       ComputeSPMV_laik_ref(A, p, Ap);
       TOCK(t3); // Ap = A*p
       TICK();
-      ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r, A.mapping);
+      ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r);
       TOCK(t2); // r = b - Ax (x stored in p)
       TICK();
-      ComputeDotProduct_laik_ref(nrow, r, r, normr, t4, A.mapping);
+      ComputeDotProduct_laik_ref(nrow, r, r, normr, t4);
       TOCK(t1);
       normr = sqrt(normr);
 
@@ -125,15 +125,15 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
   {
     // Normal CG_ref call without repartitioning
     // copy x to p for sparse MV operation
-    CopyLaikVectorToLaikVector(x, p, A.mapping);
+    CopyLaikVectorToLaikVector(x, p);
     TICK();
     ComputeSPMV_laik_ref(A, p, Ap);
     TOCK(t3); // Ap = A*p
     TICK();
-    ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r, A.mapping);
+    ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r);
     TOCK(t2); // r = b - Ax (x stored in p)
     TICK();
-    ComputeDotProduct_laik_ref(nrow, r, r, normr, t4, A.mapping);
+    ComputeDotProduct_laik_ref(nrow, r, r, normr, t4);
     TOCK(t1);
     normr = sqrt(normr);
 
@@ -143,15 +143,15 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 #else
   // Normal CG_ref call without repartitioning
   // copy x to p for sparse MV operation
-  CopyLaikVectorToLaikVector(x, p, A.mapping);
+  CopyLaikVectorToLaikVector(x, p);
   TICK();
   ComputeSPMV_laik_ref(A, p, Ap);
   TOCK(t3); // Ap = A*p
   TICK();
-  ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r, A.mapping);
+  ComputeWAXPBY_laik_ref(nrow, 1.0, b, -1.0, Ap, r);
   TOCK(t2); // r = b - Ax (x stored in p)
   TICK();
-  ComputeDotProduct_laik_ref(nrow, r, r, normr, t4, A.mapping);
+  ComputeDotProduct_laik_ref(nrow, r, r, normr, t4);
   TOCK(t1);
   normr = sqrt(normr);
 
@@ -176,32 +176,39 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 
   for (; k <= max_iter && normr / normr0 > tolerance; k++)
   {
+    // if (k == 11 && laik_size(world) == 2)
+    // {
+    //   std::string debug{"\x1B[33m"};
+    //   debug += "LAIK " + to_string(laik_myid(world)) + "\t";
+    //   debug += "Checkpoint END\x1B[0m";
+    //   printf("%s\n", debug.data());
+    //   exit_hpcg_run("free()/malloc() error", false);
+    // }
+
     TICK();
     if (doPreconditioning)
       ComputeMG_laik_ref(A, r, z, k); // Apply preconditioner
     else
-      ComputeWAXPBY_laik_ref(nrow, 1.0, r, 0.0, r, z, A.mapping); // copy r to z (no preconditioning)
+      ComputeWAXPBY_laik_ref(nrow, 1.0, r, 0.0, r, z); // copy r to z (no preconditioning)
     TOCK(t5); // Preconditioner apply time
-
-   
 
     if (k == 1)
     {
-      CopyLaikVectorToLaikVector(z, p, A.mapping);
+      CopyLaikVectorToLaikVector(z, p);
       TOCK(t2); // Copy Mr to p
       TICK();
-      ComputeDotProduct_laik_ref(nrow, r, z, rtz, t4, A.mapping);
+      ComputeDotProduct_laik_ref(nrow, r, z, rtz, t4);
       TOCK(t1); // rtz = r'*z
     }
     else
     {
       oldrtz = rtz;
       TICK();
-      ComputeDotProduct_laik_ref(nrow, r, z, rtz, t4, A.mapping);
+      ComputeDotProduct_laik_ref(nrow, r, z, rtz, t4);
       TOCK(t1); // rtz = r'*z
       beta = rtz / oldrtz;
       TICK();
-      ComputeWAXPBY_laik_ref(nrow, 1.0, z, beta, p, p, A.mapping);
+      ComputeWAXPBY_laik_ref(nrow, 1.0, z, beta, p, p);
       TOCK(t2); // p = beta*p + z
     }
 
@@ -209,15 +216,15 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     ComputeSPMV_laik_ref(A, p, Ap);
     TOCK(t3); // Ap = A*p
     TICK();
-    ComputeDotProduct_laik_ref(nrow, p, Ap, pAp, t4, A.mapping);
+    ComputeDotProduct_laik_ref(nrow, p, Ap, pAp, t4);
     TOCK(t1); // alpha = p'*Ap
     alpha = rtz / pAp;
     TICK();
-    ComputeWAXPBY_laik_ref(nrow, 1.0, x, alpha, p, x, A.mapping); // x = x + alpha*p
-    ComputeWAXPBY_laik_ref(nrow, 1.0, r, -alpha, Ap, r, A.mapping);
+    ComputeWAXPBY_laik_ref(nrow, 1.0, x, alpha, p, x); // x = x + alpha*p
+    ComputeWAXPBY_laik_ref(nrow, 1.0, r, -alpha, Ap, r);
     TOCK(t2); // r = r - alpha*Ap
     TICK();
-    ComputeDotProduct_laik_ref(nrow, r, r, normr, t4, A.mapping);
+    ComputeDotProduct_laik_ref(nrow, r, r, normr, t4);
     TOCK(t1);
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
@@ -260,6 +267,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
         repartition_SparseMatrix(A);
         nrow = A.localNumberOfRows; /* update local value after repartitioning */
 
+   
         // Switch to the new partitioning on all Laik_data containers
         std::vector<Laik_Blob *> list{};
         /* Vectors in MG_data will be recursively handled in re_switch_LaikVectors */
@@ -270,15 +278,14 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
         list.push_back(z);
         list.push_back(p);
         list.push_back(Ap);
-
         re_switch_LaikVectors(A, list);
-        laik_free_partitioning(old_local);
-        laik_free_partitioning(old_ext);
 
+        // laik_free_partitioning(old_local); // TODO fix double free (occurs when removed processes free old partitionings)
+        // laik_free_partitioning(old_ext);
         // Need to send normr to new joining procs
         if(new_size > old_size)
         {
-          laik_broadcast((void *)&normr0, (void *) &normr0, 1, laik_Double);
+          laik_broadcast((void *)&normr0, (void *) &normr0, 1, laik_Double); // TODO Use partial broadcast (old processes do not need to parcipate in the computation)
           laik_broadcast((void *)&normr, (void *) &normr, 1, laik_Double);
           laik_broadcast((void *)&rtz, (void *)&rtz, 1, laik_Double);
         }
@@ -292,22 +299,19 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
           DeleteLaikVector(A.ptr_to_xexact);
           DeleteLaikVector(x);
           DeleteLaikVector(b);
-
           HPCG_Finalize();
-          laik_finalize(hpcg_instance);
+          // laik_finalize(hpcg_instance); // TODO fix double free (occurs when removed processes call laik_finalize())
           exit_hpcg_run("", false);
         }
 
         A.repartitioned = true;
         HPCG_fout << "REPARTIONING: Old world size [" << old_size << "] New world size [" << new_size << "]" << std::endl;
+        printf("################### LAIK %d \t REPARTIONING DONE -> NEW WORLD SIZE %d\n\n", laik_myid(world), new_size); // DELETE ME
       }
     }
 #endif // REPARTITION
   }
 
-// #ifdef REPARTITION
-//   laik_set_phase(hpcg_instance, 0, 0, 0);
-// #endif
 
   // Store times
   times[1] += t1; // dot product time

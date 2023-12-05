@@ -41,12 +41,12 @@
   @see ComputeWAXPBY_ref
 */
 int ComputeWAXPBY_laik(const local_int_t n, const double alpha, const Laik_Blob * x,
-                  const double beta, const Laik_Blob * y, Laik_Blob * w, bool &isOptimized, L2A_map * mapping)
+                  const double beta, const Laik_Blob * y, Laik_Blob * w, bool &isOptimized)
 {
 
   // This line and the next two lines should be removed and your version of ComputeWAXPBY should be used.
   isOptimized = false;
-  return ComputeWAXPBY_laik_ref(n, alpha, x, beta, y, w, mapping);
+  return ComputeWAXPBY_laik_ref(n, alpha, x, beta, y, w);
 }
 
 /*!

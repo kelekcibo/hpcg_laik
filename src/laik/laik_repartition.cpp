@@ -200,7 +200,7 @@ void repartition_SparseMatrix(SparseMatrix &A)
     curLevelMatrix = &A;
     for (int level = 0; level < numberOfMgLevels; ++level)
     {
-        // Update partitionings for the SparseMatrices 
+        // Update partitionings for the SparseMatrices
         update_partitionings_A(*curLevelMatrix);
         // Update local/global variables
         update_Values(*curLevelMatrix);
@@ -208,7 +208,6 @@ void repartition_SparseMatrix(SparseMatrix &A)
         update_partitionings_x(*curLevelMatrix);
         // Make the nextcoarse grid the next level
         curLevelMatrix = curLevelMatrix->Ac;
-
     }
 
     if(A.geom->rank < 0)
@@ -261,11 +260,19 @@ void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
     // ######### Preparation of necessary information of new joining processes done
     // #################################################################################
 
+
     // Redistribute data of laik vectors in list
     for (uint32_t i = 0; i < list.size(); i++)
     {
         Laik_Blob *elem = list[i];
-        elem->localLength = A.localNumberOfRows; // Need to update local length, since it could have changed
+        elem->localLength = A.localNumberOfRows; // Need to update local length, since it probably changed
+
+        // create new layout data for all LAIK Vectors
+        Laik_vector_data *layout_data = (Laik_vector_data *)malloc(sizeof(Laik_vector_data));
+        layout_data->localLength = A.localNumberOfRows;
+        layout_data->numberOfExternalValues = elem->exchangesValues ? A.numberOfExternalValues : 0;
+        layout_data->id = laik_myid(world);
+        laik_data_set_layout_data(elem->values, layout_data);
 
         // New joining procs have no initial partitiong activated on Laik Data containers.
         if (laik_myid(world) >= old_size)
@@ -280,7 +287,35 @@ void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
     for (int level = 1; level < numberOfMgLevels; ++level)
     {
         curMGData = curLevelMatrix->mgData;
+        
+        // create new layout_data
+        Laik_vector_data *layout_data_Axf = (Laik_vector_data *)malloc(sizeof(Laik_vector_data));
+        Laik_vector_data *layout_data_rc = (Laik_vector_data *)malloc(sizeof(Laik_vector_data));
+        Laik_vector_data *layout_data_xc = (Laik_vector_data *)malloc(sizeof(Laik_vector_data));
 
+        // prepare data for Axf
+        layout_data_Axf->id = laik_myid(world);
+        layout_data_Axf->localLength = curLevelMatrix->localNumberOfRows;
+        layout_data_Axf->numberOfExternalValues = curMGData->Axf_blob->exchangesValues ? curLevelMatrix->numberOfExternalValues : 0; // will return curLevelMatrix->numberOfExternalValues
+        // prepare data for rc
+        layout_data_rc->id = laik_myid(world);
+        layout_data_rc->localLength = curLevelMatrix->Ac->localNumberOfRows;
+        layout_data_rc->numberOfExternalValues = curMGData->rc_blob->exchangesValues ? curLevelMatrix->Ac->numberOfExternalValues : 0; // will return 0
+        // prepare data for xc
+        layout_data_xc->id = laik_myid(world);
+        layout_data_xc->localLength = curLevelMatrix->Ac->localNumberOfRows;
+        layout_data_xc->numberOfExternalValues = curMGData->xc_blob->exchangesValues ? curLevelMatrix->Ac->numberOfExternalValues : 0; // will return curLevelMatrix->numberOfExternalValues
+
+        // debug
+        // laik_data_set_name(curMGData->Axf_blob->values, (char *)curMGData->Axf_blob->name);
+        // laik_data_set_name(curMGData->rc_blob->values, (char *)curMGData->rc_blob->name);
+        // laik_data_set_name(curMGData->xc_blob->values, (char *)"MG_Data xc71");
+
+        // set new layout_data
+        laik_data_set_layout_data(curMGData->Axf_blob->values, layout_data_Axf);
+        laik_data_set_layout_data(curMGData->rc_blob->values, layout_data_rc);
+        laik_data_set_layout_data(curMGData->xc_blob->values, layout_data_xc);
+     
         // we previously calculated local_old[0], now calculate the other three old local partitionings
         if (laik_myid(world) >= old_size)
         {
@@ -302,7 +337,7 @@ void re_switch_LaikVectors(SparseMatrix &A, std::vector<Laik_Blob *> list)
         laik_switchto_partitioning(curMGData->Axf_blob->values, curLevelMatrix->local, LAIK_DF_Preserve, LAIK_RO_None);
         laik_switchto_partitioning(curMGData->rc_blob->values, curLevelMatrix->Ac->local, LAIK_DF_Preserve, LAIK_RO_None);
         laik_switchto_partitioning(curMGData->xc_blob->values, curLevelMatrix->Ac->local, LAIK_DF_Preserve, LAIK_RO_None);
-       
+    
         // Update local lengths as well
         curMGData->Axf_blob->localLength = curLevelMatrix->localNumberOfRows;
         curMGData->xc_blob->localLength = curLevelMatrix->Ac->localNumberOfRows;
@@ -346,9 +381,19 @@ void init_SPM_partitionings(SparseMatrix &A)
     A.matrixValues_d = laik_new_data(A.space2d, laik_Double);
     // use custom layouts instead of the default lex layout
     laik_data_set_layout_factory(A.nonzerosInRow_d, laik_new_layout_vector);
+    laik_data_set_layout_flag(A.nonzerosInRow_d, LAIK_Vector_Layout);
     laik_data_set_layout_factory(A.matrixDiagonal_d, laik_new_layout_vector);
-    laik_data_set_layout_factory(A.mtxIndG_d, laik_new_layout_sparse);
-    laik_data_set_layout_factory(A.matrixValues_d, laik_new_layout_sparse);
+    laik_data_set_layout_flag(A.matrixDiagonal_d, LAIK_Vector_Layout);
+
+    Laik_vector_data *layout_data = (Laik_vector_data *)malloc(sizeof(Laik_vector_data));
+    layout_data->localLength = A.localNumberOfRows;
+    layout_data->numberOfExternalValues = 0; // not used 
+    layout_data->id = laik_myid(world);
+    laik_data_set_layout_data(A.nonzerosInRow_d, layout_data);
+    laik_data_set_layout_data(A.matrixDiagonal_d, layout_data); // same metadata
+
+    // laik_data_set_layout_factory(A.mtxIndG_d, laik_new_layout_sparse);
+    // laik_data_set_layout_factory(A.matrixValues_d, laik_new_layout_sparse);
 
     // New joining procs
     // Need geometry with old config. Store current config
@@ -418,7 +463,6 @@ void init_SPM_partitionings(SparseMatrix &A)
  *
  * @return index to the allocation buffer
  *
- * @see L2A_map
  */
 allocation_int_t map_l2a_A(const SparseMatrix &A, local_int_t localIndex)
 {
@@ -480,7 +524,7 @@ void replaceMatrixValues(SparseMatrix &A)
                                         global_int_t curcol = currentGlobalRow + sz * gnx * gny + sy * gnx + sx;
                                         currentValuePointer_index++;
                                         if (curcol == currentGlobalRow)
-                                            matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index] = matrixDiagonal[map_l2a_A(A, currentLocalRow)]; 
+                                            matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + currentValuePointer_index] = matrixDiagonal[currentLocalRow]; 
                                        
                                     } // end x bounds test
                                 }     // end sx loop
@@ -601,7 +645,7 @@ void update_Geometry(SparseMatrix &A)
 
     // New joining processes need this data, if broadcast was done in HPCG_init()
     broadcast_hpcg_params();
-  
+
     return;
 }
 
@@ -758,13 +802,8 @@ void update_partitionings_x(SparseMatrix &A)
     // Existing procs will call setuphalo, as everything is calculcated there
     // As mtxIndL is recalculated:
     re_init_mtxIndL(A);
-    // clear old variables
-    free_L2A_map(A.mapping);
-    // Fixed segfault for now see also in laik_x_vector.cpp in free_L2A_map
-    std::memcpy(&(A.localToExternalMap), &(A.mapping->localToExternalMap), sizeof(A.mapping->localToExternalMap));
-    // TODO other vars
-    if(A.localToExternalMap.find(-1) != A.localToExternalMap.end())
-        A.localToExternalMap.erase(-1);
+    // TODO clear old variables
+
     // Update maps of the SparseMatrix
     update_Maps(A);
     SetupHalo(A);
@@ -810,13 +849,39 @@ void update_partitionings_A(SparseMatrix &A)
     if (A.geom->rank >= 0)
         calculate_Mapping(A);
 
+    if (A.localNumberOfRows == 4)
+    {
+        // std::string debug{"\x1B[33m"};
+        // debug += "LAIK " + to_string(laik_myid(world)) + "\t";
+        // debug += "Checkpoint END\x1B[0m";
+        // printf("%s\n", debug.data());
+        // exit_hpcg_run("Assertion `chunksInitialised == map_size' failed.", false);
+    }
+
     Laik_Partitioner * partitioner_1d = laik_new_partitioner("partitioner_1d_members_of_A", partitioner_1d_members_of_A, (void *)&A, LAIK_PF_None);
     Laik_Partitioner * partitioner_2d = laik_new_partitioner("partitioner_2d_members_of_A", partitioner_2d_members_of_A, (void *)&A, LAIK_PF_None);
 
     Laik_Partitioning * new_partitioning_1d = laik_new_partitioning(partitioner_1d, world, A.space, NULL);
     Laik_Partitioning * new_partitioning_2d = laik_new_partitioning(partitioner_2d, world, A.space2d, NULL);
 
-    // Split data
+    // redistribute data
+    // before, update localLength of layout_data stored in nonzerosInRow_d and matrixDiagonal_d
+    Laik_vector_data *layout_data = (Laik_vector_data *)malloc(sizeof(Laik_vector_data));
+    layout_data->localLength = A.localNumberOfRows;
+    layout_data->numberOfExternalValues = 0; // not used
+    layout_data->id = laik_myid(world);
+    laik_data_set_layout_data(A.nonzerosInRow_d, layout_data);
+    laik_data_set_layout_data(A.matrixDiagonal_d, layout_data); // same layout data
+    // laik_data_set_name(A.nonzerosInRow_d, "DEBUG_DATA");
+    // printf("LAIK %d \t GO TO 2 \n", laik_myid(world));
+    // if (strncmp("DEBUG_DATA", d->name, sizeof("DEBUG_DATA")) == 0)
+    // {
+    //     printf("LAIK %lu \t Layouts after\n", laik_get_id_vector(fromList->layout));
+    //     printf("Old layout %s\n", fromList->layout->describe(fromList->layout));
+    //     if (laik_get_id_vector(fromList->layout) == 0)
+    //         printf("New layout %s\n", toList->layout->describe(toList->layout));
+    //     exit(1);
+    // }
     laik_switchto_partitioning(A.nonzerosInRow_d, new_partitioning_1d, LAIK_DF_Preserve, LAIK_RO_None);
     laik_switchto_partitioning(A.matrixDiagonal_d, new_partitioning_1d, LAIK_DF_Preserve, LAIK_RO_None);
     laik_switchto_partitioning(A.matrixValues_d, new_partitioning_2d, LAIK_DF_Preserve, LAIK_RO_None);
@@ -845,7 +910,7 @@ void update_Values(SparseMatrix &A)
 
     local_int_t localNumberOfNonZeros = 0;
     for (local_int_t i = 0; i < A.localNumberOfRows; i++)
-        localNumberOfNonZeros += nonzerosInRow[map_l2a_A(A, i)];
+        localNumberOfNonZeros += nonzerosInRow[i];
 
     A.localNumberOfNonzeros = localNumberOfNonZeros;
 

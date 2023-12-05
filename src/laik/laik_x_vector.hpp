@@ -70,29 +70,6 @@ struct partition_data
 typedef partition_data partition_d;
 
 /**
- * @brief Making use of the lex_layout, we need following mapping of indices:
- *
- * Local indices -> Global indices -> Allocation indices
- *
- * As LAIK allocates a buffer under the hood according to the lex layout, we need to specify a mapping for the corresponding
- * indices within that buffer.
- * 
- * This mapping is for Laik Vectors
- *
- */
-struct Local2Allocation_map_x
-{
-    allocation_int_t offset_ext; /* Offset into allocation buffer with external values */
-    allocation_int_t offset;     /* Offset into allocation buffer without external values */
-
-    /* Mapping from Local to Global Indices */
-    std::map<local_int_t, global_int_t> localToExternalMap; /* External global indices */
-    std::vector<global_int_t> localToGlobalMap;             /* Owned global indices */
-    local_int_t localNumberOfRows;                          /* Border between owned and external indices */
-};
-typedef Local2Allocation_map_x L2A_map;
-
-/**
  * @brief Laik Vector
  * 
  * @param name for debugging
@@ -101,9 +78,10 @@ typedef Local2Allocation_map_x L2A_map;
  */
 struct Laik_Blob
 {
-    const char *name; // name of the vector /* Debug
+    char *name; // name of the vector /* Debug
 
     Laik_Data *values;
+    bool exchangesValues;
     mutable local_int_t localLength;
 };
 
@@ -117,8 +95,7 @@ struct Laik_Blob
 extern void partitioner_alg_for_x_vector(Laik_RangeReceiver *r, Laik_PartitionerParams *p);
 extern void init_partition_data(SparseMatrix &A, partition_d *local, partition_d *ext);
 extern void init_partitionings(SparseMatrix &A, partition_d *local, partition_d *ext);
-extern Laik_Blob *init_blob(const SparseMatrix &A);
-extern allocation_int_t map_l2a_x(L2A_map *mapping, local_int_t local_index, bool halo);
+extern Laik_Blob *init_blob(const SparseMatrix &A, bool exchangesValues, char * name);
 /*
     Functions needed to exchange values via LAIK -END
 */
@@ -126,13 +103,13 @@ extern allocation_int_t map_l2a_x(L2A_map *mapping, local_int_t local_index, boo
 /*
     Operations on laik vectors
 */
-extern void fillRandomLaikVector(Laik_Blob *x, L2A_map *mapping);
-extern void ZeroLaikVector(Laik_Blob *x, L2A_map *mapping);
-extern void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y, L2A_map *mapping);
-extern void CopyVectorToLaikVector(Vector &v, Laik_Blob *x_blob, L2A_map *mapping);
-extern void CopyLaikVectorToVector(const Laik_Blob *x_blob, Vector &v, L2A_map *mapping);
-extern void CopyLaikVectorToVector(Laik_Blob *x, Vector &v, L2A_map *mapping);
-extern void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value, L2A_map *mapping);
+extern void fillRandomLaikVector(Laik_Blob *x);
+extern void ZeroLaikVector(Laik_Blob *x);
+extern void CopyLaikVectorToLaikVector(Laik_Blob *x, Laik_Blob *y);
+extern void CopyVectorToLaikVector(Vector &v, Laik_Blob *x);
+extern void CopyLaikVectorToVector(const Laik_Blob *x, Vector &v);
+extern void CopyLaikVectorToVector(Laik_Blob *x, Vector &v);
+extern void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value);
 /*
     Operations on laik vectors -END
 */
@@ -140,7 +117,6 @@ extern void ScaleLaikVectorValue(Laik_Blob *v, local_int_t index, double value, 
 /*
     clean up functions
 */
-extern void free_L2A_map(L2A_map *mapping);
 extern void DeleteLaikVector(Laik_Blob *x);
 /*
     clean up functions -END

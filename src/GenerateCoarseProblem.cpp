@@ -103,12 +103,13 @@ void GenerateCoarseProblem(const SparseMatrix & Af) {
   MGData *mgData = new MGData;
 
 #ifndef HPCG_NO_LAIK
-  Laik_Blob *rc_blob = init_blob(*Ac);
-  rc_blob->name = "MG_Data rc";
-  Laik_Blob *xc_blob = init_blob(*Ac);
-  rc_blob->name = "MG_Data xc";
-  Laik_Blob *Axf_blob = init_blob(Af);
-  Axf_blob->name = "MG_Data Axf";
+  std::string name{""};
+  name = "MG_Data_rc";
+  Laik_Blob *rc_blob = init_blob(*Ac, false, name.data());
+  name = "MG_Data_xc";
+  Laik_Blob *xc_blob = init_blob(*Ac, true, name.data());
+  name = "MG_Data_Axf";
+  Laik_Blob *Axf_blob = init_blob(Af, true, name.data());
 
   InitializeMGData_laik(f2cOperator, rc_blob, xc_blob, Axf_blob, *mgData);
   // mgData->f2cOperator_d = laik_new_data(Af.space, laik_UInt64);

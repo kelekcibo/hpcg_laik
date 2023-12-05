@@ -52,17 +52,13 @@ int ComputeRestriction_laik_ref(const SparseMatrix &A, const Laik_Blob *rf, int 
   local_int_t *f2c = A.mgData->f2cOperator;
   local_int_t nc = A.mgData->rc_blob->localLength;
 
-  // rc vector is for next layer, thus need mapping from next level matrix
-  assert(A.Ac != NULL); 
-  L2A_map * mapping_rc_blob = A.Ac->mapping;
-
 #ifndef HPCG_NO_OPENMP
 #pragma omp parallel for
 #endif
   for (local_int_t i = 0; i < nc; ++i)
   {
-    local_int_t j = map_l2a_x(A.mapping, f2c[i], false);
-    rcv[map_l2a_x(mapping_rc_blob, i, false)] = rfv[j] - Axfv[j]; 
+    local_int_t j = f2c[i];
+    rcv[i] = rfv[j] - Axfv[j]; 
   }
 
   return 0;

@@ -198,5 +198,47 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
 * Approach for calculating the mapping from external global to local indices by LAIK
   * Analyzing in which order HPCG copies the external values to the vector after the local values
     * starting in ascending order of rank id's and starting in ascending order with global indexes to be sent
-  * d
+  * Just using a member in the layout object, which is increased by 1 for every calculated offset
+    * if it reaches the numberOfexternalvalues stored in the layout as well, then communication should be finished and we reset the counter
+
+## 18 Discrepancies within sparse vector layout
   
+* Comparing again every function call with original application to find the discrepancies
+  * First function ComputeSPMV_ref.cpp is correct
+  * But I realized, that I needed to delete the old mappings due to the lex layout at some points
+    * deleting all mappings gave us identical result files
+  
+## 19 Repartitioning with sparse vector layout
+
+* Now, need to test it with resizing enabled
+* segfaults
+  * GOing iteratively through code with "exit" function to detect the error
+  * did not delete mappings here as well
+* Testing shrinking
+  * deadlock when redistributing data according to new world size
+    * Reason was when redistributing data of matrix members
+    * a little if (n>0) was omitted and thus it resulted that strange things happend
+    * this was the case for procs which were removed, and thus have n = 0 value, so no layout
+  * FIxing this it worked, but issue with redistributing data of LAIK vectors
+    * Again, removed proc does strange things as mentioned
+    * But reason was, that not removed procs switched to new external partitoning. deleted that,
+    * then both procs switched from old layout again. and everything worked
+  * Running it further, segfault came.
+    * Due to not setting layout data,little details
+  * Implementing reuse function was important, because errors due to correct reuse function
+  * Another error of free() and malloc()  unaligned tcache chunk detected
+    * incremental search for the place where error occurs.
+    * in reuse_function
+      * if vector size is the same, then this means we switched from a local to external partitioning.
+        // this means, that we need the Map from the local partitioning as it is not calculated for external partitioning
+        // when we repartition, we are not able to make the optimisation of switching to the external partitioning first
+    * After fixing this everything worked
+* Testing expanding
+  * Expanding from 2 to 4 procs worked immediately.
+  * expanding from 1 to 2 gave us an assertion error, when we calculate the Mapping for the sparse vector layout.
+    * Need incrementally detect bug.
+    * bug was that we needed to initialie last chunk as well, if the last two ranges are not neighbours.
+  * Compared results with orig app
+    * correct results
+
+## 20 Implementing sparse layout

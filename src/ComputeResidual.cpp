@@ -47,7 +47,7 @@
 
   @return Returns zero on success and a non-zero value otherwise.
 */
-int ComputeResidual_laik(const local_int_t n, const Laik_Blob * v1, const Laik_Blob *v2, double &residual, L2A_map * mapping)
+int ComputeResidual_laik(const local_int_t n, const Laik_Blob * v1, const Laik_Blob *v2, double &residual)
 {
 
   double *v1v;
@@ -64,9 +64,7 @@ int ComputeResidual_laik(const local_int_t n, const Laik_Blob * v1, const Laik_B
 #pragma omp for
     for (local_int_t i = 0; i < n; i++)
     {
-      local_int_t j = map_l2a_x(mapping, i, false);
-
-      double diff = std::fabs(v1v[j] - v2v[j]);
+      double diff = std::fabs(v1v[i] - v2v[i]);
       if (diff > threadlocal_residual)
         threadlocal_residual = diff;
     }
@@ -79,8 +77,7 @@ int ComputeResidual_laik(const local_int_t n, const Laik_Blob * v1, const Laik_B
 #else // No threading
   for (local_int_t i = 0; i < n; i++)
   {
-    local_int_t j = map_l2a_x(mapping, i, false);
-    double diff = std::fabs(v1v[j] - v2v[j]);
+    double diff = std::fabs(v1v[i] - v2v[i]);
     if (diff > local_residual)
       local_residual = diff;
 #ifdef HPCG_DETAILED_DEBUG

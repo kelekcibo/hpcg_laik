@@ -42,30 +42,32 @@
 int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x, int k)
 {
   assert(x->localLength == A.localNumberOfRows);
-  assert(x->localLength == A.mapping->localNumberOfRows);
   assert(x->localLength == r->localLength);
 
-  ZeroLaikVector(x, A.mapping); // initialize x to zero
+  ZeroLaikVector(x); // initialize x to zero
+  // if (k == 11 && laik_size(world) == 2)
+  // {
+  //   printf("A.localRows; %d\n", A.localNumberOfRows);
+  // }
 
- 
+
   int ierr = 0;
   if (A.mgData != 0)
   { // Go to next coarse level if defined
     int numberOfPresmootherSteps = A.mgData->numberOfPresmootherSteps;
     for (int i = 0; i < numberOfPresmootherSteps; ++i) ierr += ComputeSYMGS_laik_ref(A, r, x);
 
-
     if (ierr != 0)
       return ierr;
     ierr = ComputeSPMV_laik_ref(A, x, A.mgData->Axf_blob);
     if (ierr != 0)
       return ierr;
- 
+
     // Perform restriction operation using simple injection
     ierr = ComputeRestriction_laik_ref(A, r, k);
     if (ierr != 0)
       return ierr;
-
+    
     ierr = ComputeMG_laik_ref(*A.Ac, A.mgData->rc_blob, A.mgData->xc_blob, k);
     if (ierr != 0)
       return ierr;
@@ -80,7 +82,6 @@ int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x
   }
   else
   {
-
     ierr = ComputeSYMGS_laik_ref(A, r, x);
     if (ierr != 0)
       return ierr;

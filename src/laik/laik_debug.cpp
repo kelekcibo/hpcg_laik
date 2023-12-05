@@ -52,22 +52,21 @@ void compare2(double x, double y, bool doIO, allocation_int_t curIndex)
  * @param[in] mapping due to the lex layout
  * @param[in] doIO print
  */
-void compareResult(Vector &x, Laik_Blob *y, L2A_map *mapping, bool doIO)
+void compareResult(Vector &x, Laik_Blob *y, bool doIO)
 {
     assert(x.localLength >= y->localLength); // Test vector lengths
-    assert(y->localLength == mapping->localNumberOfRows);
 
     double *xv = x.values;
     double *yv;
     laik_get_map_1d(y->values, 0, (void **)&yv, 0);
 
-    size_t length = y->localLength;
+    local_int_t length = y->localLength;
 
-    for (size_t i = 0; i < length; i++)
+    for (local_int_t i = 0; i < length; i++)
     {
-        double delta = std::abs(xv[i] - yv[map_l2a_x(mapping, i, false)]);
+        double delta = std::abs(xv[i] - yv[i]);
         // if (doIO) printf("Index %lld: Delta %.10f\n", i, delta);
-        if (doIO) printf("xv[%ld]=%.10f\tyv_blob[%lld]=%.10f\n", i, xv[i], map_l2a_x(mapping, i, false), yv[map_l2a_x(mapping, i, false)]);
+        if (doIO) printf("xv[%d]=%.10f\tyv_blob[%d]=%.10f\n", i, xv[i], i, yv[i]);
         if (delta != 0)
         {
             if (doIO) printf("Difference is not tolerated: %.20f\n", delta);
@@ -111,7 +110,7 @@ void printResultVector(Vector &x)
  * @param[in] x laik vector to be printed
  * @param[in] mapping due to the lex layout
  */
-void printResultLaikVector(Laik_Blob *x, L2A_map *mapping)
+void printResultLaikVector(Laik_Blob *x)
 {
     if (laik_myid(world) == 0)
         // HPCG_fout << "\n\nPrint result of vector\n";
@@ -126,7 +125,7 @@ void printResultLaikVector(Laik_Blob *x, L2A_map *mapping)
     {
         printf("localLength = %ld\n", localLength);
         for (size_t i = 0; i < localLength; i++)
-            printf("xv[%ld]=%.10f\n", i, xv[map_l2a_x(mapping, i, false)]);
+            printf("xv[%ld]=%.10f\n", i, xv[i]);
     printf("\nEnd of printing result of vector\n\n");
     }
 
@@ -239,7 +238,7 @@ void printSPM_val(SparseMatrix &A)
 
                 debug += "Current Local Row (" + std::to_string(currentLocalRow) + ") " 
                       + "Current Global Row (" + std::to_string(currentGlobalRow) + ") " 
-                      + "cur_nnz (" + std::to_string(nonzerosInRow[map_l2a_A(A, currentLocalRow)]) + ") ";
+                      + "cur_nnz (" + std::to_string(nonzerosInRow[currentLocalRow]) + ") ";
                 debug += "\nUsed Matrix values: ";
                 uint64_t currentValuePointer_index = -1;      // Index to current value in current row
                 global_int_t currentIndexPointerG_index = -1; // Index to current index in current row
@@ -259,7 +258,7 @@ void printSPM_val(SparseMatrix &A)
                                         if (curcol == currentGlobalRow)
                                         {
                                             debug += std::to_string(matrixValues[map_l2a_A(A, currentLocalRow) * numberOfNonzerosPerRow + ++currentValuePointer_index]) + " [dia ";
-                                            debug += std::to_string(matrixDiagonal[map_l2a_A(A, currentLocalRow)]) + "], ";
+                                            debug += std::to_string(matrixDiagonal[currentLocalRow]) + "], ";
                                         }
                                         else
                                         {
