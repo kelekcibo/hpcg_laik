@@ -271,7 +271,6 @@ int main(int argc, char *argv[])
 #endif // HPCG_NO_LAIK
 
   int numberOfCalls = 10;
-  numberOfCalls = 0; // TODO DELETE ME
 
   if (quickPath) numberOfCalls = 1; // QuickPath means we do on one call of each block of repetitive code
 

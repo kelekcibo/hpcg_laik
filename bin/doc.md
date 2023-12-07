@@ -241,4 +241,7 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
   * Compared results with orig app
     * correct results
 
-## 20 Implementing sparse layout
+## 20 Refactoring
+
+* Some refactoring in the code
+* Documentation of code
