@@ -285,25 +285,14 @@ int main(int argc, char *argv[])
   double t_begin = mytimer();
   for (int i = 0; i < numberOfCalls; ++i)
   {
-    // printf("%d call\n", i);
 #ifndef HPCG_NO_LAIK
     ierr = ComputeSPMV_laik_ref(A, x_overlap, b_computed); // b_computed = A*x_overlap
-    // if (i == 1)
-    // {
-    //   printResultLaikVector(b_computed);
-    //   exit_hpcg_run("", false);
-    // }
 #else
     ierr = ComputeSPMV_ref(A, x_overlap, b_computed); // b_computed = A*x_overlap
 #endif
     if (ierr) HPCG_fout << "Error in call to SpMV: " << ierr << ".\n" << endl;
 #ifndef HPCG_NO_LAIK
-    ierr = ComputeMG_laik_ref(A, b_computed, x_overlap, 0); // b_computed = Minv*y_overlap
-    // if(i == 9)
-    // {
-    //   printResultLaikVector(x_overlap);
-    //   exit_hpcg_run("", false);
-    // }
+    ierr = ComputeMG_laik_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
 #else
     ierr = ComputeMG_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
 #endif
@@ -384,12 +373,6 @@ int main(int argc, char *argv[])
   printf("\x1B[34m ROWS: %lld; n \x1B[0m\n", A.totalNumberOfRows);
 
   printf("\x1B[34m LAIK %d \t  Checkpoint 1 \x1B[0m\n", laik_myid(world));
-
-  // std::string debug{"\x1B[33m"};
-  // debug += "LAIK " + to_string(laik_myid(world)) + "\t";
-  // debug += to_string(A.localNumberOfRows) + " localRows\nCheckpoint END\x1B[0m";
-  // printf("%s\n", debug.data());
-  // exit_hpcg_run("Searching free()/malloc() error", false);
 
   //////////////////////////////
   // Validation Testing Phase //

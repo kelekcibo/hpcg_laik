@@ -176,18 +176,9 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 
   for (; k <= max_iter && normr / normr0 > tolerance; k++)
   {
-    // if (k == 11 && laik_size(world) == 2)
-    // {
-    //   std::string debug{"\x1B[33m"};
-    //   debug += "LAIK " + to_string(laik_myid(world)) + "\t";
-    //   debug += "Checkpoint END\x1B[0m";
-    //   printf("%s\n", debug.data());
-    //   exit_hpcg_run("free()/malloc() error", false);
-    // }
-
     TICK();
     if (doPreconditioning)
-      ComputeMG_laik_ref(A, r, z, k); // Apply preconditioner
+      ComputeMG_laik_ref(A, r, z); // Apply preconditioner
     else
       ComputeWAXPBY_laik_ref(nrow, 1.0, r, 0.0, r, z); // copy r to z (no preconditioning)
     TOCK(t5); // Preconditioner apply time
@@ -306,7 +297,6 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 
         A.repartitioned = true;
         HPCG_fout << "REPARTIONING: Old world size [" << old_size << "] New world size [" << new_size << "]" << std::endl;
-        printf("################### LAIK %d \t REPARTIONING DONE -> NEW WORLD SIZE %d\n\n", laik_myid(world), new_size); // DELETE ME
       }
     }
 #endif // REPARTITION

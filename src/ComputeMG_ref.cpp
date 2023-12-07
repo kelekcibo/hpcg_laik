@@ -39,17 +39,12 @@
 
   @see ComputeMG
 */
-int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x, int k)
+int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x)
 {
   assert(x->localLength == A.localNumberOfRows);
   assert(x->localLength == r->localLength);
 
   ZeroLaikVector(x); // initialize x to zero
-  // if (k == 11 && laik_size(world) == 2)
-  // {
-  //   printf("A.localRows; %d\n", A.localNumberOfRows);
-  // }
-
 
   int ierr = 0;
   if (A.mgData != 0)
@@ -64,11 +59,11 @@ int ComputeMG_laik_ref(const SparseMatrix &A, const Laik_Blob * r, Laik_Blob * x
       return ierr;
 
     // Perform restriction operation using simple injection
-    ierr = ComputeRestriction_laik_ref(A, r, k);
+    ierr = ComputeRestriction_laik_ref(A, r);
     if (ierr != 0)
       return ierr;
     
-    ierr = ComputeMG_laik_ref(*A.Ac, A.mgData->rc_blob, A.mgData->xc_blob, k);
+    ierr = ComputeMG_laik_ref(*A.Ac, A.mgData->rc_blob, A.mgData->xc_blob);
     if (ierr != 0)
       return ierr;
     ierr = ComputeProlongation_laik_ref(A, x);

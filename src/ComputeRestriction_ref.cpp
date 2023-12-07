@@ -39,7 +39,7 @@
 
   @return Returns zero on success and a non-zero value otherwise.
 */
-int ComputeRestriction_laik_ref(const SparseMatrix &A, const Laik_Blob *rf, int k)
+int ComputeRestriction_laik_ref(const SparseMatrix &A, const Laik_Blob *rf)
 {
   double *rfv;
   double *rcv;
