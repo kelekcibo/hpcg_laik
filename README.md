@@ -4,7 +4,7 @@ This is the README is for porting HPCG to LAIK
 
 ## Build laik
 
-Clone with "git clone --recurse ..." to also clone LAIK as submodule in subdirectory "laik/".
+Clone with "git clone --recurse-submodules  ..." to also clone LAIK as submodule in subdirectory "laik/".
 By default, this version will be linked with HPCG.
 First, run "configure". MPI needs to be installed and detected for HPCG to work.
 
