@@ -91,11 +91,18 @@ MPlib        =
 # ----------------------------------------------------------------------
 # - LAIK - Library includes / libraries / specifics -------------------------------
 # ----------------------------------------------------------------------
-DEFS          = -DUSE_MPI -DUSE_TCP2 -DUSE_LAIK
-LAIKLIB       = -L/usr/local/lib -llaik
-# LAIK_INCLUDES = -I./laik/include -I./laik/include/laik/
-LAIK_INCLUDES = -I/usr/local/include/laik -I/usr/local/include/
-LAIK_FLAGS    = $(DEFS) $(LAIK_INCLUDES)
+# If LAIK is already installed, specify the path correspondingly
+#
+# Example: LAIK library is installed in /usr/local/lib, then:
+#
+# LAIKLIB       = -L/usr/local/lib -llaik
+# LAIK_INCLUDES = -I/usr/local/include/laik -I/usr/local/include/
+#
+# DEFAULT: the base directory with the compiled LAIK sources
+DEFS          = -DUSE_MPI -DUSE_TCP2
+LAIKLIB       = $(abspath laik/liblaik.so)
+LAIK_INCLUDES = -I./laik/include -I./laik/include/laik/
+LAIK_DEFS    = $(DEFS) $(LAIK_INCLUDES)
 #
 #
 #
