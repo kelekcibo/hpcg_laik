@@ -1,5 +1,7 @@
 # This script is to compile and run all in one, if changes in the code were made.
 # compile LAIK
+export LAIK_BACKEND=tcp2
+export LAIK_SIZE=2
 cd laik
 make
 # compile HPCG
