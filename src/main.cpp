@@ -330,6 +330,7 @@ int main(int argc, char * argv[]) {
   double optTolerance = 0.0;  // Force optMaxIters iterations
   TestNormsData testnorms_data;
   testnorms_data.samples = numberOfCgSets;
+  HPCG_fout << "Number of CG sets: " << numberOfCgSets << endl;
   testnorms_data.values = new double[numberOfCgSets];
 
   for (int i=0; i< numberOfCgSets; ++i) {
