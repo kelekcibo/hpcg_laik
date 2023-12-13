@@ -15,7 +15,7 @@
     Defs
 */
 // Delete me, if no repartitioning should happen
-// #define REPARTITION // To enable shrink/expand feature. 
+#define REPARTITION // To enable shrink/expand feature. 
 
 typedef long long allocation_int_t; // Index to the allocation buffer
 /*

@@ -67,6 +67,9 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
   // #ifndef HPCG_NO_MPI
   //   double t6 = 0.0;
   // #endif
+  double t_rep = 0;
+  double t_it_before = 0;
+  double t_it_after = 0;
 
   local_int_t nrow = A.localNumberOfRows;
 
@@ -173,62 +176,92 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     assert(k == 11);
   }
 #endif
-
+  double t_before_start = 0;
+  double t_after_start = 0;
   for (; k <= max_iter && normr / normr0 > tolerance; k++)
   {
-    TICK();
+    if(k <= 10)
+    {
+      t_before_start = mytimer();
+    }
+    else if(k > 10)
+    {
+      t_after_start = mytimer();
+    }
+
+    // TICK();
     if (doPreconditioning)
       ComputeMG_laik_ref(A, r, z); // Apply preconditioner
     else
       ComputeWAXPBY_laik_ref(nrow, 1.0, r, 0.0, r, z); // copy r to z (no preconditioning)
-    TOCK(t5); // Preconditioner apply time
+    // TOCK(t5); // Preconditioner apply time
 
     if (k == 1)
     {
       CopyLaikVectorToLaikVector(z, p);
-      TOCK(t2); // Copy Mr to p
-      TICK();
+      // // TOCK(t2); // Copy Mr to p
+      // TICK();
       ComputeDotProduct_laik_ref(nrow, r, z, rtz, t4);
-      TOCK(t1); // rtz = r'*z
+      // TOCK(t1); // rtz = r'*z
     }
     else
     {
       oldrtz = rtz;
-      TICK();
+      // TICK();
       ComputeDotProduct_laik_ref(nrow, r, z, rtz, t4);
-      TOCK(t1); // rtz = r'*z
+      // TOCK(t1); // rtz = r'*z
       beta = rtz / oldrtz;
-      TICK();
+      // TICK();
       ComputeWAXPBY_laik_ref(nrow, 1.0, z, beta, p, p);
-      TOCK(t2); // p = beta*p + z
+      // TOCK(t2); // p = beta*p + z
     }
 
-    TICK();
+    // TICK();
     ComputeSPMV_laik_ref(A, p, Ap);
-    TOCK(t3); // Ap = A*p
-    TICK();
+    // TOCK(t3); // Ap = A*p
+    // TICK();
     ComputeDotProduct_laik_ref(nrow, p, Ap, pAp, t4);
-    TOCK(t1); // alpha = p'*Ap
+    // TOCK(t1); // alpha = p'*Ap
     alpha = rtz / pAp;
-    TICK();
+    // TICK();
     ComputeWAXPBY_laik_ref(nrow, 1.0, x, alpha, p, x); // x = x + alpha*p
     ComputeWAXPBY_laik_ref(nrow, 1.0, r, -alpha, Ap, r);
-    TOCK(t2); // r = r - alpha*Ap
-    TICK();
+    // TOCK(t2); // r = r - alpha*Ap
+    // TICK();
     ComputeDotProduct_laik_ref(nrow, r, r, normr, t4);
-    TOCK(t1);
+    // TOCK(t1);
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
     if (A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
       HPCG_fout << "Iteration = " << k << "   Scaled Residual = " << normr / normr0 << std::endl;
 #endif
     niters = k;
+    if (k <= 10)
+    {
+      double local_time = mytimer() - t_before_start;
+      // printf("Before repart_Iteration %d \t local_time: %.25f seconds\n", k, local_time);
+
+      if(local_time > t_it_before)
+      {
+        t_it_before = local_time; // worst time of all iterations before repartitioning
+      }
+    }
+    else if (k > 10)
+    {
+      double local_time = mytimer() - t_after_start;
+      // printf("after repart_Iteration %d \t local_time: %.25f seconds\n", k, local_time);
+      if (local_time > t_it_after)
+      {
+        t_it_after = local_time; // worst time of all iterations before repartitioning
+      }
+    }
 
 #ifdef REPARTITION
     // Repartitioning / Resizing of current world (group of proccesses) in the 10th iteration
     // For now, repartitioning is only done once
     if (k == 10 && A.repartition_me && !A.repartitioned)
     {
+      TICK();
       A.repartition_me = false;             // do not repartition the matrix anymore
       uint32_t old_size = laik_size(world); // Old world size for output
 
@@ -297,9 +330,20 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 
         A.repartitioned = true;
         HPCG_fout << "REPARTIONING: Old world size [" << old_size << "] New world size [" << new_size << "]" << std::endl;
+        TOCK(t_rep);
+        printf("Time for repartitioning; %.5f\n", t_rep);
       }
     }
 #endif // REPARTITION
+  }
+
+  laik_allreduce(&t_it_before, &t_it_before, 1, laik_Double, LAIK_RO_Max); // get also worst case over all processes
+  laik_allreduce(&t_it_after, &t_it_after, 1, laik_Double, LAIK_RO_Max);   // get also worst case over all processes
+
+  if(A.geom->rank == 0)
+  {
+    printf("Worst case of iteration duration before repartitioning: %.25f seconds\n", t_it_before);
+    printf("Worst case of iteration duration after repartitioning: %.25f seconds\n", t_it_after);
   }
 
 
