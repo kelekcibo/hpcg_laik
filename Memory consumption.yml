@@ -1,0 +1,52 @@
+Memory consumption:
+  r_blob    <- false
+  z_blob    <- true
+  p_blob    <- true
+  Ap_blob   <- false
+  b_l       <- false
+  x_l       <- false
+  rc_blob   <- false
+  xc_blob   <- true
+  Axf_blob  <- true
+  Total vectors: 9
+
+# v1.0
+  Local size 40*40*40 = 64000
+
+8 Procs:
+  1875120.0 total doubles (mem 15.000960 MB) per proc
+
+20 Procs:
+  4650120.0 total doubles (mem 37.200960 MB)
+
+50 Procs:
+  4650120.0 total doubles (mem 37.200960 MB)
+
+125 Procs:
+  11624730.0 total doubles (mem 92.997840 MB)
+
+# v1.2 and HPCG Benchmark
+
+8 Procs:
+  475250.0 total doubles (mem 3.802000 MB)
+
+20 Procs:
+  475250 total doubles (mem 3.802000 MB)
+
+50 Procs:
+  475250.0 total doubles (mem 3.802000 MB)
+
+125 Procs:
+  475250.0 total doubles (mem 3.802000 MB)
+
+ 
+# Extra comparison
+
+  Local size 104*104*104 = 1.124.864
+
+# v1.0
+  33238608 total doubles (mem 265.908864 MB)
+  82839432.0 total doubles (mem 662.715456 MB)
+
+# v1.2 and HPCG Benchmark
+  8352994.0 total doubles (mem 66.823952 MB)
