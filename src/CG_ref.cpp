@@ -331,17 +331,18 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
         A.repartitioned = true;
         HPCG_fout << "REPARTIONING: Old world size [" << old_size << "] New world size [" << new_size << "]" << std::endl;
         TOCK(t_rep);
-        printf("Time for repartitioning; %.5f\n", t_rep);
       }
     }
 #endif // REPARTITION
   }
 
+  laik_allreduce(&t_rep, &t_rep, 1, laik_Double, LAIK_RO_Max);             // get also worst case over all processes
   laik_allreduce(&t_it_before, &t_it_before, 1, laik_Double, LAIK_RO_Max); // get also worst case over all processes
   laik_allreduce(&t_it_after, &t_it_after, 1, laik_Double, LAIK_RO_Max);   // get also worst case over all processes
 
   if(A.geom->rank == 0)
   {
+    printf("Time for repartitioning; %.25f seconds\n", t_rep);
     printf("Worst case of iteration duration before repartitioning: %.25f seconds\n", t_it_before);
     printf("Worst case of iteration duration after repartitioning: %.25f seconds\n", t_it_after);
   }
