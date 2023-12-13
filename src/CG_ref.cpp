@@ -165,14 +165,15 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
   int k_before = 0;
   int k_after = 0;
   double local_time = 0;
-  for (; k <= max_iter && normr / normr0 > tolerance; k++)
+  int max_iter2 = 100;
+  for (; k <= max_iter2 && normr / normr0 > tolerance; k++)
   {
-    if (k <= 25)
+    if (k <= 50)
     {
       t_before_start = mytimer();
       k_before++;
     }
-    else if (k > 25 && k <= 50)
+    else if (k > 50 && k <= 100)
     {
       t_after_start = mytimer();
       k_after++;
@@ -227,12 +228,12 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
       HPCG_fout << "Iteration = " << k << "   Scaled Residual = " << normr / normr0 << std::endl;
 #endif
     niters = k;
-    if (k <= 25)
+    if (k <= 50)
     {
       local_time = mytimer() - t_before_start;
       t_it_before += local_time; // worst time of all iterations before repartitioning
     }
-    else if (k > 25 && k <= 50)
+    else if (k > 50 && k <= 100)
     {
       local_time = mytimer() - t_after_start;
       t_it_after += local_time; // worst time of all iterations before repartitioning
@@ -240,7 +241,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 #ifdef REPARTITION
     // Repartitioning / Resizing of current world (group of proccesses) in the 10th iteration
     // For now, repartitioning is only done once
-    if (k == 25 && A.repartition_me && !A.repartitioned)
+    if (k == 50 && A.repartition_me && !A.repartitioned)
     {
       TICK();
       A.repartition_me = false;             // do not repartition the matrix anymore
