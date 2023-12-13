@@ -27,7 +27,7 @@ typedef long long allocation_int_t; // Index to the allocation buffer
 */
 extern "C"
 {
-#include <laik.h> // using laik library
+    #include "./../laik/include/laik.h" // using laik library
 }
 
 // All other custom laik headers within src/laik
