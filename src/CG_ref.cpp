@@ -168,7 +168,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     {
       t_before_start = mytimer();
     }
-    else if (k > 10)
+    else if (k > 10 && k >= 21)
     {
       t_after_start = mytimer();
     }
@@ -232,7 +232,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
         t_it_before = local_time; // worst time of all iterations before repartitioning
       }
     }
-    else if (k > 10)
+    else if (k > 10 && k >= 21)
     {
       double local_time = mytimer() - t_after_start;
       // printf("after repart_Iteration %d \t local_time: %.25f seconds\n", k, local_time);
