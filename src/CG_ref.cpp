@@ -311,20 +311,27 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 #endif // REPARTITION
   }
 
-  laik_allreduce(&t_rep, &t_rep, 1, laik_Double, LAIK_RO_Max);             // get also worst case over all processes
-  laik_allreduce(&t_it_before, &t_it_before, 1, laik_Double, LAIK_RO_Max); // get also worst case over all processes
-  laik_allreduce(&t_it_after, &t_it_after, 1, laik_Double, LAIK_RO_Max);   // get also worst case over all processes
+  t_it_before = (t_it_before / (double)k_before);
+  t_it_after = (t_it_after / (double)k_after);
 
-  if (A.geom->rank == 0)
+  //   laik_allreduce(&t_rep, &t_rep, 1, laik_Double, LAIK_RO_Sum);         // get also worst case over all processes
+  // laik_allreduce(&t_it_before, &t_it_before, 1, laik_Double, LAIK_RO_Sum); // get also worst case over all processes
+  // laik_allreduce(&t_it_after, &t_it_after, 1, laik_Double, LAIK_RO_Sum);   // get also worst case over all processes
+
+  // if (A.geom->rank == 0)
   {
-    printf("avg before repartitioning: %.5f / %.1f = %.5f seconds\n", t_it_before, (double)k_before, (t_it_before / (double)k_before));
-    printf("avg after repartitioning: %.5f / %.1f = %.5f seconds\n", t_it_after, (double)k_after, (t_it_after / (double)k_after));
-    printf("repartitioning time: %.5f seconds\n", t_rep);
+    std::string result{"LAIK \t"};
+    result += to_string(laik_myid(world)) + "\n";
+    result += "avg before repartitioning: " + to_string(t_it_before) + " seconds\n";
+    result += "avg after repartitioning: " + to_string(t_it_after) + " seconds\n";
+    result += "repartitioning time: " + to_string(t_rep) + " seconds\n";
+    std::cout << result;
   }
 
-// #ifdef REPARTITION
-//   laik_set_phase(hpcg_instance, 0, 0, 0);
-// #endif
+
+  // #ifdef REPARTITION
+  //   laik_set_phase(hpcg_instance, 0, 0, 0);
+  // #endif
 
   // Store times
   times[1] += t1; // dot product time
