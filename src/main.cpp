@@ -192,8 +192,16 @@ int main(int argc, char *argv[])
   double t1 = mytimer();
 #endif
 
-  if (doIO)
-    printf("\t######## HPCG LAIK v1.0 ########\n\n");
+    if (doIO)
+      HPCG_fout << ""
+                   "######## HPCG LAIK v1.0 ########\n#\n# New Features\n#\t-Integrated LAIK for interprocess communication\n#\n# "
+                   ""
+                   ""
+                   " \n# This version uses the default Lex Layout\n\n"
+                   ""
+                   ""
+                   " \n# In v1.2, we introduce our custom sparse vector layout to adhere to the access pattern of the HPCG Benchmark\n\n"
+                   "";
 
   if (doIO)
     printf("Start Setup Phase\n");

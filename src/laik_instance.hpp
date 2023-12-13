@@ -12,7 +12,7 @@
 
 
 extern "C" {
-    #include <laik.h>
+    #include "./../laik/include/laik.h"
 }
 
 #include <vector>
