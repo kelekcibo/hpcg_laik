@@ -245,3 +245,4 @@ ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized, NULL, NULL);
 
 * Some refactoring in the code
 * Documentation of code
+* Code for measuring performance of repartitioning

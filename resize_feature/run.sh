@@ -5,10 +5,10 @@
 # compile hpcg app
 cd ..
 make
-cd expanding_feature
+cd resize_feature
 
 # delete old result files
 rm -f *.txt
 clear
 
-./tcp2run -n 2 -s 2 ./../bin/xhpcg
+./launcher/tcp2run -n 2 -s 2 ./../bin/xhpcg
