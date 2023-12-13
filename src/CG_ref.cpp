@@ -176,17 +176,24 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     assert(k == 11);
   }
 #endif
+
   double t_before_start = 0;
   double t_after_start = 0;
-  for (; k <= max_iter && normr / normr0 > tolerance; k++)
+  int k_before = 0;
+  int k_after = 0;
+  double local_time = 0;
+  int max_iter2 = 100;
+  for (; k <= max_iter2 && normr / normr0 > tolerance; k++)
   {
-    if(k <= 10)
+    if (k <= 50)
     {
       t_before_start = mytimer();
+      k_before++;
     }
-    else if(k > 10)
+    else if (k > 50 && k <= 100)
     {
       t_after_start = mytimer();
+      k_after++;
     }
 
     // TICK();
@@ -241,25 +248,22 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
       double local_time = mytimer() - t_before_start;
       // printf("Before repart_Iteration %d \t local_time: %.25f seconds\n", k, local_time);
 
-      if(local_time > t_it_before)
+      if (k <= 50)
       {
-        t_it_before = local_time; // worst time of all iterations before repartitioning
+        local_time = mytimer() - t_before_start;
+        t_it_before += local_time; // worst time of all iterations before repartitioning
       }
-    }
-    else if (k > 10)
-    {
-      double local_time = mytimer() - t_after_start;
-      // printf("after repart_Iteration %d \t local_time: %.25f seconds\n", k, local_time);
-      if (local_time > t_it_after)
+      else if (k > 50 && k <= 100)
       {
-        t_it_after = local_time; // worst time of all iterations before repartitioning
+        local_time = mytimer() - t_after_start;
+        t_it_after += local_time; // worst time of all iterations before repartitioning
       }
     }
 
 #ifdef REPARTITION
     // Repartitioning / Resizing of current world (group of proccesses) in the 10th iteration
     // For now, repartitioning is only done once
-    if (k == 10 && A.repartition_me && !A.repartitioned)
+    if (k == 50 && A.repartition_me && !A.repartitioned)
     {
       TICK();
       A.repartition_me = false;             // do not repartition the matrix anymore
@@ -336,15 +340,17 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 #endif // REPARTITION
   }
 
-  laik_allreduce(&t_rep, &t_rep, 1, laik_Double, LAIK_RO_Max);             // get also worst case over all processes
-  laik_allreduce(&t_it_before, &t_it_before, 1, laik_Double, LAIK_RO_Max); // get also worst case over all processes
-  laik_allreduce(&t_it_after, &t_it_after, 1, laik_Double, LAIK_RO_Max);   // get also worst case over all processes
+  t_it_before = (t_it_before / (double)k_before);
+  t_it_after = (t_it_after / (double)k_after);
 
-  if(A.geom->rank == 0)
+  // if(A.geom->rank == 0)
   {
-    printf("Time for repartitioning; %.25f seconds\n", t_rep);
-    printf("Worst case of iteration duration before repartitioning: %.25f seconds\n", t_it_before);
-    printf("Worst case of iteration duration after repartitioning: %.25f seconds\n", t_it_after);
+    std::string result{"LAIK \t"};
+    result += to_string(laik_myid(world)) + "\n";
+    result += "avg before repartitioning: " + to_string(t_it_before) + " seconds\n";
+    result += "avg after repartitioning: " + to_string(t_it_after) + " seconds\n";
+    result += "repartitioning time: " + to_string(t_rep) + " seconds\n";
+    std::cout << result;
   }
 
 

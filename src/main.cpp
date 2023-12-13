@@ -244,6 +244,45 @@ int main(int argc, char *argv[])
   }
 #endif
 
+  // Measure memory consumption
+  double total_mem_in_bytes = 0;
+
+  double *ptr;
+  uint64_t count;
+  laik_get_map_1d(b_l->values, 0, (void **)&ptr, &count);
+  total_mem_in_bytes += count;
+  laik_get_map_1d(x_l->values, 0, (void **)&ptr, &count);
+  total_mem_in_bytes += count;
+  laik_get_map_1d(data.r_blob->values, 0, (void **)&ptr, &count);
+  total_mem_in_bytes += count;
+  laik_get_map_1d(data.z_blob->values, 0, (void **)&ptr, &count);
+  total_mem_in_bytes += count;
+  laik_get_map_1d(data.p_blob->values, 0, (void **)&ptr, &count);
+  total_mem_in_bytes += count;
+  laik_get_map_1d(data.Ap_blob->values, 0, (void **)&ptr, &count);
+  total_mem_in_bytes += count;
+
+  curLevelMatrix = &A;
+  MGData *curMGData;
+  for (int level = 1; level < numberOfMgLevels; ++level)
+  {
+    curMGData = curLevelMatrix->mgData;
+    laik_get_map_1d(curMGData->Axf_blob->values, 0, (void **)&ptr, &count);
+    total_mem_in_bytes += count;
+    laik_get_map_1d(curMGData->xc_blob->values, 0, (void **)&ptr, &count);
+    total_mem_in_bytes += count;
+    laik_get_map_1d(curMGData->rc_blob->values, 0, (void **)&ptr, &count);
+    total_mem_in_bytes += count;
+
+    curLevelMatrix = curLevelMatrix->Ac; // Next level
+  }
+
+  printf("%.1f total doubles (mem %.6f MB)\n",
+         (double)total_mem_in_bytes, 8 * total_mem_in_bytes * 0.000001); /// 1000000);
+
+  exit(1);
+
+
   printf("\x1B[34m ROWS: %lld \x1B[0m\n", A.totalNumberOfRows);
   ////////////////////////////////////
   // Reference SpMV+MG Timing Phase //
