@@ -1,0 +1,34 @@
+######### v1.2
+4 -> 8 (16384):
+  Time for repartitioning; 0.67824 seconds
+  Worst case of iteration duration before repartitioning: 0.79582 seconds
+  Worst case of iteration duration after repartitioning: 0.87213 seconds
+
+8 -> 16 (32768):
+  Time for repartitioning; 2.35933 seconds
+  Worst case of iteration duration before repartitioning: 1.01259 seconds
+  Worst case of iteration duration after repartitioning: 1.12401 seconds
+
+
+12 -> 16 (49152):
+  Time for repartitioning; 3.88683 seconds
+  Worst case of iteration duration before repartitioning: 1.21614 seconds
+  Worst case of iteration duration after repartitioning: 1.42423 seconds
+
+
+######### v1.1
+
+4 -> 8 (16384):
+  Worst case for repartitioning: 0.72340 seconds
+  Worst case of iteration duration before repartitioning: 0.72404 seconds
+  Worst case of iteration duration after repartitioning: 0.87169 seconds
+
+8 -> 16 (32768):
+  Worst case for repartitioning: 2.27608 seconds
+  Worst case of iteration duration before repartitioning: 0.98824 seconds
+  Worst case of iteration duration after repartitioning: 1.08426 seconds
+
+12 -> 16 (49152):
+  Worst case for repartitioning: 3.60445 seconds
+  Worst case of iteration duration before repartitioning: 1.18003 seconds
+  Worst case of iteration duration after repartitioning: 1.32803 seconds
