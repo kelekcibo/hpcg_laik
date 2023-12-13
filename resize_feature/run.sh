@@ -4,11 +4,11 @@
 
 # compile hpcg app
 cd ..
-make
+make arch=Linux_LAIK
 cd resize_feature
 
 # delete old result files
 rm -f *.txt
 clear
 
-./launcher/tcp2run -n 2 -s 2 ./../bin/xhpcg
+./launcher/tcp2run -n 4 -s 4 ./../bin/xhpcg
