@@ -156,21 +156,26 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
   if(A.repartition_me && laik_phase(hpcg_instance) > 0)
   {
     k = laik_phase(hpcg_instance); // should equal 11
-    assert(k == 11);
+    // assert(k == 11);
   }
 #endif 
 
   double t_before_start = 0;
   double t_after_start = 0;
+  int k_before = 0;
+  int k_after = 0;
+  double local_time = 0;
   for (; k <= max_iter && normr / normr0 > tolerance; k++)
   {
-    if (k <= 10)
+    if (k <= 25)
     {
       t_before_start = mytimer();
+      k_before++;
     }
-    else if (k > 10 && k >= 21)
+    else if (k > 25 && k <= 50)
     {
       t_after_start = mytimer();
+      k_after++;
     }
 
     TICK();
@@ -222,29 +227,20 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
       HPCG_fout << "Iteration = " << k << "   Scaled Residual = " << normr / normr0 << std::endl;
 #endif
     niters = k;
-    if (k <= 10)
+    if (k <= 25)
     {
-      double local_time = mytimer() - t_before_start;
-      // printf("Before repart_Iteration %d \t local_time: %.25f seconds\n", k, local_time);
-
-      if (local_time > t_it_before)
-      {
-        t_it_before = local_time; // worst time of all iterations before repartitioning
-      }
+      local_time = mytimer() - t_before_start;
+      t_it_before += local_time; // worst time of all iterations before repartitioning
     }
-    else if (k > 10 && k >= 21)
+    else if (k > 25 && k <= 50)
     {
-      double local_time = mytimer() - t_after_start;
-      // printf("after repart_Iteration %d \t local_time: %.25f seconds\n", k, local_time);
-      if (local_time > t_it_after)
-      {
-        t_it_after = local_time; // worst time of all iterations before repartitioning
-      }
+      local_time = mytimer() - t_after_start;
+      t_it_after += local_time; // worst time of all iterations before repartitioning
     }
 #ifdef REPARTITION
     // Repartitioning / Resizing of current world (group of proccesses) in the 10th iteration
     // For now, repartitioning is only done once
-    if (k == 10 && A.repartition_me && !A.repartitioned)
+    if (k == 25 && A.repartition_me && !A.repartitioned)
     {
       TICK();
       A.repartition_me = false;             // do not repartition the matrix anymore
@@ -321,9 +317,9 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 
   if (A.geom->rank == 0)
   {
-    printf("Worst case of iteration duration before repartitioning: %.25f seconds\n", t_it_before);
-    printf("Worst case of iteration duration after repartitioning: %.25f seconds\n", t_it_after);
-    printf("Worst case for repartitioning: %.25f seconds\n", t_rep);
+    printf("avg before repartitioning: %.5f / %.1f = %.5f seconds\n", t_it_before, (double)k_before, (t_it_before / (double)k_before));
+    printf("avg after repartitioning: %.5f / %.1f = %.5f seconds\n", t_it_after, (double)k_after, (t_it_after / (double)k_after));
+    printf("repartitioning time: %.5f seconds\n", t_rep);
   }
 
 // #ifdef REPARTITION
