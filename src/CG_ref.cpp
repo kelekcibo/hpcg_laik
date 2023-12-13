@@ -67,6 +67,9 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
   // #ifndef HPCG_NO_MPI
   //   double t6 = 0.0;
   // #endif
+  double t_rep = 0;
+  double t_it_before = 0;
+  double t_it_after = 0;
 
   local_int_t nrow = A.localNumberOfRows;
 
@@ -155,10 +158,21 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     k = laik_phase(hpcg_instance); // should equal 11
     assert(k == 11);
   }
-#endif
+#endif 
 
+  double t_before_start = 0;
+  double t_after_start = 0;
   for (; k <= max_iter && normr / normr0 > tolerance; k++)
   {
+    if (k <= 10)
+    {
+      t_before_start = mytimer();
+    }
+    else if (k > 10)
+    {
+      t_after_start = mytimer();
+    }
+
     TICK();
     if (doPreconditioning)
       ComputeMG_laik_ref(A, r, z, k); // Apply preconditioner
@@ -208,21 +222,33 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
       HPCG_fout << "Iteration = " << k << "   Scaled Residual = " << normr / normr0 << std::endl;
 #endif
     niters = k;
+    if (k <= 10)
+    {
+      double local_time = mytimer() - t_before_start;
+      // printf("Before repart_Iteration %d \t local_time: %.25f seconds\n", k, local_time);
 
+      if (local_time > t_it_before)
+      {
+        t_it_before = local_time; // worst time of all iterations before repartitioning
+      }
+    }
+    else if (k > 10)
+    {
+      double local_time = mytimer() - t_after_start;
+      // printf("after repart_Iteration %d \t local_time: %.25f seconds\n", k, local_time);
+      if (local_time > t_it_after)
+      {
+        t_it_after = local_time; // worst time of all iterations before repartitioning
+      }
+    }
 #ifdef REPARTITION
     // Repartitioning / Resizing of current world (group of proccesses) in the 10th iteration
     // For now, repartitioning is only done once
     if (k == 10 && A.repartition_me && !A.repartitioned)
     {
+      TICK();
       A.repartition_me = false;             // do not repartition the matrix anymore
       uint32_t old_size = laik_size(world); // Old world size for output
-
-      /* Code for shrinking world */
-      // int shrink_count = 1;
-      // int plist[1];
-      // plist[0] = 1; // remove proc 1 as test with config: size = 2
-      // Laik_Group * newworld = laik_new_shrinked_group(world, shrink_count, plist);
-      /* Code for shrinking world */
 
       // allow resize of world and get new world
       Laik_Group *newworld = laik_allow_world_resize(hpcg_instance, k + 1);
@@ -284,8 +310,20 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
         A.repartitioned = true;
         HPCG_fout << "REPARTIONING: Old world size [" << old_size << "] New world size [" << new_size << "]" << std::endl;
       }
+      TOCK(t_rep);
     }
 #endif // REPARTITION
+  }
+
+  laik_allreduce(&t_rep, &t_rep, 1, laik_Double, LAIK_RO_Max);             // get also worst case over all processes
+  laik_allreduce(&t_it_before, &t_it_before, 1, laik_Double, LAIK_RO_Max); // get also worst case over all processes
+  laik_allreduce(&t_it_after, &t_it_after, 1, laik_Double, LAIK_RO_Max);   // get also worst case over all processes
+
+  if (A.geom->rank == 0)
+  {
+    printf("Worst case of iteration duration before repartitioning: %.25f seconds\n", t_it_before);
+    printf("Worst case of iteration duration after repartitioning: %.25f seconds\n", t_it_after);
+    printf("Worst case for repartitioning: %.25f seconds\n", t_rep);
   }
 
 // #ifdef REPARTITION
