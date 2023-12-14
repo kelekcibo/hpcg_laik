@@ -14,16 +14,23 @@ Memory consumption:
   Local size 40*40*40 = 64000
 
 8 Procs:
-  1875120.0 total doubles (mem 15.000960 MB) per proc
+  1875120.0 total doubles (mem 15.000960 MB) per proc 1.280.000
 
 20 Procs:
-  4650120.0 total doubles (mem 37.200960 MB)
+  4650120.0 total doubles (mem 37.200960 MB) 3.200.000
 
 50 Procs:
   4650120.0 total doubles (mem 37.200960 MB)
 
 125 Procs:
   11624730.0 total doubles (mem 92.997840 MB)
+
+# NO linear/exponential growth! Rather, it depends on the distribution of the global indexes (rows) to processes.
+# see this example:
+  30 procs: 
+    2800120.0 total doubles (mem 22.400960 MB)
+  40 procs:
+    (mem 29.800960 MB)
 
 # v1.2 and HPCG Benchmark
 
@@ -50,3 +57,6 @@ Memory consumption:
 
 # v1.2 and HPCG Benchmark
   8352994.0 total doubles (mem 66.823952 MB)
+
+
+  
