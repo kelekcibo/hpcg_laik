@@ -1,0 +1,19 @@
+# Average Performance before and after repartitioning
+
+4 -> 8 procs
+
+    repartitioning time: 0.701843 seconds
+    avg before repartitioning: 0.720252 seconds
+    avg after repartitioning: 0.844827 seconds
+
+12 -> 16 procs
+
+    repartitioning time: 3.669362 seconds
+    avg before repartitioning: 1.181328 seconds
+    avg after repartitioning: 1.367885 seconds
+
+8 -> 16 procs
+
+    repartitioning time: 2.260992 seconds
+    avg before repartitioning: 0.983275 seconds
+    avg after repartitioning: 1.083108 seconds
