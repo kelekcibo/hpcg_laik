@@ -158,7 +158,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     k = laik_phase(hpcg_instance); // should equal 11
     // assert(k == 11);
   }
-#endif 
+#endif
 
   double t_before_start = 0;
   double t_after_start = 0;
@@ -168,6 +168,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
   int max_iter2 = 100;
   for (; k <= max_iter2 && normr / normr0 > tolerance; k++)
   {
+    printf("%dth iteration\n", k);
     if (k <= 50)
     {
       t_before_start = mytimer();
@@ -231,12 +232,12 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
     if (k <= 50)
     {
       local_time = mytimer() - t_before_start;
-      t_it_before += local_time; // worst time of all iterations before repartitioning
+      t_it_before += local_time; // avg time of all iterations before repartitioning
     }
     else if (k > 50 && k <= 100)
     {
       local_time = mytimer() - t_after_start;
-      t_it_after += local_time; // worst time of all iterations before repartitioning
+      t_it_after += local_time; // avg time of all iterations before repartitioning
     }
 #ifdef REPARTITION
     // Repartitioning / Resizing of current world (group of proccesses) in the 10th iteration
@@ -312,23 +313,28 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
 #endif // REPARTITION
   }
 
-  t_it_before = (t_it_before / (double)k_before);
+  // change according to test size TODO do it automatically
+  int old_size = 12 - 1;
+  int new_size = 16 - 1;
+
+  if (laik_myid(world) <= old_size)
+    t_it_before = (t_it_before / (double)k_before);
+
   t_it_after = (t_it_after / (double)k_after);
 
-  //   laik_allreduce(&t_rep, &t_rep, 1, laik_Double, LAIK_RO_Sum);         // get also worst case over all processes
-  // laik_allreduce(&t_it_before, &t_it_before, 1, laik_Double, LAIK_RO_Sum); // get also worst case over all processes
-  // laik_allreduce(&t_it_after, &t_it_after, 1, laik_Double, LAIK_RO_Sum);   // get also worst case over all processes
-
-  // if (A.geom->rank == 0)
+  // if(A.geom->rank == 0)
   {
     std::string result{"LAIK \t"};
     result += to_string(laik_myid(world)) + "\n";
-    result += "avg before repartitioning: " + to_string(t_it_before) + " seconds\n";
+    if (laik_myid(world) <= old_size)
+    {
+      result += "repartitioning time: " + to_string(t_rep) + " seconds\n";
+      result += "avg before repartitioning: " + to_string(t_it_before) + " seconds\n";
+    }
+
     result += "avg after repartitioning: " + to_string(t_it_after) + " seconds\n";
-    result += "repartitioning time: " + to_string(t_rep) + " seconds\n";
     std::cout << result;
   }
-
 
   // #ifdef REPARTITION
   //   laik_set_phase(hpcg_instance, 0, 0, 0);
@@ -344,6 +350,7 @@ int CG_laik_ref(SparseMatrix &A, CGData &data, Laik_Blob *b, Laik_Blob *x,
   //   times[6] += t6; // exchange halo time
   // #endif
   times[0] += mytimer() - t_begin; // Total time. All done...
+  exit(1);
   // printf("Reference CG Timing Phase: %.5f seconds\n", times[0]);
 
   return 0;
