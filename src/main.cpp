@@ -87,9 +87,9 @@ int main(int argc, char *argv[])
   #ifndef HPCG_NO_LAIK
   hpcg_instance = laik_init(&argc, &argv);
   world = laik_world(hpcg_instance);
-  #else
-    MPI_Init(&argc, &argv);
-  #endif // HPCG_NO_LAIK
+#else
+  MPI_Init(&argc, &argv);
+#endif // HPCG_NO_LAIK
 #endif // HPCG_NO_MPI
 
   HPCG_Init(&argc, &argv, params); 
@@ -129,7 +129,6 @@ int main(int argc, char *argv[])
   #endif // HPCG_NO_LAIK
 #endif // HPCG_NO_MPI
 #endif // HPCG_DETAILED_DEBUG
-
   local_int_t nx, ny, nz;
   nx = (local_int_t)params.nx; ny = (local_int_t)params.ny; nz = (local_int_t)params.nz;
   int ierr = 0; // Used to check return codes on function calls
@@ -277,10 +276,10 @@ int main(int argc, char *argv[])
     curLevelMatrix = curLevelMatrix->Ac; // Next level
   }
 
-  printf("%.1f total doubles (mem %.6f MB)\n",
-         (double)total_doubles, 8 * total_doubles * 0.000001); /// 1000000);
+  // printf("%.1f total doubles (mem %.6f MB)\n",
+        //  (double)total_doubles, 8 * total_doubles * 0.000001); /// 1000000);
 
-  exit(1);
+  // exit(1);
 
 
   printf("\x1B[34m ROWS: %lld \x1B[0m\n", A.totalNumberOfRows);
@@ -309,7 +308,7 @@ int main(int argc, char *argv[])
   FillRandomVector(x_overlap);
 #endif // HPCG_NO_LAIK
 
-  int numberOfCalls = 10;
+  int numberOfCalls = 0;
 
   if (quickPath) numberOfCalls = 1; // QuickPath means we do on one call of each block of repetitive code
 
@@ -388,6 +387,7 @@ int main(int argc, char *argv[])
     if (ierr) ++err_count; // count the number of errors in CG
     totalNiters_ref += niters;
   }
+  exit_hpcg_run("Measuring average iteration duration before and after repartitioning!", false);
 
   if (rank == 0 && err_count) HPCG_fout << err_count << " error(s) in call(s) to reference CG." << endl;
   double refTolerance = normr / normr0;
